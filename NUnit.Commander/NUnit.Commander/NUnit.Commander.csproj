@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <Authors>Michael Brown</Authors>
+    <Company>Refactor Software</Company>
+    <Description>A wrapper for running NUnit tests that provides real-time reporting using NUnit-Console or dotnet test</Description>
+    <PackageReleaseNotes>A wrapper for running NUnit tests that provides real-time reporting using NUnit-Console or dotnet test</PackageReleaseNotes>
+    <PackageProjectUrl>https://github.com/replaysMike/NUnit.Extension.TestMonitor</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/replaysMike/NUnit.Extension.TestMonitor</RepositoryUrl>
+    <PackageTags>nunit commander real-time testing tests refactor software michael brown</PackageTags>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Version>1.0.0</Version>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PublishSingleFile>true</PublishSingleFile>
+    <RuntimeIdentifier>win10-x64</RuntimeIdentifier>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AnyConsole" Version="1.0.43" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\AnyConsole\AnyConsole\AnyConsole\AnyConsole.csproj" />
+  </ItemGroup>
+
+</Project>
