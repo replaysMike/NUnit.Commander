@@ -14,18 +14,20 @@ namespace NUnit.Commander
     public class Commander : ICommander, IDisposable
     {
         private const int ConnectionTimeoutSeconds = 10;
-        private const int MessageBufferSize = 8192;
+        private const int MessageBufferSize = 4096;
         private const int PollIntervalMilliseconds = 100;
-        private const int ActiveTestLifetimeMilliseconds = 8000;
+        private const int ActiveTestLifetimeMilliseconds = 3000;
 
         private ExtendedConsole _console;
         private NamedPipeClientStream _client;
         private Thread _readThread;
         private ManualResetEvent _closeEvent;
+        private ManualResetEvent _dataReadEvent;
         private StringBuilder _display;
         private IList<EventEntry<DataEvent>> _eventLog;
         private List<EventEntry<DataEvent>> _activeTests;
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private int _lastNumberOfTestsRunning = 0;
 
         /// <summary>
         /// List of tests that are currently running
@@ -46,6 +48,7 @@ namespace NUnit.Commander
         {
             _console = console;
             _closeEvent = new ManualResetEvent(false);
+            _dataReadEvent = new ManualResetEvent(false);
             _display = new StringBuilder();
             _eventLog = new List<EventEntry<DataEvent>>();
             _activeTests = new List<EventEntry<DataEvent>>();
@@ -80,37 +83,41 @@ namespace NUnit.Commander
 
         private void ReadThread()
         {
+            var buffer = new byte[MessageBufferSize];
             while (!_closeEvent.WaitOne(PollIntervalMilliseconds))
             {
-                var buffer = new byte[MessageBufferSize];
-                var startTime = DateTime.Now;
-                Debug.WriteLine($"BEGIN READ");
-                _client.BeginRead(buffer, 0, MessageBufferSize, (ar) =>
+                if (_client.CanRead && !_dataReadEvent.WaitOne(10))
                 {
-                    Debug.WriteLine($"START READ");
-                    var bytesRead = _client.EndRead(ar);
-                    var elapsed = DateTime.Now.Subtract(startTime);
-                    Debug.WriteLine($"READ {bytesRead} bytes took {elapsed.TotalSeconds}s");
-                    if (bytesRead > 0)
-                    {
-                        var eventStr = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                        var e = new EventEntry<DataEvent>(JsonSerializer.Deserialize<DataEvent>(eventStr));
-                        Debug.WriteLine($"READ Event: {e.Event.EventName} Test: {e.Event.TestName} Duration: {e.Event.Duration}");
-                        _lock.Wait();
-                        try
-                        {
-                            _eventLog.Add(e);
-                            ProcessActiveTests(e);
-                        }
-                        finally
-                        {
-                            _lock.Release();
-                        }
-                    }
-                }, null);
+                    _dataReadEvent.Set();
+                    _client.BeginRead(buffer, 0, buffer.Length, new AsyncCallback(ReadCallback), buffer);
+                }
                 RemoveExpiredActiveTests();
                 DisplayActiveTests();
             }
+        }
+
+        private void ReadCallback(IAsyncResult ar)
+        {
+            var buffer = ar.AsyncState as byte[];
+            var bytesRead = _client.EndRead(ar);
+
+            if (bytesRead > 0)
+            {
+                var eventStr = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                var e = new EventEntry<DataEvent>(JsonSerializer.Deserialize<DataEvent>(eventStr));
+                _lock.Wait();
+                try
+                {
+                    _eventLog.Add(e);
+                    ProcessActiveTests(e);
+                }
+                finally
+                {
+                    _lock.Release();
+                }
+            }
+            // signal ready to read more data
+            _dataReadEvent.Reset();
         }
 
         private void DisplayActiveTests()
@@ -122,11 +129,19 @@ namespace NUnit.Commander
                 if (_activeTests.Any())
                 {
                     var testNumber = 0;
+                    if (_activeTests.Count != _lastNumberOfTestsRunning)
+                    {
+                        // number of tests changed, clear the display
+                        Debug.WriteLine($"CLEAR {_activeTests.Count} {_lastNumberOfTestsRunning}");
+                        _console.Clear();
+                        _lastNumberOfTestsRunning = _activeTests.Count;
+                    }
                     foreach (var test in _activeTests)
                     {
-                        var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
-                        var str = $"[{testNumber}]: {test.Event.Runtime}\\{test.Event.TestName}: {lifetime.TotalSeconds} [{GetTestStatus(test.Event)}]{Environment.NewLine}";
-                        // _console.ClearAt(0, yPos + testNumber);
+                        var lifetime = DateTime.Now.Subtract(test.Event.StartTime).TotalSeconds.ToString();
+                        if (test.Event.EndTime != DateTime.MinValue)
+                            lifetime = test.Event.Duration.TotalSeconds.ToString();
+                        var str = $"[{testNumber}]: {test.Event.Runtime}\\{test.Event.TestName}: {lifetime} [{GetTestStatus(test.Event)}]               {Environment.NewLine}";
                         _console.WriteAt(str, 0, yPos + testNumber);
                         testNumber++;
                     }
@@ -154,7 +169,7 @@ namespace NUnit.Commander
 
         private string GetTestStatus(DataEvent e)
         {
-            if (e.EndTime > DateTime.MinValue)
+            if (e.EndTime != DateTime.MinValue)
                 return e.TestResult ? "PASSED" : "FAILED";
             return "RUNNING";
         }
@@ -164,11 +179,11 @@ namespace NUnit.Commander
             _lock.Wait();
             try
             {
-                foreach (var test in _activeTests)
-                    Debug.WriteLine($"  - Should remove {test.Event.TestName} ({test.RemovalTime.ToLongTimeString()} > {DateTime.Now.ToLongTimeString()}) = {test.RemovalTime > DateTime.Now}");
                 var testsRemoved = _activeTests.RemoveAll(x => x.RemovalTime != DateTime.MinValue && x.RemovalTime < DateTime.Now);
                 if (testsRemoved > 0)
+                {
                     Debug.WriteLine($"REMOVED {testsRemoved} tests");
+                }
             }
             finally
             {
@@ -189,6 +204,7 @@ namespace NUnit.Commander
                     if (matchingActiveTest != null)
                     {
                         matchingActiveTest.RemovalTime = DateTime.Now.AddMilliseconds(ActiveTestLifetimeMilliseconds);
+                        matchingActiveTest.Event = e.Event;
                         Debug.WriteLine($"Set removal time to {matchingActiveTest.RemovalTime.Subtract(DateTime.Now)} for test {matchingActiveTest.Event.TestName}");
                     }
                     break;

@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace NUnit.Commander.Models
 {
@@ -9,7 +7,7 @@ namespace NUnit.Commander.Models
         public bool IsQueuedForRemoval => RemovalTime != DateTime.MinValue;
         public DateTime RemovalTime { get; set; }
         public DateTime DateAdded { get; }
-        public T Event { get; }
+        public T Event { get; set; }
 
         public EventEntry(T dataEvent)
         {
