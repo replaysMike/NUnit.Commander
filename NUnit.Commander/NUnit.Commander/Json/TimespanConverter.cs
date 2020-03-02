@@ -10,7 +10,9 @@ namespace NUnit.Commander.Json
 
         public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            return TimeSpan.Parse(reader.GetString());
+            var timespanStr = reader.GetString();
+            TimeSpan.TryParse(timespanStr, out var timeSpan);
+            return timeSpan;
         }
 
         public override void Write(Utf8JsonWriter writer, TimeSpan value, JsonSerializerOptions options)

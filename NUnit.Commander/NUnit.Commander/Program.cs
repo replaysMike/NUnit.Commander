@@ -35,6 +35,7 @@ namespace NUnit.Commander
                 commander.ConnectIpcServer();
                 commander.WaitForCompletion();
             }
+            console.Flush();
             console.Close();
             console.Dispose();
         }

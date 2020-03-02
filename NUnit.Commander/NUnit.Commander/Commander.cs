@@ -1,8 +1,10 @@
 ﻿using AnyConsole;
+using NUnit.Commander.Extensions;
 using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO.Pipes;
 using System.Linq;
 using System.Text;
@@ -13,10 +15,10 @@ namespace NUnit.Commander
 {
     public class Commander : ICommander, IDisposable
     {
-        private const int ConnectionTimeoutSeconds = 10;
-        private const int MessageBufferSize = 4096;
+        private const int ConnectionTimeoutSeconds = 30;
+        private const int MessageBufferSize = 1024 * 64;
         private const int PollIntervalMilliseconds = 100;
-        private const int ActiveTestLifetimeMilliseconds = 3000;
+        private const int ActiveTestLifetimeMilliseconds = 2000;
 
         private ExtendedConsole _console;
         private NamedPipeClientStream _client;
@@ -24,20 +26,25 @@ namespace NUnit.Commander
         private ManualResetEvent _closeEvent;
         private ManualResetEvent _dataReadEvent;
         private StringBuilder _display;
-        private IList<EventEntry<DataEvent>> _eventLog;
-        private List<EventEntry<DataEvent>> _activeTests;
+        private IList<EventEntry> _eventLog;
+        private List<EventEntry> _activeTests;
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private int _lastNumberOfTestsRunning = 0;
 
         /// <summary>
         /// List of tests that are currently running
         /// </summary>
-        public IReadOnlyList<EventEntry<DataEvent>> ActiveTests => new List<EventEntry<DataEvent>>(_activeTests).AsReadOnly();
+        public IReadOnlyList<EventEntry> ActiveTests => new List<EventEntry>(_activeTests).AsReadOnly();
 
         /// <summary>
         /// List of all events
         /// </summary>
-        public IReadOnlyList<EventEntry<DataEvent>> EventLog => new List<EventEntry<DataEvent>>(_eventLog).AsReadOnly();
+        public IReadOnlyList<EventEntry> EventLog => new List<EventEntry>(_eventLog).AsReadOnly();
+
+        /// <summary>
+        /// The report type to generate
+        /// </summary>
+        public GenerateReportType GenerateReportType { get; set; } = GenerateReportType.All;
 
         /// <summary>
         /// Get the final run report
@@ -50,8 +57,8 @@ namespace NUnit.Commander
             _closeEvent = new ManualResetEvent(false);
             _dataReadEvent = new ManualResetEvent(false);
             _display = new StringBuilder();
-            _eventLog = new List<EventEntry<DataEvent>>();
-            _activeTests = new List<EventEntry<DataEvent>>();
+            _eventLog = new List<EventEntry>();
+            _activeTests = new List<EventEntry>();
         }
 
         public void ConnectIpcServer()
@@ -104,7 +111,8 @@ namespace NUnit.Commander
             if (bytesRead > 0)
             {
                 var eventStr = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                var e = new EventEntry<DataEvent>(JsonSerializer.Deserialize<DataEvent>(eventStr));
+                var e = new EventEntry(JsonSerializer.Deserialize<DataEvent>(eventStr));
+                Debug.WriteLine($"READ: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
                 _lock.Wait();
                 try
                 {
@@ -132,33 +140,40 @@ namespace NUnit.Commander
                     if (_activeTests.Count != _lastNumberOfTestsRunning)
                     {
                         // number of tests changed, clear the display
-                        Debug.WriteLine($"CLEAR {_activeTests.Count} {_lastNumberOfTestsRunning}");
-                        _console.Clear();
+                        var entriesCleared = _console.ClearAtRange(0, yPos, 0, yPos + _lastNumberOfTestsRunning);
                         _lastNumberOfTestsRunning = _activeTests.Count;
                     }
                     foreach (var test in _activeTests)
                     {
-                        var lifetime = DateTime.Now.Subtract(test.Event.StartTime).TotalSeconds.ToString();
+                        var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
                         if (test.Event.EndTime != DateTime.MinValue)
-                            lifetime = test.Event.Duration.TotalSeconds.ToString();
-                        var str = $"[{testNumber}]: {test.Event.Runtime}\\{test.Event.TestName}: {lifetime} [{GetTestStatus(test.Event)}]               {Environment.NewLine}";
-                        _console.WriteAt(str, 0, yPos + testNumber);
+                            lifetime = test.Event.Duration;
+                        var str = $"[{testNumber}]: {test.Event.Runtime}\\{test.Event.TestName}: {lifetime.ToElapsedTime()}";
+                        var testColor = Color.Yellow;
+                        var testStatus = "RUNNING";
+                        switch (test.Event.TestStatus)
+                        {
+                            case TestStatus.Pass:
+                                testStatus = "PASS";
+                                testColor = Color.Green;
+                                break;
+                            case TestStatus.Fail:
+                                testStatus = "FAIL";
+                                testColor = Color.Red;
+                                break;
+                        }
+                        
+                        _console.WriteAt(ColorTextBuilder.Create.Append(str).Append(" [", Color.White).Append(testStatus, testColor).Append("]    ", Color.White), 0, yPos + testNumber, DirectOutputMode.Static);
                         testNumber++;
                     }
                 }
                 else if (RunReport != null)
                 {
-                    var str = new StringBuilder();
-                    str.Append($"{RunReport.TestCount} tests completed in {RunReport.Duration}{Environment.NewLine}");
-                    str.Append($"Succeeded: {RunReport.Passed}{Environment.NewLine}");
-                    str.Append($"Failed: {RunReport.Failed}{Environment.NewLine}");
-                    _console.Clear();
-                    _console.WriteLine(str.ToString());
-                    Debug.WriteLine(str.ToString());
-                    // signal end of run
-                    // Thread.Sleep(5000);
-                    // _closeEvent.Set();
-                    RunReport = null;
+                    // clear all static entries
+                    _console.ClearAtRange(0, yPos, 0, yPos + _lastNumberOfTestsRunning);
+
+                    WriteReport();
+                    _closeEvent.Set();
                 }
             }
             finally
@@ -167,11 +182,80 @@ namespace NUnit.Commander
             }
         }
 
-        private string GetTestStatus(DataEvent e)
+        private void WriteReport()
         {
-            if (e.EndTime != DateTime.MinValue)
-                return e.TestResult ? "PASSED" : "FAILED";
-            return "RUNNING";
+            var passFail = new StringBuilder();
+            if (GenerateReportType.HasFlag(GenerateReportType.PassFail))
+            {
+                passFail.AppendLine($"{RunReport.TestCount} tests completed in {RunReport.Duration.ToTotalElapsedTime()}");
+                passFail.AppendLine($"Succeeded: {RunReport.Passed}");
+                passFail.AppendLine($"Failed: {RunReport.Failed}");
+                passFail.AppendLine(Environment.NewLine);
+                passFail.AppendLine(Environment.NewLine);
+            }
+
+            var performance = new StringBuilder();
+            if (GenerateReportType.HasFlag(GenerateReportType.Performance))
+            {
+                performance.AppendLine("Top 10 slowest tests");
+                performance.AppendLine("=======================");
+                var slowestTests = _eventLog
+                    .Where(x => x.Event.Event == EventNames.EndTest)
+                    .OrderByDescending(x => x.Event.Duration)
+                    .Take(10);
+                foreach (var test in slowestTests)
+                    performance.AppendLine($"{test.Event.FullName} : [{test.Event.Duration.ToElapsedTime()}]");
+                performance.AppendLine(Environment.NewLine);
+                performance.AppendLine(Environment.NewLine);
+            }
+
+            // output test errors
+            var testOutput = new StringBuilder();
+            var showErrors = GenerateReportType.HasFlag(GenerateReportType.Errors);
+            var showStackTraces = GenerateReportType.HasFlag(GenerateReportType.StackTraces);
+            var showTestOutput = GenerateReportType.HasFlag(GenerateReportType.TestOutput);
+            if (showErrors || showStackTraces || showTestOutput)
+            {
+                if(RunReport.TestStatus == TestStatus.Fail)
+                {
+                    testOutput.AppendLine("FAILED TESTS:");
+                    testOutput.AppendLine(Environment.NewLine);
+                }
+
+                foreach (var test in RunReport.Report.TestReports.Where(x => !x.TestResult))
+                {
+                    testOutput.AppendLine($"FAILED [{test.Id}]:");
+                    testOutput.AppendLine($"{test.TestName}");
+                    testOutput.AppendLine($"========================================");
+                    testOutput.AppendLine($"Duration: {test.Duration.ToElapsedTime()}");
+                    if (showErrors)
+                        testOutput.AppendLine($"Error: {test.ErrorMessage}");
+                    if (showStackTraces)
+                        testOutput.AppendLine($"Stack Trace: {test.StackTrace}");
+                    if (showTestOutput)
+                        testOutput.AppendLine($"Test Output: {test.TestOutput}");
+                    testOutput.AppendLine(Environment.NewLine);
+                    testOutput.AppendLine(Environment.NewLine);
+                }
+            }
+
+            switch (RunReport.TestStatus)
+            {
+                case TestStatus.Pass:
+                    _console.WriteAscii("PASSED");
+                    break;
+                case TestStatus.Fail:
+                    _console.WriteAscii("FAILED");
+                    break;
+            }
+
+            if (passFail.Length > 0)
+                _console.WriteLine(passFail);
+            if (performance.Length > 0)
+                _console.WriteLine(performance);
+
+            if (testOutput.Length > 0)
+                _console.WriteLine(testOutput);
         }
 
         private void RemoveExpiredActiveTests()
@@ -191,20 +275,27 @@ namespace NUnit.Commander
             }
         }
 
-        private void ProcessActiveTests(EventEntry<DataEvent> e)
+        private void ProcessActiveTests(EventEntry e)
         {
-            var eventName = Enum.Parse<EventNames>(e.Event.EventName);
-            switch (eventName)
+            // Debug.WriteLine($"EVENT: {e.Event.Event}");
+            switch (e.Event.Event)
             {
                 case EventNames.StartTest:
-                    _activeTests.Add(e);
+                    // clone the event object
+                    _activeTests.Add(new EventEntry(e));
                     break;
                 case EventNames.EndTest:
-                    var matchingActiveTest = _activeTests.FirstOrDefault(x => x.Event.Id == e.Event.Id);
+                    var matchingActiveTest = _activeTests.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartTest);
                     if (matchingActiveTest != null)
                     {
+                        // update the active test information
                         matchingActiveTest.RemovalTime = DateTime.Now.AddMilliseconds(ActiveTestLifetimeMilliseconds);
-                        matchingActiveTest.Event = e.Event;
+                        matchingActiveTest.Event.Duration = e.Event.Duration;
+                        matchingActiveTest.Event.EndTime = e.Event.EndTime;
+                        matchingActiveTest.Event.TestResult = e.Event.TestResult;
+                        matchingActiveTest.Event.TestStatus = e.Event.TestStatus;
+                        matchingActiveTest.Event.ErrorMessage = e.Event.ErrorMessage;
+                        matchingActiveTest.Event.StackTrace = e.Event.StackTrace;
                         Debug.WriteLine($"Set removal time to {matchingActiveTest.RemovalTime.Subtract(DateTime.Now)} for test {matchingActiveTest.Event.TestName}");
                     }
                     break;
@@ -212,11 +303,6 @@ namespace NUnit.Commander
                     RunReport = e.Event;
                     break;
             }
-        }
-
-        private void DebugDisplay()
-        {
-            Console.WriteLine(_display.ToString());
         }
 
         public void Dispose()

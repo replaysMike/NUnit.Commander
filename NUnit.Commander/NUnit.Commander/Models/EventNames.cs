@@ -2,6 +2,7 @@
 {
     public enum EventNames
     {
+        None = 0,
         StartSuite,
         EndSuite,
         StartTest,

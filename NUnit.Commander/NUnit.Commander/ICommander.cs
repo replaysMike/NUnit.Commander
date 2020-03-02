@@ -13,12 +13,12 @@ namespace NUnit.Commander
         /// <summary>
         /// List of tests that are currently running
         /// </summary>
-        IReadOnlyList<EventEntry<DataEvent>> ActiveTests { get; }
+        IReadOnlyList<EventEntry> ActiveTests { get; }
 
         /// <summary>
         /// List of all events received by NUnit
         /// </summary>
-        IReadOnlyList<EventEntry<DataEvent>> EventLog { get; }
+        IReadOnlyList<EventEntry> EventLog { get; }
 
         /// <summary>
         /// Get the final run report

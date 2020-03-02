@@ -4,31 +4,15 @@ using System.Text.Json.Serialization;
 
 namespace NUnit.Commander.Models
 {
-    public class DataEvent
+    public class TestCaseReport
     {
-        /// <summary>
-        /// The .Net runtime type
-        /// </summary>
-        public string Runtime { get; set; }
-
-        /// <summary>
-        /// Event name (StartSuite, EndSuite, StartTest, EndTest, Report)
-        /// </summary>
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public EventNames Event { get; set; }
-
         /// <summary>
         /// Internal NUnit test id
         /// </summary>
         public string Id { get; set; }
 
         /// <summary>
-        /// Parent object id
-        /// </summary>
-        public string ParentId { get; set; }
-
-        /// <summary>
-        /// Name of test suite
+        /// Parent test suite
         /// </summary>
         public string TestSuite { get; set; }
 
@@ -38,7 +22,7 @@ namespace NUnit.Commander.Models
         public string TestName { get; set; }
 
         /// <summary>
-        /// Full test name
+        /// Full name of test
         /// </summary>
         public string FullName { get; set; }
 
@@ -70,36 +54,6 @@ namespace NUnit.Commander.Models
         public TimeSpan Duration { get; set; }
 
         /// <summary>
-        /// Number of tests passed
-        /// </summary>
-        public int Passed { get; set; }
-
-        /// <summary>
-        /// Number of tests failed
-        /// </summary>
-        public int Failed { get; set; }
-
-        /// <summary>
-        /// Number of warnings generated
-        /// </summary>
-        public int Warnings { get; set; }
-
-        /// <summary>
-        /// Number of ignored tests not run
-        /// </summary>
-        public int Skipped { get; set; }
-
-        /// <summary>
-        /// Number of tests with an inconclusive result
-        /// </summary>
-        public int Inconclusive { get; set; }
-
-        /// <summary>
-        /// Total number of tests run
-        /// </summary>
-        public int TestCount { get; set; }
-
-        /// <summary>
         /// Test output
         /// </summary>
         public string TestOutput { get; set; }
@@ -114,22 +68,14 @@ namespace NUnit.Commander.Models
         /// </summary>
         public string StackTrace { get; set; }
 
-        /// <summary>
-        /// Full test report when all tests are completed
-        /// </summary>
-        public DataReport Report { get; set; }
-
-        public DataEvent() { }
-        public DataEvent(DataEvent dataEvent)
+        public TestCaseReport() { }
+        public TestCaseReport(TestCaseReport dataEvent)
         {
             // clone the entire object
-            if (dataEvent.Runtime != null)
-                Runtime = new string(dataEvent.Runtime.ToCharArray());
-            Event = dataEvent.Event;
             if (dataEvent.Id != null)
                 Id = new string(dataEvent.Id.ToCharArray());
-            if (dataEvent.ParentId != null)
-                ParentId = new string(dataEvent.ParentId.ToCharArray());
+            if (dataEvent.TestSuite != null)
+                TestSuite = new string(dataEvent.TestSuite.ToCharArray());
             if (dataEvent.TestSuite != null)
                 TestSuite = new string(dataEvent.TestSuite.ToCharArray());
             if (dataEvent.TestName != null)
@@ -141,25 +87,12 @@ namespace NUnit.Commander.Models
             StartTime = dataEvent.StartTime;
             EndTime = dataEvent.EndTime;
             Duration = dataEvent.Duration;
-            Passed = dataEvent.Passed;
-            Failed = dataEvent.Failed;
-            Warnings = dataEvent.Warnings;
-            Skipped = dataEvent.Skipped;
-            Inconclusive = dataEvent.Inconclusive;
-            TestCount = dataEvent.TestCount;
             if (dataEvent.TestOutput != null)
                 TestOutput = new string(dataEvent.TestOutput.ToCharArray());
             if (dataEvent.ErrorMessage != null)
                 ErrorMessage = new string(dataEvent.ErrorMessage.ToCharArray());
             if (dataEvent.StackTrace != null)
                 StackTrace = new string(dataEvent.StackTrace.ToCharArray());
-            if (dataEvent.Report != null)
-                Report = new DataReport(dataEvent.Report);
-        }
-
-        public override string ToString()
-        {
-            return $"{Event} - {(TestName ?? TestSuite)} - {Id}";
         }
     }
 }
