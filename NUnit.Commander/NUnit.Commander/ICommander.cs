@@ -1,4 +1,5 @@
 ﻿using NUnit.Commander.Models;
+using System;
 using System.Collections.Generic;
 
 namespace NUnit.Commander
@@ -8,7 +9,8 @@ namespace NUnit.Commander
         /// <summary>
         /// Connect to the Ipc server for messages
         /// </summary>
-        void ConnectIpcServer();
+        /// <param name="showOutput">True to show output relating to connection status/failure</param>
+        void ConnectIpcServer(bool showOutput, Action<ICommander> onFailedConnect);
 
         /// <summary>
         /// List of tests that are currently running
@@ -21,8 +23,18 @@ namespace NUnit.Commander
         IReadOnlyList<EventEntry> EventLog { get; }
 
         /// <summary>
-        /// Get the final run report
+        /// Get the final run reports
         /// </summary>
-        DataEvent RunReport { get; }
+        ICollection<DataEvent> RunReports { get; }
+
+        /// <summary>
+        /// Wait for commander to close
+        /// </summary>
+        void WaitForClose();
+
+        /// <summary>
+        /// Close commander
+        /// </summary>
+        void Close();
     }
 }

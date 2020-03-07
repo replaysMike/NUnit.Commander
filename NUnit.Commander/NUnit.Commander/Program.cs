@@ -1,12 +1,155 @@
 ﻿using AnyConsole;
+using CommandLine;
+using NUnit.Commander.Configuration;
+using NUnit.Commander.IO;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using Console = Colorful.Console;
 
 namespace NUnit.Commander
 {
     class Program
     {
         static void Main(string[] args)
+        {
+            var configProvider = new ConfigurationProvider();
+            var configuration = configProvider.LoadConfiguration();
+            var config = configProvider.Get<ApplicationConfiguration>(configuration);
+
+            var parser = new Parser(c => {
+                c.CaseSensitive = false;
+                c.HelpWriter = Console.Error;
+            });
+            parser.ParseArguments<Options>(args)
+                .WithParsed<Options>(o => Start(o, config))
+                .WithNotParsed<Options>(errors => ArgsParsingError(errors));
+        }
+
+        private static void Start(Options options, ApplicationConfiguration config)
+        {
+            // override any configuration options via commandline
+            if (options.EnableLog.HasValue)
+                config.EnableLog = options.EnableLog.Value;
+            if (options.EnableTestReliabilityAnalysis.HasValue)
+                config.EnableTestReliabilityAnalysis = options.EnableTestReliabilityAnalysis.Value;
+            if (options.DisplayMode.HasValue)
+                config.DisplayMode = options.DisplayMode.Value;
+            if (options.ConnectTimeoutSeconds.HasValue)
+                config.ConnectTimeoutSeconds = options.ConnectTimeoutSeconds.Value;
+            if (options.GenerateReportType.HasValue)
+                config.GenerateReportType = options.GenerateReportType.Value;
+            if (options.SlowestTestsCount.HasValue)
+                config.SlowestTestsCount = options.SlowestTestsCount.Value;
+            if (!string.IsNullOrEmpty(options.LogPath))
+                config.LogPath = options.LogPath;
+
+            var testRunnerSuccess = true;
+            TestRunnerLauncher launcher = null;
+            if (options.TestRunner.HasValue)
+            {
+                // launch test runner in another process if asked
+                launcher = new TestRunnerLauncher(options);
+                testRunnerSuccess = launcher.StartTestRunner();
+            }
+
+            if (testRunnerSuccess)
+            {
+                // blocking
+                switch (config.DisplayMode)
+                {
+                    case DisplayMode.FullScreen:
+                        RunFullScreen(config);
+                        break;
+                    case DisplayMode.LogFriendly:
+                        RunLogFriendly(config);
+                        break;
+                }
+
+                if (launcher != null)
+                {
+                    //Console.Error.WriteLine($"Exit code: {launcher.ExitCode}");
+                    //Console.Error.WriteLine($"OUTPUT: {launcher.ConsoleOutput}");
+                    //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
+                    ParseConsoleRunnerOutput(options.TestRunner.Value, launcher);
+                    launcher.Dispose();
+                }
+            }
+        }
+
+        private static void ParseConsoleRunnerOutput(TestRunner testRunner, TestRunnerLauncher launcher)
+        {
+            launcher.WaitForExit();
+            var output = launcher.ConsoleOutput;
+            var error = launcher.ConsoleError;
+            var exitCode = launcher.ExitCode;
+            switch (testRunner)
+            {
+                case TestRunner.NUnitConsole:
+                    if (exitCode < 0)
+                    {
+                        var startErrorsIndex = output.IndexOf("Errors, Failures and Warnings");
+                        if (startErrorsIndex >= 0)
+                        {
+                            var endErrorsIndex = output.IndexOf("Test Run Summary", startErrorsIndex);
+                            var errors = output.Substring(startErrorsIndex, endErrorsIndex - startErrorsIndex);
+                            Console.ForegroundColor = Color.DarkRed;
+                            Console.WriteLine($"\r\nNUnit-Console Error Output [{exitCode}]:");
+                            Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                            Console.WriteLine("============================");
+                            Console.ForegroundColor = Color.Red;
+                            Console.WriteLine(errors);
+                            Console.ForegroundColor = Color.Gray;
+                        }
+                        else
+                        {
+                            Console.ForegroundColor = Color.DarkRed;
+                            Console.WriteLine($"\r\nNUnit-Console Error Output [{exitCode}]:");
+                            Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                            Console.WriteLine("============================");
+                            Console.ForegroundColor = Color.Red;
+                            Console.WriteLine(output);
+                            Console.ForegroundColor = Color.Gray;
+                        }
+                    }
+                    break;
+                case TestRunner.DotNetTest:
+                    if (!string.IsNullOrEmpty(error) && error != Environment.NewLine)
+                    {
+                        Console.ForegroundColor = Color.DarkRed;
+                        Console.WriteLine($"\r\nDotNetTest Error Output [{exitCode}]:");
+                        Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                        Console.WriteLine("============================");
+                        Console.ForegroundColor = Color.Red;
+                        Console.WriteLine(error);
+                        Console.ForegroundColor = Color.Gray;
+                    }
+                    break;
+            }
+        }
+
+        private static void ArgsParsingError(IEnumerable<Error> errors)
+        {
+            foreach(var error in errors)
+            {
+                if (error.Tag != ErrorType.HelpRequestedError)
+                    Console.Error.WriteLine($"Error: [{error.Tag}] {error.ToString()}");
+            }
+        }
+
+        private static void RunLogFriendly(ApplicationConfiguration configuration)
+        {
+            var console = new LogFriendlyConsole();
+            using (var commander = new Commander(configuration, console))
+            {
+                commander.ConnectIpcServer(true, (c) => c.Close());
+                commander.WaitForClose();
+                console.Close();
+                console.Dispose();
+            }
+        }
+
+        private static void RunFullScreen(ApplicationConfiguration configuration)
         {
             var console = new ExtendedConsole();
             var myDataContext = new ConsoleDataContext();
@@ -30,10 +173,10 @@ namespace NUnit.Commander
             console.WriteRow("SubHeader", "Real-Time Test Monitor", ColumnLocation.Left, Color.FromArgb(60, 60, 60));
             console.Start();
 
-            using (var commander = new Commander(console))
+            using (var commander = new Commander(configuration, console))
             {
-                commander.ConnectIpcServer();
-                commander.WaitForCompletion();
+                commander.ConnectIpcServer(true, (c) => c.Close());
+                commander.WaitForClose();
             }
             console.Flush();
             console.Close();

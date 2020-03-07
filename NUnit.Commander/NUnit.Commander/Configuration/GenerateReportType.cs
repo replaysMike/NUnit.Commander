@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace NUnit.Commander.Models
+namespace NUnit.Commander.Configuration
 {
     /// <summary>
     /// The type of report to output

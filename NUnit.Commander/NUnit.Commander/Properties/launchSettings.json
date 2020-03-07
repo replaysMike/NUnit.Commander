@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "NUnit.Commander": {
+      "commandName": "Project",
+      "commandLineArgs": "--timeout 5 --test-runner DotNetTest --args \"B:\\gitrepo\\personalcode\\NUnit.Extension.TestMonitor\\NUnit.Extension.TestMonitor\\NUnit.Extension.TestMonitor.Tests\""
+    }
+  }
+}
