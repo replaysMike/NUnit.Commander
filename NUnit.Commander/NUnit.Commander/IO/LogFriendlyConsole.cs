@@ -22,6 +22,7 @@ namespace NUnit.Commander.IO
 
         public LogFriendlyConsole()
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.ForegroundColor = Color.Gray;
             Console.BackgroundColor = Color.Black;
             if (!IsOutputRedirected)

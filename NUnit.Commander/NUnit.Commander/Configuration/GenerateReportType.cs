@@ -28,6 +28,10 @@ namespace NUnit.Commander.Configuration
         /// Show all test stack traces
         /// </summary>
         StackTraces = 1 << 4,
-        All = PassFail | Performance | TestOutput | Errors | StackTraces
+        /// <summary>
+        /// Show all test analysis
+        /// </summary>
+        TestAnalysis = 1 << 5,
+        All = PassFail | Performance | TestOutput | Errors | StackTraces | TestAnalysis
     }
 }

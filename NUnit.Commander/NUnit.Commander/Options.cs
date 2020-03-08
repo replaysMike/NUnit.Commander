@@ -25,9 +25,20 @@ namespace NUnit.Commander
         [Option('r', "test-reliability", Required = false, HelpText = "Enable analysis of unrelaible tests over a period of time")]
         public bool? EnableTestReliabilityAnalysis { get; set; }
 
+        [Option('m', "max-runs", Required = false, HelpText = "Specify the number of test runs to store for reliability analysis")]
+        public int? MaxTestReliabilityRuns { get; set; }
+
+        [Option("min-runs", Required = false, HelpText = "The minimum number of history entries to analyze")]
+        public int? MinTestHistoryToAnalyze { get; set; }
+
+        [Option("ratio", Required = false, HelpText = "The minimum percentage (0.001-1.0) of history entries to analyze. Default: 0.05")]
+        public double? MinTestReliabilityThreshold { get; set; }
+
+        [Option("duration-change", Required = false, HelpText = "The minimum percentage (0.001-1.0) of duration changes to analyze. Default: 0.1")]
+        public double? MaxTestDurationChange { get; set; }
+
         [Option("logs-path", Required = false, HelpText = "Specify the path to store logs")]
         public string LogPath { get; set; }
-
         
         [Option("logs-path", Required = false, HelpText = "Specify the number of slowest tests to display in report")]
         public int? SlowestTestsCount { get; set; }

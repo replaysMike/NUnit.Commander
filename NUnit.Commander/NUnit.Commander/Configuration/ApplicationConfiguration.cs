@@ -13,11 +13,6 @@
         public int ConnectTimeoutSeconds { get; set; } = 30;
 
         /// <summary>
-        /// True to analyze unrelaible tests over a period of time
-        /// </summary>
-        public bool EnableTestReliabilityAnalysis { get; set; } = false;
-
-        /// <summary>
         /// True to log final reports to a file
         /// </summary>
         public bool EnableLog { get; set; } = false;
@@ -51,5 +46,10 @@
         /// How long to should keep tests displayed after they have finished running when stdout is redirected
         /// </summary>
         public int RedirectedActiveTestLifetimeMilliseconds { get; set; }
+
+        /// <summary>
+        /// History analysis configuration
+        /// </summary>
+        public HistoryAnalysisConfiguration HistoryAnalysisConfiguration { get; set; } = new HistoryAnalysisConfiguration();
     } 
 }

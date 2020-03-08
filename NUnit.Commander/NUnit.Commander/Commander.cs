@@ -1,4 +1,5 @@
 ﻿using AnyConsole;
+using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.Extensions;
 using NUnit.Commander.IO;
@@ -28,7 +29,7 @@ namespace NUnit.Commander
         private const int DefaultActiveTestLifetimeMilliseconds = 2000;
         // how long to should keep tests displayed after they have finished running when stdout is redirected
         private const int DefaultRedirectedActiveTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds - 500;
-        private readonly string[] DotNetRuntimes = new [] { "dotnet", "testhost.x86", "testhost" };
+        private readonly string[] DotNetRuntimes = new[] { "dotnet", "testhost.x86", "testhost" };
         private readonly string[] NUnitRuntimes = new[] { "nunit-console" };
 
         private IExtendedConsole _console;
@@ -48,10 +49,13 @@ namespace NUnit.Commander
         private int _activeTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds;
         private int _drawIntervalMilliseconds = DefaultDrawIntervalMilliseconds;
         private int _lastDrawChecksum = 0;
+        private Guid _commanderRunId = Guid.NewGuid();
         private ICollection<Guid> _testRunIds = new List<Guid>();
         private ICollection<string> _frameworks = new List<string>();
         private ICollection<string> _frameworkRuntimes = new List<string>();
         private bool _isWaitingForConnection;
+        private TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
+        private TestHistoryAnalyzer _testHistoryAnalyzer;
 
         /// <summary>
         /// List of tests that are currently running
@@ -89,6 +93,8 @@ namespace NUnit.Commander
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
             RunReports = new List<DataEvent>();
+            _testHistoryDatabaseProvider = new TestHistoryDatabaseProvider(_configuration);
+            _testHistoryAnalyzer = new TestHistoryAnalyzer(_configuration, _testHistoryDatabaseProvider);
         }
 
         public Commander(ApplicationConfiguration configuration, IExtendedConsole console) : this(configuration)
@@ -164,7 +170,16 @@ namespace NUnit.Commander
         private void ReadCallback(IAsyncResult ar)
         {
             var buffer = ar.AsyncState as byte[];
-            var bytesRead = _client.EndRead(ar);
+            var bytesRead = 0;
+            try
+            {
+                bytesRead = _client.EndRead(ar);
+            }
+            catch (InvalidOperationException ex)
+            {
+                // server disconnected?
+                Debug.WriteLine($"ERROR|{nameof(ReadCallback)}|{ex.Message} {ex.StackTrace}");
+            }
 
             if (bytesRead > 0)
             {
@@ -335,7 +350,7 @@ namespace NUnit.Commander
         private void WriteReport()
         {
             _endTime = DateTime.Now;
-            var headerLine = "============================";
+            var headerLine = "=================================";
             var lineSeparator = new string('`', Console.WindowWidth / 2);
 
             _console.WriteLine();
@@ -416,7 +431,7 @@ namespace NUnit.Commander
                     .Take(_configuration.SlowestTestsCount);
                 foreach (var test in slowestTests)
                 {
-                    performance.Append($"{test.Event.FullName.Replace(test.Event.TestName, "")}");
+                    performance.Append($" \u2022 {test.Event.FullName.Replace(test.Event.TestName, "")}");
                     performance.Append($"{test.Event.TestName}", Color.White);
                     performance.AppendLine($" : {test.Event.Duration.ToElapsedTime()}", Color.Cyan);
                 }
@@ -428,6 +443,7 @@ namespace NUnit.Commander
             var showErrors = GenerateReportType.HasFlag(GenerateReportType.Errors);
             var showStackTraces = GenerateReportType.HasFlag(GenerateReportType.StackTraces);
             var showTestOutput = GenerateReportType.HasFlag(GenerateReportType.TestOutput);
+            var showTestAnalysis = GenerateReportType.HasFlag(GenerateReportType.TestOutput);
             if (showErrors || showStackTraces || showTestOutput)
             {
                 if (!isPassed)
@@ -438,7 +454,9 @@ namespace NUnit.Commander
                 }
 
                 var testIndex = 0;
-                foreach (var test in RunReports.Where(x => x.Report.TestReports.Any(x => !x.TestResult)))
+                var failedTestCases = RunReports
+                    .SelectMany(x => x.Report.TestReports.Where(x => !x.TestResult));
+                foreach (var test in failedTestCases)
                 {
                     testIndex++;
                     var testIndexStr = $"{testIndex}) ";
@@ -475,10 +493,32 @@ namespace NUnit.Commander
                 }
             }
 
+            var testAnalysisOutput = new ColorTextBuilder();
+            var historyReport = new HistoryReport();
+            // analyze the historical data
+            if (_configuration.HistoryAnalysisConfiguration.Enabled)
+            {
+                _testHistoryDatabaseProvider.LoadDatabase();
+                var historyEntries = RunReports
+                    .SelectMany(x => x.Report.TestReports
+                        .Select(y => new TestHistoryEntry(_commanderRunId.ToString(), x.TestRunId.ToString(), y)));
+                // analyze before saving new results
+                historyReport = _testHistoryAnalyzer.Analyze(historyEntries);
+                _testHistoryDatabaseProvider.AddTestHistoryRange(historyEntries);
+                _testHistoryDatabaseProvider.SaveDatabase();
+
+                if (showTestAnalysis)
+                {
+                    testAnalysisOutput.AppendLine(headerLine, Color.Yellow);
+                    testAnalysisOutput.AppendLine($"  Historical Analysis Report", Color.Yellow);
+                    testAnalysisOutput.AppendLine(headerLine, Color.Yellow);
+                }
+            }
+
             _console.WriteLine();
             _console.WriteLine(ColorTextBuilder.Create.AppendLine(headerLine, Color.Yellow)
                 .AppendLine("  NUnit.Commander Test Report", Color.Yellow));
-            if(_testRunIds?.Any() == true)
+            if (_testRunIds?.Any() == true)
                 _console.WriteLine($"  Test Run Id(s): {string.Join(", ", _testRunIds)}");
             if (_frameworks?.Any() == true)
                 _console.WriteLine($"  Framework(s): {string.Join(", ", _frameworks)}");
@@ -506,6 +546,11 @@ namespace NUnit.Commander
                 _console.WriteLine(performance);
             if (testOutput.Length > 0)
                 _console.WriteLine(testOutput);
+            if (testAnalysisOutput.Length > 0)
+            {
+                _console.WriteLine(testAnalysisOutput);
+                _console.WriteLine(historyReport.BuildReport());
+            }
             if (passFail.Length > 0)
                 _console.WriteLine(passFail);
         }

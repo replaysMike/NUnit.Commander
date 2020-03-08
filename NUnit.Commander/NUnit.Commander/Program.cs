@@ -32,7 +32,13 @@ namespace NUnit.Commander
             if (options.EnableLog.HasValue)
                 config.EnableLog = options.EnableLog.Value;
             if (options.EnableTestReliabilityAnalysis.HasValue)
-                config.EnableTestReliabilityAnalysis = options.EnableTestReliabilityAnalysis.Value;
+                config.HistoryAnalysisConfiguration.Enabled = options.EnableTestReliabilityAnalysis.Value;
+            if (options.MaxTestReliabilityRuns.HasValue)
+                config.HistoryAnalysisConfiguration.MaxTestReliabilityRuns = options.MaxTestReliabilityRuns.Value;
+            if (options.MinTestHistoryToAnalyze.HasValue)
+                config.HistoryAnalysisConfiguration.MinTestHistoryToAnalyze = options.MinTestHistoryToAnalyze.Value;
+            if (options.MinTestReliabilityThreshold.HasValue)
+                config.HistoryAnalysisConfiguration.MinTestReliabilityThreshold = options.MinTestReliabilityThreshold.Value;
             if (options.DisplayMode.HasValue)
                 config.DisplayMode = options.DisplayMode.Value;
             if (options.ConnectTimeoutSeconds.HasValue)
@@ -114,7 +120,7 @@ namespace NUnit.Commander
                     }
                     break;
                 case TestRunner.DotNetTest:
-                    if (!string.IsNullOrEmpty(error) && error != Environment.NewLine)
+                    if (!string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed."))
                     {
                         Console.ForegroundColor = Color.DarkRed;
                         Console.WriteLine($"\r\nDotNetTest Error Output [{exitCode}]:");
