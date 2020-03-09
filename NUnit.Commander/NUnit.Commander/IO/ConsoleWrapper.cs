@@ -59,6 +59,20 @@ namespace NUnit.Commander.IO
 
         public bool IsErrorRedirected => _console.IsErrorRedirected;
 
+        public Encoding OutputEncoding
+        {
+            get
+            {
+                return _console.OutputEncoding;
+            }
+            set
+            {
+                _console.OutputEncoding = value;
+            }
+        }
+
+        public void SetCursorPosition(int x, int y) => _console.SetCursorPosition(x, y);
+
         public void Clear() => _console.Clear();
 
         public int ClearAt(int x, int y) => _console.ClearAt(x, y);

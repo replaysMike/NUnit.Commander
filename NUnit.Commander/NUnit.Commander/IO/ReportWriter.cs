@@ -147,6 +147,7 @@ namespace NUnit.Commander.IO
                     testOutput.Append(testIndexStr, Color.DarkRed);
                     testOutput.AppendLine($"{test.TestName}", Color.Red);
                     testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}");
+                    testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.RuntimeVersion}", Color.DarkCyan);
                     testOutput.AppendLine();
 
                     testOutput.Append($"  Duration: ", Color.DarkGray);

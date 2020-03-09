@@ -36,7 +36,8 @@ namespace NUnit.Commander.Analysis
             TotalDataPoints = data.GroupBy(x => x.CommanderRunId).Count();
 
             // look for unstable tests. Those are defined as tests which have a high ratio of pass/fail
-            var ratio = 0.0;
+            var ratio = string.Empty;
+            var percentage = 0.0;
             foreach (var testgroup in testsByNameWithCurrent)
             {
                 // CommanderRunId gives us a better indication of individual runs, rather than by test name
@@ -46,14 +47,20 @@ namespace NUnit.Commander.Analysis
                     continue;
                 var test = testgroup.Key;
                 var tests = testgroup.ToList();
+                var gcd = (double)MathExtensions.GCD(passed, failed);
                 passed = tests.Count(x => x.IsPass);
                 failed = tests.Count() - passed;
-                ratio = (double)failed / passed;
-                if (ratio > _configuration.HistoryAnalysisConfiguration.MinTestReliabilityThreshold)
+                // express ratio as a percentage
+                if (gcd > 0)
+                    ratio = $"{(failed / gcd)}:{(passed / gcd)}";
+                else
+                    ratio = $"{failed}:{passed}";
+                percentage = (double)failed / tests.Count();
+                if (percentage > _configuration.HistoryAnalysisConfiguration.MinTestReliabilityThreshold)
                 {
                     // only report test if it's contained in this run. That way deleted and renamed tests will be filtered out.
                     if (currentRun.Any(x => x.FullName == test))
-                        report.UnstableTests.Add(new TestPoint(test, passed, failed, tests.Count(), 1.0 - ratio));
+                        report.UnstableTests.Add(new TestPoint(test, passed, failed, tests.Count(), percentage, ratio));
                 }
             }
 

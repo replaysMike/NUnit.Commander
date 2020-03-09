@@ -17,7 +17,8 @@ namespace NUnit.Commander
             var configuration = configProvider.LoadConfiguration();
             var config = configProvider.Get<ApplicationConfiguration>(configuration);
 
-            var parser = new Parser(c => {
+            var parser = new Parser(c =>
+            {
                 c.CaseSensitive = false;
                 c.HelpWriter = Console.Error;
             });
@@ -45,6 +46,8 @@ namespace NUnit.Commander
                 config.ConnectTimeoutSeconds = options.ConnectTimeoutSeconds.Value;
             if (options.MaxActiveTestsToDisplay.HasValue)
                 config.MaxActiveTestsToDisplay = options.MaxActiveTestsToDisplay.Value;
+            if (options.MaxFailedTestsToDisplay.HasValue)
+                config.MaxFailedTestsToDisplay = options.MaxFailedTestsToDisplay.Value;
             if (options.GenerateReportType.HasValue)
                 config.GenerateReportType = options.GenerateReportType.Value;
             if (options.SlowestTestsCount.HasValue)
@@ -105,7 +108,7 @@ namespace NUnit.Commander
                             var endErrorsIndex = output.IndexOf("Test Run Summary", startErrorsIndex);
                             var errors = output.Substring(startErrorsIndex, endErrorsIndex - startErrorsIndex);
                             Console.ForegroundColor = Color.DarkRed;
-                            Console.WriteLine($"\r\nNUnit-Console Error Output [{exitCode}]:");
+                            Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
                             Console.ForegroundColor = Color.FromArgb(50, 0, 0);
                             Console.WriteLine("============================");
                             Console.ForegroundColor = Color.Red;
@@ -116,7 +119,7 @@ namespace NUnit.Commander
                         {
                             // show entire output
                             Console.ForegroundColor = Color.DarkRed;
-                            Console.WriteLine($"\r\nNUnit-Console Error Output [{exitCode}]:");
+                            Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
                             Console.ForegroundColor = Color.FromArgb(50, 0, 0);
                             Console.WriteLine("============================");
                             Console.ForegroundColor = Color.Red;
@@ -129,21 +132,43 @@ namespace NUnit.Commander
                     if (config.ShowTestRunnerOutput || (!string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed.")))
                     {
                         Console.ForegroundColor = Color.DarkRed;
-                        Console.WriteLine($"\r\nDotNetTest Error Output [{exitCode}]:");
+                        Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
                         Console.ForegroundColor = Color.FromArgb(50, 0, 0);
                         Console.WriteLine("============================");
                         Console.ForegroundColor = Color.Red;
                         Console.WriteLine(error);
                         Console.ForegroundColor = Color.Gray;
                     }
+                    else if (config.ShowTestRunnerOutput || output.Contains("MSBUILD : error "))
+                    {
+                        Console.ForegroundColor = Color.DarkRed;
+                        Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
+                        Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                        Console.WriteLine("============================");
+                        Console.ForegroundColor = Color.Red;
+                        Console.WriteLine(output);
+                        Console.ForegroundColor = Color.Gray;
+                    }
                     break;
+            }
+
+            if (config.ShowTestRunnerOutput)
+            {
+                // show entire output
+                Console.ForegroundColor = Color.Gray;
+                Console.WriteLine($"\r\n{options.TestRunner} Output [{exitCode}]:");
+                Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                Console.WriteLine("============================");
+                Console.ForegroundColor = Color.DarkGray;
+                Console.WriteLine(output);
+                Console.ForegroundColor = Color.Gray;
             }
         }
 
         private static void ArgsParsingError(IEnumerable<Error> errors)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
-            foreach(var error in errors)
+            foreach (var error in errors)
             {
                 switch (error.Tag)
                 {
@@ -186,7 +211,8 @@ namespace NUnit.Commander
                 config.SetUpdateInterval(TimeSpan.FromMilliseconds(100));
                 config.SetMaxHistoryLines(1000);
                 config.SetHelpScreen(new DefaultHelpScreen());
-                config.SetQuitHandler((consoleInstance) => {
+                config.SetQuitHandler((consoleInstance) =>
+                {
                     // do something special when quit occurs
                 });
             });
@@ -210,7 +236,7 @@ namespace NUnit.Commander
 
         private static void Console_OnKeyPress(KeyPressEventArgs e)
         {
-            
+
         }
     }
 }

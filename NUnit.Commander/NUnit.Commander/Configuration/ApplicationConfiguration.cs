@@ -38,6 +38,11 @@
         public int MaxActiveTestsToDisplay { get; set; } = 15;
 
         /// <summary>
+        /// The number of failed tests to display on screen at a time
+        /// </summary>
+        public int MaxFailedTestsToDisplay { get; set; } = 5;
+
+        /// <summary>
         /// How often to should draw to the screen when stdout is redirected
         /// </summary>
         public int RedirectedDrawIntervalMilliseconds { get; set; }

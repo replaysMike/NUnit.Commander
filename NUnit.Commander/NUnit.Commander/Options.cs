@@ -22,6 +22,9 @@ namespace NUnit.Commander
         [Option("max-display", Required = false, HelpText = "Specify the number of active tests to display on screen at a time")]
         public int? MaxActiveTestsToDisplay { get; set; }
 
+        [Option("max-failed-display", Required = false, HelpText = "Specify the number of failed tests to display on screen at a time")]
+        public int? MaxFailedTestsToDisplay { get; set; } = 5;
+
         [Option("generate-reports", Required = false, HelpText = "Specify which reports to generate")]
         public GenerateReportType? GenerateReportType { get; set; }
 

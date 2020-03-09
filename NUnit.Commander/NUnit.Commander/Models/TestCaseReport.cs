@@ -12,6 +12,16 @@ namespace NUnit.Commander.Models
         public string Id { get; set; }
 
         /// <summary>
+        /// The .Net runtime type
+        /// </summary>
+        public string Runtime { get; set; }
+
+        /// <summary>
+        /// The .Net runtime full version
+        /// </summary>
+        public string RuntimeVersion { get; set; }
+
+        /// <summary>
         /// Parent test suite
         /// </summary>
         public string TestSuite { get; set; }

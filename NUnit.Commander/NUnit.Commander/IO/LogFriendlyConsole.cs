@@ -20,6 +20,12 @@ namespace NUnit.Commander.IO
         /// </summary>
         public bool IsErrorRedirected => Console.IsErrorRedirected;
 
+        public Encoding OutputEncoding
+        {
+            get { return Console.OutputEncoding; }
+            set { Console.OutputEncoding = value; }
+        }
+
         public LogFriendlyConsole()
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
@@ -30,6 +36,11 @@ namespace NUnit.Commander.IO
                 Console.CursorVisible = false;
                 Console.Clear();
             }
+        }
+
+        public void SetCursorPosition(int x, int y)
+        {
+            Console.SetCursorPosition(x, y);
         }
 
         public void Clear()
@@ -46,7 +57,7 @@ namespace NUnit.Commander.IO
 
         public int ClearAtRange(int startX, int startY, int endX, int endY)
         {
-            for(var y = startY; y < endY; y++)
+            for (var y = startY; y < endY; y++)
             {
                 if (!IsOutputRedirected)
                     Console.SetCursorPosition(startX, y);

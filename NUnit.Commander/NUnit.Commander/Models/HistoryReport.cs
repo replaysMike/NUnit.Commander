@@ -28,9 +28,11 @@ namespace NUnit.Commander.Models
                     var lastDot = test.FullName.LastIndexOf(".");
                     var testName = test.FullName.Substring(lastDot + 1, test.FullName.Length - lastDot - 1);
                     str.Append($" \u2022 {test.FullName.Replace(testName, "")}")
-                        .Append($"{testName}  ", Color.White)
+                        .Append($"{testName} ", Color.White)
                         .Append("[", Color.White)
-                        .Append(string.Format("{0:0.0}% failures", test.Ratio * 100.0), Color.Red)
+                        .Append(string.Format("{0:0.0}% failures", test.Percentage * 100.0), Color.Red)
+                        .Append(", ")
+                        .Append(test.Ratio, Color.Red)
                         .AppendLine("]", Color.White);
                 }
             }
@@ -56,7 +58,7 @@ namespace NUnit.Commander.Models
                     var lastDot = test.FullName.LastIndexOf(".");
                     var testName = test.FullName.Substring(lastDot + 1, test.FullName.Length - lastDot - 1);
                     str.Append($" \u2022 {test.FullName.Replace(testName, "")}")
-                        .Append($"{testName}  ", Color.White)
+                        .Append($"{testName} ", Color.White)
                         .Append($"Diff", Color.White)
                         .Append("[", Color.White)
                         .Append($"{direction}{test.DurationChange.ToElapsedTime()}", color)
@@ -83,16 +85,18 @@ namespace NUnit.Commander.Models
         public int Pass { get; set; }
         public int Fail { get; set; }
         public int Total { get; set; }
-        public double Ratio { get; set; }
+        public double Percentage { get; set; }
+        public string Ratio { get; set; }
         public TimeSpan DurationChange { get; set; }
         public TimeSpan Duration { get; set; }
         public TimeSpan Average { get; set; }
-        public TestPoint(string fullName, int pass, int fail, int total, double ratio)
+        public TestPoint(string fullName, int pass, int fail, int total, double percentage, string ratio)
         {
             FullName = fullName;
             Pass = pass;
             Fail = fail;
             Total = total;
+            Percentage = percentage;
             Ratio = ratio;
             DurationChange = TimeSpan.Zero;
             Duration = TimeSpan.Zero;
@@ -104,7 +108,8 @@ namespace NUnit.Commander.Models
             Pass = 0;
             Fail = 0;
             Total = 0;
-            Ratio = 0;
+            Percentage = 0;
+            Ratio = "";
             DurationChange = durationChange;
             Duration = duration;
             Average = average;
