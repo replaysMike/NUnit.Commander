@@ -10,7 +10,7 @@
         /// <summary>
         /// The time in seconds to try connecting to NUnit test run
         /// </summary>
-        public int ConnectTimeoutSeconds { get; set; } = 30;
+        public int ConnectTimeoutSeconds { get; set; } = 5;
 
         /// <summary>
         /// True to log final reports to a file
@@ -30,7 +30,12 @@
         /// <summary>
         /// Specify the number of slowest tests to display in report
         /// </summary>
-        public int SlowestTestsCount { get; set; }
+        public int SlowestTestsCount { get; set; } = 10;
+
+        /// <summary>
+        /// The number of active tests to display on screen at a time
+        /// </summary>
+        public int MaxActiveTestsToDisplay { get; set; } = 15;
 
         /// <summary>
         /// How often to should draw to the screen when stdout is redirected
@@ -46,6 +51,11 @@
         /// How long to should keep tests displayed after they have finished running when stdout is redirected
         /// </summary>
         public int RedirectedActiveTestLifetimeMilliseconds { get; set; }
+
+        /// <summary>
+        /// True to always show output of the test runner
+        /// </summary>
+        public bool ShowTestRunnerOutput { get; set; } = false;
 
         /// <summary>
         /// History analysis configuration

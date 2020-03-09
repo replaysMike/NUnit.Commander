@@ -13,6 +13,8 @@ namespace NUnit.Commander.Analysis
         TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
         ApplicationConfiguration _configuration;
 
+        public int TotalDataPoints { get; private set; }
+
         public TestHistoryAnalyzer(ApplicationConfiguration configuration, TestHistoryDatabaseProvider testHistoryDatabaseProvider)
         {
             _testHistoryDatabaseProvider = testHistoryDatabaseProvider;
@@ -31,6 +33,7 @@ namespace NUnit.Commander.Analysis
             var total = 0;
             var passed = 0;
             var failed = 0;
+            TotalDataPoints = data.GroupBy(x => x.CommanderRunId).Count();
 
             // look for unstable tests. Those are defined as tests which have a high ratio of pass/fail
             var ratio = 0.0;
@@ -48,7 +51,9 @@ namespace NUnit.Commander.Analysis
                 ratio = (double)failed / passed;
                 if (ratio > _configuration.HistoryAnalysisConfiguration.MinTestReliabilityThreshold)
                 {
-                    report.UnstableTests.Add(new TestPoint(test, passed, failed, tests.Count(), 1.0 - ratio));
+                    // only report test if it's contained in this run. That way deleted and renamed tests will be filtered out.
+                    if (currentRun.Any(x => x.FullName == test))
+                        report.UnstableTests.Add(new TestPoint(test, passed, failed, tests.Count(), 1.0 - ratio));
                 }
             }
 
@@ -79,7 +84,9 @@ namespace NUnit.Commander.Analysis
                         .First();
                     var durationChange = TimeSpan.FromTicks(currentEntry.Duration.Ticks - medianDuration);
                     var anomaly = new TestPoint(test, durationChange, currentEntry.Duration, TimeSpan.FromTicks(medianDuration));
-                    report.DurationAnomalyTests.Add(anomaly);
+                    // only report test if it's contained in this run. That way deleted and renamed tests will be filtered out.
+                    if (currentRun.Any(x => x.FullName == test))
+                        report.DurationAnomalyTests.Add(anomaly);
                 }
             }
 

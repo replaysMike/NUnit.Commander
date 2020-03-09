@@ -5,16 +5,30 @@ VisualStudioVersion = 16.0.29613.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NUnit.Commander", "NUnit.Commander\NUnit.Commander.csproj", "{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}"
 EndProject
+Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "NUnit.Commander.Installer", "NUnit.Commander.Installer\NUnit.Commander.Installer.wixproj", "{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Debug|x86.Build.0 = Debug|Any CPU
 		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Release|x86.ActiveCfg = Release|Any CPU
+		{AA360A9E-2D99-4300-8F7A-34BD8AAE6AE1}.Release|x86.Build.0 = Release|Any CPU
+		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Debug|Any CPU.ActiveCfg = Debug|x86
+		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Debug|x86.ActiveCfg = Debug|x86
+		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Debug|x86.Build.0 = Debug|x86
+		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Release|Any CPU.ActiveCfg = Release|x86
+		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Release|x86.ActiveCfg = Release|x86
+		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

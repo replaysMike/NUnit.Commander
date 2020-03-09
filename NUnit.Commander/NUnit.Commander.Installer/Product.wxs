@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+	<Product Id="*" Name="NUnit.Commander" Language="1033" Version="1.0.0.0" Manufacturer="Refactor Software" UpgradeCode="9a6773fd-ccda-4ccb-82eb-d824609ee4f8">
+		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Keywords="Installer" Platform="x64" 
+             Description="NUnit.Commander is a test manager for running NUnit tests" 
+             Comments="Copyright 2020 Refactor Software"
+             Manufacturer="Refactor Sfotware"
+             Languages="1033"
+             SummaryCodepage="1252"
+             />
+
+		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+    <Icon Id="icon.ico" SourceFile="$(var.NUnit.Commander.ProjectDir)icon.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+    <Feature Id="Complete"
+             Title="NUnit.Commander 1.0"
+             Description="NUnit.Commander is a test manager for running NUnit tests"
+             Level="1"
+             Display="expand"
+             ConfigurableDirectory="INSTALLFOLDER">
+      <Feature Id="ProductFeature" Title="NUnit.Commander Application" Description="NUnit.Commander application" Level="1">
+        <ComponentGroupRef Id="ProductComponents" />
+        <ComponentRef Id="ApplicationShortcut" />
+      </Feature>
+    </Feature>
+    <UI Id='Mondo'>
+      <UIRef Id="WixUI_Mondo" />
+      <UIRef Id="WixUI_ErrorProgressText" />
+      <!-- skip license agreement -->
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="SetupTypeDlg" Order="3">1</Publish>
+      <Publish Dialog="SetupTypeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">1</Publish>
+    </UI>
+	</Product>
+
+  <Fragment>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="NUnit.Commander" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="NUnit.Commander"/>
+      </Directory>
+    </Directory>
+  </Fragment>
+
+  <Fragment>
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="f83aaca6-780f-4fc4-93e0-1cda34163b62">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="NUnit.Commander"
+                  Description="NUnit.Commander is a test manager for running NUnit tests"
+                  Target="[#NUnitCommanderEXE]"
+                  WorkingDirectory="APPLICATIONROOTDIRECTORY"
+                  Icon="icon.ico"
+                  />
+        <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU" Key="Software\RefactorSoftware\NUnitCommander" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+      <Component Id="NUnit.Commander" Guid="f83aaca6-780f-4fc4-93e0-1cda34163b61" Win64="yes">
+        <File Id="NUnitCommanderEXE" Name="NUnit.Commander.exe" Source="$(var.NUnit.Commander.TargetDir)\publish\NUnit.Commander.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x64" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

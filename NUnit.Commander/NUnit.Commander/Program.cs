@@ -43,10 +43,14 @@ namespace NUnit.Commander
                 config.DisplayMode = options.DisplayMode.Value;
             if (options.ConnectTimeoutSeconds.HasValue)
                 config.ConnectTimeoutSeconds = options.ConnectTimeoutSeconds.Value;
+            if (options.MaxActiveTestsToDisplay.HasValue)
+                config.MaxActiveTestsToDisplay = options.MaxActiveTestsToDisplay.Value;
             if (options.GenerateReportType.HasValue)
                 config.GenerateReportType = options.GenerateReportType.Value;
             if (options.SlowestTestsCount.HasValue)
                 config.SlowestTestsCount = options.SlowestTestsCount.Value;
+            if (options.ShowTestRunnerOutput.HasValue)
+                config.ShowTestRunnerOutput = options.ShowTestRunnerOutput.Value;
             if (!string.IsNullOrEmpty(options.LogPath))
                 config.LogPath = options.LogPath;
 
@@ -64,11 +68,11 @@ namespace NUnit.Commander
                 // blocking
                 switch (config.DisplayMode)
                 {
-                    case DisplayMode.FullScreen:
-                        RunFullScreen(config);
-                        break;
                     case DisplayMode.LogFriendly:
                         RunLogFriendly(config);
+                        break;
+                    case DisplayMode.FullScreen:
+                        RunFullScreen(config);
                         break;
                 }
 
@@ -77,26 +81,27 @@ namespace NUnit.Commander
                     //Console.Error.WriteLine($"Exit code: {launcher.ExitCode}");
                     //Console.Error.WriteLine($"OUTPUT: {launcher.ConsoleOutput}");
                     //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
-                    ParseConsoleRunnerOutput(options.TestRunner.Value, launcher);
+                    ParseConsoleRunnerOutput(options, config, launcher);
                     launcher.Dispose();
                 }
             }
         }
 
-        private static void ParseConsoleRunnerOutput(TestRunner testRunner, TestRunnerLauncher launcher)
+        private static void ParseConsoleRunnerOutput(Options options, ApplicationConfiguration config, TestRunnerLauncher launcher)
         {
             launcher.WaitForExit();
             var output = launcher.ConsoleOutput;
             var error = launcher.ConsoleError;
             var exitCode = launcher.ExitCode;
-            switch (testRunner)
+            switch (options.TestRunner)
             {
                 case TestRunner.NUnitConsole:
-                    if (exitCode < 0)
+                    if (exitCode < 0 || config.ShowTestRunnerOutput)
                     {
                         var startErrorsIndex = output.IndexOf("Errors, Failures and Warnings");
                         if (startErrorsIndex >= 0)
                         {
+                            // show errors output
                             var endErrorsIndex = output.IndexOf("Test Run Summary", startErrorsIndex);
                             var errors = output.Substring(startErrorsIndex, endErrorsIndex - startErrorsIndex);
                             Console.ForegroundColor = Color.DarkRed;
@@ -109,6 +114,7 @@ namespace NUnit.Commander
                         }
                         else
                         {
+                            // show entire output
                             Console.ForegroundColor = Color.DarkRed;
                             Console.WriteLine($"\r\nNUnit-Console Error Output [{exitCode}]:");
                             Console.ForegroundColor = Color.FromArgb(50, 0, 0);
@@ -120,7 +126,7 @@ namespace NUnit.Commander
                     }
                     break;
                 case TestRunner.DotNetTest:
-                    if (!string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed."))
+                    if (config.ShowTestRunnerOutput || (!string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed.")))
                     {
                         Console.ForegroundColor = Color.DarkRed;
                         Console.WriteLine($"\r\nDotNetTest Error Output [{exitCode}]:");
@@ -136,10 +142,21 @@ namespace NUnit.Commander
 
         private static void ArgsParsingError(IEnumerable<Error> errors)
         {
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
             foreach(var error in errors)
             {
-                if (error.Tag != ErrorType.HelpRequestedError)
-                    Console.Error.WriteLine($"Error: [{error.Tag}] {error.ToString()}");
+                switch (error.Tag)
+                {
+                    case ErrorType.HelpRequestedError:
+                        break;
+                    case ErrorType.VersionRequestedError:
+                        Console.Error.WriteLine($"Copyright \u00A9 {DateTime.Now.Year} Refactor Software Inc.");
+                        Console.Error.WriteLine($"https://github.com/replaysMike/NUnit.Commander");
+                        break;
+                    default:
+                        Console.Error.WriteLine($"[{error.Tag}] Error: {error.ToString()}");
+                        break;
+                }
             }
         }
 
@@ -173,9 +190,11 @@ namespace NUnit.Commander
                     // do something special when quit occurs
                 });
             });
-            console.OnKeyPress += Console_OnKeyPress; ;
+            console.OnKeyPress += Console_OnKeyPress;
             console.WriteRow("Header", "NUnit Commander", ColumnLocation.Left, Color.Yellow); // show text on the left
-            console.WriteRow("Header", Component.Time, ColumnLocation.Right); // show the time on the right
+            console.WriteRow("Header", Component.Time, ColumnLocation.Right);
+            console.WriteRow("Header", Component.CpuUsage, ColumnLocation.Right);
+            console.WriteRow("Header", Component.MemoryUsed, ColumnLocation.Right);
             console.WriteRow("SubHeader", "Real-Time Test Monitor", ColumnLocation.Left, Color.FromArgb(60, 60, 60));
             console.Start();
 

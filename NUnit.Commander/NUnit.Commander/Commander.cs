@@ -49,13 +49,11 @@ namespace NUnit.Commander
         private int _activeTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds;
         private int _drawIntervalMilliseconds = DefaultDrawIntervalMilliseconds;
         private int _lastDrawChecksum = 0;
-        private Guid _commanderRunId = Guid.NewGuid();
         private ICollection<Guid> _testRunIds = new List<Guid>();
         private ICollection<string> _frameworks = new List<string>();
         private ICollection<string> _frameworkRuntimes = new List<string>();
         private bool _isWaitingForConnection;
-        private TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
-        private TestHistoryAnalyzer _testHistoryAnalyzer;
+        private Guid _commanderRunId = Guid.NewGuid();
 
         /// <summary>
         /// List of tests that are currently running
@@ -93,8 +91,6 @@ namespace NUnit.Commander
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
             RunReports = new List<DataEvent>();
-            _testHistoryDatabaseProvider = new TestHistoryDatabaseProvider(_configuration);
-            _testHistoryAnalyzer = new TestHistoryAnalyzer(_configuration, _testHistoryDatabaseProvider);
         }
 
         public Commander(ApplicationConfiguration configuration, IExtendedConsole console) : this(configuration)
@@ -113,7 +109,7 @@ namespace NUnit.Commander
             var extensionName = "NUnit.Extension.TestMonitor";
             _client = new NamedPipeClientStream(".", "TestMonitorExtension", PipeDirection.InOut);
             if (showOutput)
-                _console.WriteLine($"Connecting to {extensionName} (MaxWait: {ConnectionTimeoutSeconds} seconds)...");
+                _console.WriteLine($"Connecting to {extensionName} (Timeout: {ConnectionTimeoutSeconds} seconds)...");
             try
             {
                 _isWaitingForConnection = true;
@@ -259,6 +255,7 @@ namespace NUnit.Commander
                         _lastNumberOfTestsRunning = _activeTests.Count;
                     }
                     var testNumber = 0;
+                    // write the summary of all test state
                     _console.WriteAt(ColorTextBuilder.Create.Append("Tests state: ")
                             .Append($"Active=", Color.Gray)
                             .Append($"{_activeTests.Count(x => !x.IsQueuedForRemoval)} ", Color.Green)
@@ -273,7 +270,8 @@ namespace NUnit.Commander
                             0,
                             yPos,
                             DirectOutputMode.Static);
-                    foreach (var test in _activeTests.OrderByDescending(x => x.Elapsed).Take(15))
+                    // write the individual tests running up to a maximum, ordered by longest running so they are visible
+                    foreach (var test in _activeTests.OrderByDescending(x => x.Elapsed).Take(_configuration.MaxActiveTestsToDisplay))
                     {
                         testNumber++;
                         var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
@@ -350,209 +348,17 @@ namespace NUnit.Commander
         private void WriteReport()
         {
             _endTime = DateTime.Now;
-            var headerLine = "=================================";
-            var lineSeparator = new string('`', Console.WindowWidth / 2);
-
-            _console.WriteLine();
-
-            var passFail = new ColorTextBuilder();
-            var totalDuration = TimeSpan.FromTicks(RunReports.Sum(x => x.Duration.Ticks));
-            var isPassed = RunReports.All(x => x.TestStatus == TestStatus.Pass);
-            if (GenerateReportType.HasFlag(GenerateReportType.PassFail))
-            {
-                var allSuccess = RunReports.Sum(x => x.Failed) == 0 && RunReports.Sum(x => x.Passed) > 0;
-                var anyFailure = RunReports.Sum(x => x.Failed) > 0;
-                var statusColor = Color.Red;
-                var successColor = Color.DarkGreen;
-                var failuresColor = Color.DarkRed;
-                if (allSuccess)
-                {
-                    successColor = Color.Lime;
-                    statusColor = Color.Lime;
-                }
-                if (RunReports.Sum(x => x.Failed) > 0)
-                    failuresColor = Color.Red;
-
-                var testCount = RunReports.Sum(x => x.TestCount);
-                var passed = RunReports.Sum(x => x.Passed);
-                var failed = RunReports.Sum(x => x.Failed);
-                var warnings = RunReports.Sum(x => x.Warnings);
-                var asserts = RunReports.Sum(x => x.Asserts);
-                var inconclusive = RunReports.Sum(x => x.Inconclusive);
-                var errors = RunReports.SelectMany(x => x.Report.TestReports.Select(t => !string.IsNullOrEmpty(t.ErrorMessage))).Count();
-                var skipped = RunReports.Sum(x => x.Skipped);
-                var testResult = RunReports.All(x => x.TestResult);
-
-                passFail.AppendLine(headerLine, Color.Yellow);
-                passFail.AppendLine("  Test Run Summary", Color.Yellow);
-                passFail.AppendLine(headerLine, Color.Yellow);
-
-                passFail.Append($"  Overall result: ", Color.Gray);
-                passFail.AppendLine(testResult ? "Passed" : "Failed", statusColor);
-
-                passFail.Append($"  Duration: ", Color.Gray);
-                passFail.Append($"{testCount} ", Color.White);
-                passFail.Append($"tests run in ", Color.Gray);
-                passFail.AppendLine($"{totalDuration.ToTotalElapsedTime()}", Color.Cyan);
-                passFail.AppendLine("");
-
-                passFail.Append($"  Test Count: ", Color.Gray);
-                passFail.Append($"{testCount}", Color.White);
-
-                passFail.Append($", Passed: ", Color.Gray);
-                passFail.Append($"{passed}", successColor);
-                passFail.Append($", Failed: ", Color.Gray);
-                passFail.AppendLine($"{failed}", failuresColor);
-
-                passFail.Append($"  Errors: ", Color.DarkGray);
-                passFail.Append($"{errors}", Color.DarkRed);
-                passFail.Append($", Warnings: ", Color.DarkGray);
-                passFail.Append($"{warnings}", Color.LightGoldenrodYellow);
-                passFail.Append($", Ignored: ", Color.DarkGray);
-                passFail.AppendLine($"{skipped}", Color.Gray);
-
-                passFail.Append($"  Asserts: ", Color.DarkGray);
-                passFail.Append($"{asserts}", Color.Gray);
-                passFail.Append($", Inconclusive: ", Color.DarkGray);
-                passFail.AppendLine($"{inconclusive}", Color.Gray);
-
-                passFail.AppendLine(Environment.NewLine);
-            }
-
-            var performance = new ColorTextBuilder();
-            if (GenerateReportType.HasFlag(GenerateReportType.Performance))
-            {
-                performance.AppendLine(headerLine, Color.Yellow);
-                performance.AppendLine($"  Top {_configuration.SlowestTestsCount} slowest tests", Color.Yellow);
-                performance.AppendLine(headerLine, Color.Yellow);
-                var slowestTests = _eventLog
-                    .Where(x => x.Event.Event == EventNames.EndTest)
-                    .OrderByDescending(x => x.Event.Duration)
-                    .Take(_configuration.SlowestTestsCount);
-                foreach (var test in slowestTests)
-                {
-                    performance.Append($" \u2022 {test.Event.FullName.Replace(test.Event.TestName, "")}");
-                    performance.Append($"{test.Event.TestName}", Color.White);
-                    performance.AppendLine($" : {test.Event.Duration.ToElapsedTime()}", Color.Cyan);
-                }
-                performance.AppendLine(Environment.NewLine);
-            }
-
-            // output test errors
-            var testOutput = new ColorTextBuilder();
-            var showErrors = GenerateReportType.HasFlag(GenerateReportType.Errors);
-            var showStackTraces = GenerateReportType.HasFlag(GenerateReportType.StackTraces);
-            var showTestOutput = GenerateReportType.HasFlag(GenerateReportType.TestOutput);
-            var showTestAnalysis = GenerateReportType.HasFlag(GenerateReportType.TestOutput);
-            if (showErrors || showStackTraces || showTestOutput)
-            {
-                if (!isPassed)
-                {
-                    testOutput.AppendLine(headerLine, Color.Red);
-                    testOutput.AppendLine("  FAILED TESTS", Color.Red);
-                    testOutput.AppendLine(headerLine, Color.Red);
-                }
-
-                var testIndex = 0;
-                var failedTestCases = RunReports
-                    .SelectMany(x => x.Report.TestReports.Where(x => !x.TestResult));
-                foreach (var test in failedTestCases)
-                {
-                    testIndex++;
-                    var testIndexStr = $"{testIndex}) ";
-                    testOutput.Append(testIndexStr, Color.DarkRed);
-                    testOutput.AppendLine($"{test.TestName}", Color.Red);
-                    testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}");
-                    testOutput.AppendLine();
-
-                    testOutput.Append($"  Duration: ", Color.DarkGray);
-                    testOutput.AppendLine($"{test.Duration.ToElapsedTime()}", Color.Cyan);
-
-                    if (showErrors && !string.IsNullOrEmpty(test.ErrorMessage))
-                    {
-                        testOutput.AppendLine($"  Error Output: ", Color.White);
-                        testOutput.AppendLine(lineSeparator, Color.DarkGray);
-                        testOutput.AppendLine($"{test.ErrorMessage}", Color.DarkRed);
-                        testOutput.AppendLine(lineSeparator, Color.DarkGray);
-                    }
-                    if (showStackTraces && !string.IsNullOrEmpty(test.StackTrace))
-                    {
-                        testOutput.AppendLine($"  Stack Trace:", Color.White);
-                        testOutput.AppendLine(lineSeparator, Color.DarkGray);
-                        testOutput.AppendLine($"{test.StackTrace}", Color.DarkRed);
-                        testOutput.AppendLine(lineSeparator, Color.DarkGray);
-                    }
-                    if (showTestOutput && !string.IsNullOrEmpty(test.TestOutput))
-                    {
-                        testOutput.AppendLine($"  Test Output: ", Color.White);
-                        testOutput.AppendLine(lineSeparator, Color.DarkGray);
-                        testOutput.AppendLine($"{test.TestOutput}", Color.Gray);
-                        testOutput.AppendLine(lineSeparator, Color.DarkGray);
-                    }
-                    testOutput.AppendLine(Environment.NewLine);
-                }
-            }
-
-            var testAnalysisOutput = new ColorTextBuilder();
-            var historyReport = new HistoryReport();
-            // analyze the historical data
-            if (_configuration.HistoryAnalysisConfiguration.Enabled)
-            {
-                _testHistoryDatabaseProvider.LoadDatabase();
-                var historyEntries = RunReports
-                    .SelectMany(x => x.Report.TestReports
-                        .Select(y => new TestHistoryEntry(_commanderRunId.ToString(), x.TestRunId.ToString(), y)));
-                // analyze before saving new results
-                historyReport = _testHistoryAnalyzer.Analyze(historyEntries);
-                _testHistoryDatabaseProvider.AddTestHistoryRange(historyEntries);
-                _testHistoryDatabaseProvider.SaveDatabase();
-
-                if (showTestAnalysis)
-                {
-                    testAnalysisOutput.AppendLine(headerLine, Color.Yellow);
-                    testAnalysisOutput.AppendLine($"  Historical Analysis Report", Color.Yellow);
-                    testAnalysisOutput.AppendLine(headerLine, Color.Yellow);
-                }
-            }
-
-            _console.WriteLine();
-            _console.WriteLine(ColorTextBuilder.Create.AppendLine(headerLine, Color.Yellow)
-                .AppendLine("  NUnit.Commander Test Report", Color.Yellow));
-            if (_testRunIds?.Any() == true)
-                _console.WriteLine($"  Test Run Id(s): {string.Join(", ", _testRunIds)}");
-            if (_frameworks?.Any() == true)
-                _console.WriteLine($"  Framework(s): {string.Join(", ", _frameworks)}");
-            if (_frameworkRuntimes?.Any() == true)
-                _console.WriteLine($"  Framework Runtime(s): {string.Join(", ", _frameworkRuntimes)}");
-            _console.Write($"  Test Start: {_startTime}");
-            _console.Write($"  Test End: {_endTime}");
-            _console.WriteLine($"  Total Duration: {_endTime.Subtract(_startTime)}");
-            _console.WriteLine($"  Settings:");
-            _console.WriteLine($"    Runtime={totalDuration}");
-            if (_console.IsOutputRedirected)
-                _console.WriteLine($"    LogMode=Enabled");
-            else
-                _console.WriteLine($"    LogMode=Disabled");
-            _console.WriteLine(ColorTextBuilder.Create.AppendLine(headerLine, Color.Yellow));
-
-
-            if (isPassed)
-                _console.WriteAscii(ColorTextBuilder.Create.Append("PASSED", Color.Lime));
-            else
-                _console.WriteAscii(ColorTextBuilder.Create.Append("FAILED", Color.Red));
-            _console.WriteLine(Environment.NewLine);
-
-            if (performance.Length > 0)
-                _console.WriteLine(performance);
-            if (testOutput.Length > 0)
-                _console.WriteLine(testOutput);
-            if (testAnalysisOutput.Length > 0)
-            {
-                _console.WriteLine(testAnalysisOutput);
-                _console.WriteLine(historyReport.BuildReport());
-            }
-            if (passFail.Length > 0)
-                _console.WriteLine(passFail);
+            var context = new ReportContext { 
+                CommanderRunId = _commanderRunId,
+                StartTime = _startTime,
+                EndTime = _endTime,
+                FrameworkRuntimes = _frameworkRuntimes,
+                Frameworks = _frameworks,
+                TestRunIds = _testRunIds
+            };
+            // write the final report to the output
+            var reportWriter = new ReportWriter(_console, _configuration, context);
+            reportWriter.WriteFinalReport(RunReports, _eventLog);
         }
 
         private void RemoveExpiredActiveTests()
@@ -603,7 +409,7 @@ namespace NUnit.Commander
         }
 
         /// <summary>
-        /// Compute a checksum to see if any tests have changed status
+        /// Compute a checksum to see if any tests have changed state
         /// </summary>
         /// <returns></returns>
         private int ComputeActiveTestChecksum()

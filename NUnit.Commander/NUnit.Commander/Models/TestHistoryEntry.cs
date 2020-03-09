@@ -29,5 +29,7 @@ namespace NUnit.Commander.Models
             Duration = e.Duration;
             TestDate = e.EndTime;
         }
+
+        public override string ToString() => FullName;
     }
 }

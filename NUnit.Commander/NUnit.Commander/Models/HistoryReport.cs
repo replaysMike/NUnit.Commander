@@ -11,10 +11,12 @@ namespace NUnit.Commander.Models
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
 
-        public ColorTextBuilder BuildReport()
+        public ColorTextBuilder BuildReport(int totalDataPoints)
         {
             var str = new ColorTextBuilder();
 
+            str.Append("  Total Runs Analyzed: [", Color.White).Append($"{totalDataPoints}", Color.Yellow).AppendLine("]", Color.White);
+            str.AppendLine();
             str.Append("  Unstable Tests:", Color.White);
             if (UnstableTests.Count == 0)
                 str.AppendLine(" <none>");
@@ -69,6 +71,8 @@ namespace NUnit.Commander.Models
                         .AppendLine("]", Color.White);
                 }
             }
+            str.AppendLine();
+
             return str;
         }
     }
