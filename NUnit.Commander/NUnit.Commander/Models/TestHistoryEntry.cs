@@ -25,7 +25,7 @@ namespace NUnit.Commander.Models
             FullName = e.FullName;
             CommanderRunId = commanderRunId;
             TestRunId = testRunId;
-            IsPass = e.TestResult;
+            IsPass = e.TestStatus != TestStatus.Fail;
             Duration = e.Duration;
             TestDate = e.EndTime;
         }

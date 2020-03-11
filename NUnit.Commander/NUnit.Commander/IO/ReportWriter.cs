@@ -274,6 +274,7 @@ namespace NUnit.Commander.IO
                 _testHistoryDatabaseProvider.LoadDatabase();
                 var historyEntries = allReports
                     .SelectMany(x => x.Report.TestReports
+                        .Where(y => y.TestStatus != TestStatus.Skipped)
                         .Select(y => new TestHistoryEntry(commanderIdMap.Where(z => z.Value.Contains(x.TestRunId)).Select(z => z.Key).FirstOrDefault().ToString(), x.TestRunId.ToString(), y)));
                 // analyze before saving new results
                 historyReport = _testHistoryAnalyzer.Analyze(historyEntries);
