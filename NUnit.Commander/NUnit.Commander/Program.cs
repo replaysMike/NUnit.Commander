@@ -29,6 +29,8 @@ namespace NUnit.Commander
 
         private static void Start(Options options, ApplicationConfiguration config)
         {
+            options = ProcessQuotedParameters(options);
+
             // override any configuration options via commandline
             if (options.EnableLog.HasValue)
                 config.EnableLog = options.EnableLog.Value;
@@ -66,16 +68,17 @@ namespace NUnit.Commander
                 testRunnerSuccess = launcher.StartTestRunner();
             }
 
+            var commanderIsSuccess = false;
             if (testRunnerSuccess)
             {
                 // blocking
                 switch (config.DisplayMode)
                 {
                     case DisplayMode.LogFriendly:
-                        RunLogFriendly(config);
+                        commanderIsSuccess = RunLogFriendly(config);
                         break;
                     case DisplayMode.FullScreen:
-                        RunFullScreen(config);
+                        commanderIsSuccess = RunFullScreen(config);
                         break;
                 }
 
@@ -84,13 +87,22 @@ namespace NUnit.Commander
                     //Console.Error.WriteLine($"Exit code: {launcher.ExitCode}");
                     //Console.Error.WriteLine($"OUTPUT: {launcher.ConsoleOutput}");
                     //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
-                    ParseConsoleRunnerOutput(options, config, launcher);
+                    ParseConsoleRunnerOutput(commanderIsSuccess, options, config, launcher);
                     launcher.Dispose();
                 }
             }
         }
+        private static Options ProcessQuotedParameters(Options options)
+        {
+            if (options.TestRunnerArguments.Contains(@"\"""))
+            {
+                // replace \" with "
+                options.TestRunnerArguments = options.TestRunnerArguments.Replace("\\\"", "\"");
+            }
+            return options;
+        }
 
-        private static void ParseConsoleRunnerOutput(Options options, ApplicationConfiguration config, TestRunnerLauncher launcher)
+        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, TestRunnerLauncher launcher)
         {
             launcher.WaitForExit();
             var output = launcher.ConsoleOutput;
@@ -99,7 +111,7 @@ namespace NUnit.Commander
             switch (options.TestRunner)
             {
                 case TestRunner.NUnitConsole:
-                    if (exitCode < 0 || config.ShowTestRunnerOutput)
+                    if ((exitCode < 0 && !isSuccess) || config.ShowTestRunnerOutput)
                     {
                         var startErrorsIndex = output.IndexOf("Errors, Failures and Warnings");
                         if (startErrorsIndex >= 0)
@@ -129,7 +141,7 @@ namespace NUnit.Commander
                     }
                     break;
                 case TestRunner.DotNetTest:
-                    if (config.ShowTestRunnerOutput || (!string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed.")))
+                    if (config.ShowTestRunnerOutput || (!isSuccess && !string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed.")))
                     {
                         Console.ForegroundColor = Color.DarkRed;
                         Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
@@ -139,7 +151,7 @@ namespace NUnit.Commander
                         Console.WriteLine(error);
                         Console.ForegroundColor = Color.Gray;
                     }
-                    else if (config.ShowTestRunnerOutput || output.Contains("MSBUILD : error "))
+                    else if (config.ShowTestRunnerOutput || (!isSuccess && output.Contains("MSBUILD : error ")))
                     {
                         Console.ForegroundColor = Color.DarkRed;
                         Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
@@ -159,7 +171,7 @@ namespace NUnit.Commander
                 Console.WriteLine($"\r\n{options.TestRunner} Output [{exitCode}]:");
                 Console.ForegroundColor = Color.FromArgb(50, 0, 0);
                 Console.WriteLine("============================");
-                Console.ForegroundColor = Color.DarkGray;
+                Console.ForegroundColor = Color.DarkSlateGray;
                 Console.WriteLine(output);
                 Console.ForegroundColor = Color.Gray;
             }
@@ -185,20 +197,24 @@ namespace NUnit.Commander
             }
         }
 
-        private static void RunLogFriendly(ApplicationConfiguration configuration)
+        private static bool RunLogFriendly(ApplicationConfiguration configuration)
         {
-            var console = new LogFriendlyConsole();
+            var isSuccess = false;
+            var console = new LogFriendlyConsole(true);
             using (var commander = new Commander(configuration, console))
             {
-                commander.ConnectIpcServer(true, (c) => c.Close());
+                commander.Connect(true, (c) => c.Close());
                 commander.WaitForClose();
+                isSuccess = commander.RunReports.Count > 0;
                 console.Close();
                 console.Dispose();
             }
+            return isSuccess;
         }
 
-        private static void RunFullScreen(ApplicationConfiguration configuration)
+        private static bool RunFullScreen(ApplicationConfiguration configuration)
         {
+            var isSuccess = false;
             var console = new ExtendedConsole();
             var myDataContext = new ConsoleDataContext();
             console.Configure(config =>
@@ -226,12 +242,14 @@ namespace NUnit.Commander
 
             using (var commander = new Commander(configuration, console))
             {
-                commander.ConnectIpcServer(true, (c) => c.Close());
+                commander.Connect(true, (c) => c.Close());
                 commander.WaitForClose();
+                isSuccess = commander.RunReports.Count > 0;
             }
             console.Flush();
             console.Close();
             console.Dispose();
+            return isSuccess;
         }
 
         private static void Console_OnKeyPress(KeyPressEventArgs e)

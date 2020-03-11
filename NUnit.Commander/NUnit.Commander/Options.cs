@@ -56,7 +56,7 @@ namespace NUnit.Commander
         [Option('t', "test-runner", Required = false, SetName = "TestRunner", HelpText = "Specify which test runner to use: NUnitConsole, DotNetTest. If unspecified it will connect to any already running console runner")]
         public TestRunner? TestRunner { get; set; }
 
-        [Option('a', "args", Required = false, SetName = "TestRunner", HelpText = "Specify arguments to pass to nunit-console or dotnet test")]
+        [Option('a', "args", Required = false, SetName = "TestRunner", HelpText = "Specify arguments to pass to nunit-console or dotnet test. You can embed a \" character with \\\"")]
         public string TestRunnerArguments { get; set; }
 
         [Option('p', "path", Required = false, SetName = "TestRunner", HelpText = "Specify the path to the test runner exe")]

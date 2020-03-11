@@ -88,9 +88,12 @@ namespace NUnit.Commander.IO
                     pathToProcess = Path.Combine(runnerPath, runnerProcess);
                     break;
             }
-            Console.WriteLine(pathToProcess);
+            /*Console.ForegroundColor = ConsoleColor.Magenta;
+            Console.WriteLine($"{pathToProcess} ");
             Console.WriteLine(runnerArguments);
+            Console.ForegroundColor = ConsoleColor.Gray;*/
 
+            Console.WriteLine($"Launching [{_options.TestRunner}] test runner...");
             // launch process
             _process = new Process
             {

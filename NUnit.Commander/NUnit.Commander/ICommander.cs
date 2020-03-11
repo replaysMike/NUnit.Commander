@@ -10,7 +10,7 @@ namespace NUnit.Commander
         /// Connect to the Ipc server for messages
         /// </summary>
         /// <param name="showOutput">True to show output relating to connection status/failure</param>
-        void ConnectIpcServer(bool showOutput, Action<ICommander> onFailedConnect);
+        void Connect(bool showOutput, Action<ICommander> onFailedConnect);
 
         /// <summary>
         /// List of tests that are currently running

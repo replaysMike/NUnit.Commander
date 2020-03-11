@@ -92,16 +92,16 @@ namespace NUnit.Commander.IO
                 passFail.Append($", Failed: ", Color.Gray);
                 passFail.AppendLine($"{failed}", failuresColor);
 
-                passFail.Append($"  Errors: ", Color.DarkGray);
+                passFail.Append($"  Errors: ", Color.DarkSlateGray);
                 passFail.Append($"{errors}", Color.DarkRed);
-                passFail.Append($", Warnings: ", Color.DarkGray);
+                passFail.Append($", Warnings: ", Color.DarkSlateGray);
                 passFail.Append($"{warnings}", Color.LightGoldenrodYellow);
-                passFail.Append($", Ignored: ", Color.DarkGray);
+                passFail.Append($", Ignored: ", Color.DarkSlateGray);
                 passFail.AppendLine($"{skipped}", Color.Gray);
 
-                passFail.Append($"  Asserts: ", Color.DarkGray);
+                passFail.Append($"  Asserts: ", Color.DarkSlateGray);
                 passFail.Append($"{asserts}", Color.Gray);
-                passFail.Append($", Inconclusive: ", Color.DarkGray);
+                passFail.Append($", Inconclusive: ", Color.DarkSlateGray);
                 passFail.AppendLine($"{inconclusive}", Color.Gray);
 
                 passFail.AppendLine(Environment.NewLine);
@@ -150,29 +150,29 @@ namespace NUnit.Commander.IO
                     testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.RuntimeVersion}", Color.DarkCyan);
                     testOutput.AppendLine();
 
-                    testOutput.Append($"  Duration: ", Color.DarkGray);
+                    testOutput.Append($"  Duration: ", Color.DarkSlateGray);
                     testOutput.AppendLine($"{test.Duration.ToElapsedTime()}", Color.Cyan);
 
                     if (showErrors && !string.IsNullOrEmpty(test.ErrorMessage))
                     {
                         testOutput.AppendLine($"  Error Output: ", Color.White);
-                        testOutput.AppendLine(_lineSeparator, Color.DarkGray);
+                        testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
                         testOutput.AppendLine($"{test.ErrorMessage}", Color.DarkRed);
-                        testOutput.AppendLine(_lineSeparator, Color.DarkGray);
+                        testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
                     }
                     if (showStackTraces && !string.IsNullOrEmpty(test.StackTrace))
                     {
                         testOutput.AppendLine($"  Stack Trace:", Color.White);
-                        testOutput.AppendLine(_lineSeparator, Color.DarkGray);
+                        testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
                         testOutput.AppendLine($"{test.StackTrace}", Color.DarkRed);
-                        testOutput.AppendLine(_lineSeparator, Color.DarkGray);
+                        testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
                     }
                     if (showTestOutput && !string.IsNullOrEmpty(test.TestOutput))
                     {
                         testOutput.AppendLine($"  Test Output: ", Color.White);
-                        testOutput.AppendLine(_lineSeparator, Color.DarkGray);
+                        testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
                         testOutput.AppendLine($"{test.TestOutput}", Color.Gray);
-                        testOutput.AppendLine(_lineSeparator, Color.DarkGray);
+                        testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
                     }
                     testOutput.AppendLine(Environment.NewLine);
                 }

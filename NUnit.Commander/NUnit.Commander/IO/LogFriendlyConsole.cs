@@ -1,6 +1,7 @@
 ﻿using AnyConsole;
 using System;
 using System.Drawing;
+using System.Reflection;
 using System.Text;
 using Console = Colorful.Console;
 
@@ -26,7 +27,7 @@ namespace NUnit.Commander.IO
             set { Console.OutputEncoding = value; }
         }
 
-        public LogFriendlyConsole()
+        public LogFriendlyConsole(bool clearConsole)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.ForegroundColor = Color.Gray;
@@ -34,7 +35,14 @@ namespace NUnit.Commander.IO
             if (!IsOutputRedirected)
             {
                 Console.CursorVisible = false;
-                Console.Clear();
+                if (clearConsole)
+                {
+                    Console.BackgroundColor = Color.Black;
+                    Console.Clear();
+                }
+                Console.ForegroundColor = Color.Yellow;
+                Console.WriteLine($"NUnit.Commander - Version {Assembly.GetExecutingAssembly().GetName().Version}");
+                Console.ForegroundColor = Color.Gray;
             }
         }
 
@@ -194,6 +202,10 @@ namespace NUnit.Commander.IO
             {
                 Console.Out.Flush();
                 Console.Error.Flush();
+                if (!IsOutputRedirected)
+                {
+                    Console.CursorVisible = true;
+                }
             }
         }
     }

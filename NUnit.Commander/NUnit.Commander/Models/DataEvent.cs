@@ -58,6 +58,11 @@ namespace NUnit.Commander.Models
         public string FullName { get; set; }
 
         /// <summary>
+        /// Test type
+        /// </summary>
+        public string TestType { get; set; }
+
+        /// <summary>
         /// True if test passed, false if it failed
         /// </summary>
         public bool TestResult { get; set; }
