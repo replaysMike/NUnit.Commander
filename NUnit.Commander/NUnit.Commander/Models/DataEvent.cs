@@ -125,6 +125,11 @@ namespace NUnit.Commander.Models
         public int Asserts { get; set; }
 
         /// <summary>
+        /// True if this test was ignored
+        /// </summary>
+        public bool IsSkipped { get; set; }
+
+        /// <summary>
         /// Test output
         /// </summary>
         public string TestOutput { get; set; }
@@ -143,6 +148,11 @@ namespace NUnit.Commander.Models
         /// Full test report when all tests are completed
         /// </summary>
         public DataReport Report { get; set; }
+
+        /// <summary>
+        /// The commander run number
+        /// </summary>
+        public int RunNumber { get; set; }
 
         public DataEvent() { }
         public DataEvent(DataEvent dataEvent)

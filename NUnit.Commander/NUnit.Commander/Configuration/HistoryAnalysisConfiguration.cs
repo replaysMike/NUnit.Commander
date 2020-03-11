@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace NUnit.Commander.Configuration
 {
@@ -33,5 +31,10 @@ namespace NUnit.Commander.Configuration
         /// </summary>
         [Range(0.001, 1.0)]
         public double MaxTestDurationChange { get; set; } = 0.1;
+
+        /// <summary>
+        /// Tests that complete less than this time will not have duration analysis checked
+        /// </summary>
+        public int MinTestMillisecondsForDurationAnalysis { get; set; } = 1000;
     }
 }

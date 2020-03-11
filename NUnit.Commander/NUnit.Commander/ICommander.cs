@@ -1,4 +1,5 @@
-﻿using NUnit.Commander.Models;
+﻿using NUnit.Commander.IO;
+using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
 
@@ -26,6 +27,31 @@ namespace NUnit.Commander
         /// Get the final run reports
         /// </summary>
         ICollection<DataEvent> RunReports { get; }
+
+        /// <summary>
+        /// Get the current run number
+        /// </summary>
+        int RunNumber { get; }
+
+        /// <summary>
+        /// Get the Commander Run Id
+        /// </summary>
+        Guid CommanderRunId { get; }
+
+        /// <summary>
+        /// Get the start time
+        /// </summary>
+        DateTime StartTime { get; }
+
+        /// <summary>
+        /// Get the end time
+        /// </summary>
+        DateTime EndTime { get; }
+
+        /// <summary>
+        /// Get the final report context
+        /// </summary>
+        ReportContext ReportContext { get; }
 
         /// <summary>
         /// Wait for commander to close

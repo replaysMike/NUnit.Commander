@@ -81,6 +81,7 @@ namespace NUnit.Commander.Analysis
                 // look for tests with duration changes
                 var currentRunChanges = currentRun
                     .Where(x => x.FullName == test 
+                        && x.Duration.TotalMilliseconds > _configuration.HistoryAnalysisConfiguration.MinTestMillisecondsForDurationAnalysis
                         && Math.Abs(x.Duration.Ticks - medianDuration) >= differenceThreshold)
                     .GroupBy(x => x.FullName)
                     .ToList();

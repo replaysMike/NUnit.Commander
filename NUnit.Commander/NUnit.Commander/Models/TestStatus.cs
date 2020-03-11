@@ -4,6 +4,7 @@
     {
         Pass,
         Fail,
+        Skipped,
         Running
     }
 }

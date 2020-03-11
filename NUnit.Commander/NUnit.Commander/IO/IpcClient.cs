@@ -55,10 +55,7 @@ namespace NUnit.Commander.IO
 
         public void Connect(bool showOutput, Action<IpcClient> onSuccessConnect, Action<IpcClient> onFailedConnect)
         {
-            var extensionName = "NUnit.Extension.TestMonitor";
             _client = new NamedPipeClientStream(".", "TestMonitorExtension", PipeDirection.InOut);
-            if (showOutput)
-                _console.WriteLine($"Connecting to {extensionName} (Timeout: {_config.ConnectTimeoutSeconds} seconds)...");
             try
             {
                 IsWaitingForConnection = true;
@@ -68,18 +65,10 @@ namespace NUnit.Commander.IO
             catch (TimeoutException)
             {
                 IsWaitingForConnection = false;
-                if (showOutput)
-                {
-                    _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {extensionName} extension within {_config.ConnectTimeoutSeconds} seconds.", Color.Red));
-                    _console.WriteLine($"Please ensure your test runner is launched and the {extensionName} extension is correctly configured.");
-                    _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append($"https://github.com/replaysMike/{extensionName}", Color.Blue).AppendLine(" for more details."));
-                }
                 onFailedConnect?.Invoke(this);
                 return;
             }
             IsWaitingForConnection = false;
-            if (showOutput)
-                _console.WriteLine($"Connected to {extensionName}!");
             if (_readThread == null)
             {
                 _readThread = new Thread(new ThreadStart(ReadThread));
@@ -146,7 +135,17 @@ namespace NUnit.Commander.IO
                             Array.Copy(_messageBuffer, TotalHeaderLength + StringPreambleLength, messageBytes, 0, messageBytes.Length);
                             //var eventStr = UseEncoding.GetString(_messageBuffer, TotalHeaderLength + StringPreambleLength, totalMessageLength - StringPreambleLength);
                             var eventStr = UseEncoding.GetString(messageBytes);
-                            var e = new EventEntry(JsonSerializer.Deserialize<DataEvent>(eventStr));
+                            DataEvent dataEvent;
+                            try
+                            {
+                                dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
+                            }
+                            catch (JsonException ex)
+                            {
+                                // failed to deserialize json
+                                throw new IpcClientException(ex.Message);
+                            }
+                            var e = new EventEntry(dataEvent);
                             Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
 
                             // if there is more data received past the initial message size, copy it to the beginning of the buffer
@@ -210,6 +209,11 @@ namespace NUnit.Commander.IO
                 _console?.Dispose();
             }
         }
+    }
+
+    public class IpcClientException : Exception
+    {
+        public IpcClientException(string message) : base(message) { }
     }
 
     public class MessageEventArgs : EventArgs

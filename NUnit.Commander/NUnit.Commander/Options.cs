@@ -51,6 +51,9 @@ namespace NUnit.Commander
         [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of duration changes to analyze. Default: 0.1")]
         public double? MaxTestDurationChange { get; set; }
 
+        [Option("min-duration", Required = false, SetName = "Analysis", HelpText = "Tests that complete less than this time will not have duration analysis checked. Default: 1000")]
+        public int? MinTestMillisecondsForDurationAnalysis { get; set; }
+
         // command-line only options
 
         [Option('t', "test-runner", Required = false, SetName = "TestRunner", HelpText = "Specify which test runner to use: NUnitConsole, DotNetTest. If unspecified it will connect to any already running console runner")]
@@ -64,6 +67,9 @@ namespace NUnit.Commander
 
         [Option("display-output", Required = false, SetName = "TestRunner", HelpText = "Enable displaying of test-runner output (for debugging)")]
         public bool EnableDisplayOutput { get; set; }
+
+        [Option("repeat", Required = false, Default = 1, SetName = "TestRunner", HelpText = "Run tests continuously up to a specified count")]
+        public int Repeat { get; set; }
 
         [Usage(ApplicationAlias = @".\NUnit.Commander.exe")]
         public static IEnumerable<Example> Examples

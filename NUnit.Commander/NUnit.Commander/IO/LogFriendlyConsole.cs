@@ -27,7 +27,7 @@ namespace NUnit.Commander.IO
             set { Console.OutputEncoding = value; }
         }
 
-        public LogFriendlyConsole(bool clearConsole)
+        public LogFriendlyConsole(bool clearConsole, string header = null)
         {
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             Console.ForegroundColor = Color.Gray;
@@ -40,9 +40,12 @@ namespace NUnit.Commander.IO
                     Console.BackgroundColor = Color.Black;
                     Console.Clear();
                 }
-                Console.ForegroundColor = Color.Yellow;
-                Console.WriteLine($"NUnit.Commander - Version {Assembly.GetExecutingAssembly().GetName().Version}");
-                Console.ForegroundColor = Color.Gray;
+                if (!string.IsNullOrEmpty(header))
+                {
+                    Console.ForegroundColor = Color.Yellow;
+                    Console.WriteLine(header);
+                    Console.ForegroundColor = Color.Gray;
+                }
             }
         }
 
