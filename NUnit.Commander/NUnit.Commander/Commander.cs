@@ -189,7 +189,9 @@ namespace NUnit.Commander
                 // successful connect
                 _allowDrawActiveTests = true;
                 if (showOutput)
-                    _console.WriteLine($"Connected to {extensionName}!");
+                {
+                    _console.WriteLine($"Connected to {extensionName}, Run #{RunNumber}.");
+                }
             }, (client) =>
             {
                 // failed connect

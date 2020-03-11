@@ -3,7 +3,6 @@ using NUnit.Commander.Configuration;
 using NUnit.Commander.Models;
 using System;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
@@ -42,6 +41,7 @@ namespace NUnit.Commander.IO
         private ManualResetEvent _dataReadEvent;
         private ManualResetEvent _closeEvent;
         private ApplicationConfiguration _config;
+        private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         public bool IsWaitingForConnection { get; private set; }
 
@@ -109,81 +109,89 @@ namespace NUnit.Commander.IO
 
             if (bytesRead > 0)
             {
-                // copy data into the main message buffer for processing
-                Array.Copy(receiveBuffer, 0, _messageBuffer, _messageByteIndex, bytesRead);
-                _messageByteIndex += bytesRead;
-
-                var dataToProcess = true;
-                while (dataToProcess)
+                _lock.Wait();
+                try
                 {
-                    if (_messageByteIndex >= TotalHeaderLength)
-                    {
-                        // we have at least the header, read it and any additional data
-                        var startMessageHeader = BitConverter.ToUInt16(_messageBuffer, 0);
-                        var totalMessageLength = BitConverter.ToInt32(_messageBuffer, sizeof(UInt16));
-                        var endMessageHeader = BitConverter.ToUInt16(_messageBuffer, sizeof(UInt16) + sizeof(UInt32));
-                        if (startMessageHeader != StartMessageHeader)
-                            throw new InvalidOperationException($"ERROR|Message start header '{startMessageHeader}' was not the expected value of '{StartMessageHeader}'.");
-                        if (endMessageHeader != EndMessageHeader)
-                            throw new InvalidOperationException($"ERROR|Message end header '{endMessageHeader}' was not the expected value of '{EndMessageHeader}'.");
-                        // have we received all the data?
-                        if (_messageByteIndex >= totalMessageLength)
-                        {
-                            // all data received for message
-                            // read in the data
-                            var messageBytes = new byte[totalMessageLength - StringPreambleLength];
-                            Array.Copy(_messageBuffer, TotalHeaderLength + StringPreambleLength, messageBytes, 0, messageBytes.Length);
-                            //var eventStr = UseEncoding.GetString(_messageBuffer, TotalHeaderLength + StringPreambleLength, totalMessageLength - StringPreambleLength);
-                            var eventStr = UseEncoding.GetString(messageBytes);
-                            DataEvent dataEvent;
-                            try
-                            {
-                                dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
-                            }
-                            catch (JsonException ex)
-                            {
-                                // failed to deserialize json
-                                throw new IpcClientException(ex.Message);
-                            }
-                            var e = new EventEntry(dataEvent);
-                            Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
+                    // copy data into the main message buffer for processing
+                    Array.Copy(receiveBuffer, 0, _messageBuffer, _messageByteIndex, bytesRead);
+                    _messageByteIndex += bytesRead;
 
-                            // if there is more data received past the initial message size, copy it to the beginning of the buffer
-                            var totalMessageDataLength = TotalHeaderLength + totalMessageLength;
-                            if (_messageByteIndex > totalMessageDataLength)
+                    var dataToProcess = true;
+                    while (dataToProcess)
+                    {
+                        if (_messageByteIndex >= TotalHeaderLength)
+                        {
+                            // we have at least the header, read it and any additional data
+                            var startMessageHeader = BitConverter.ToUInt16(_messageBuffer, 0);
+                            var totalMessageLength = BitConverter.ToInt32(_messageBuffer, sizeof(UInt16));
+                            var endMessageHeader = BitConverter.ToUInt16(_messageBuffer, sizeof(UInt16) + sizeof(UInt32));
+                            if (startMessageHeader != StartMessageHeader)
+                                throw new InvalidOperationException($"ERROR|Message start header '{startMessageHeader}' was not the expected value of '{StartMessageHeader}'.");
+                            if (endMessageHeader != EndMessageHeader)
+                                throw new InvalidOperationException($"ERROR|Message end header '{endMessageHeader}' was not the expected value of '{EndMessageHeader}'.");
+                            // have we received all the data?
+                            if (_messageByteIndex >= totalMessageLength)
                             {
-                                var bufferOverflowBytes = new byte[_messageByteIndex - totalMessageDataLength];
-                                // copy the overflow data
-                                Array.Copy(_messageBuffer, totalMessageDataLength, bufferOverflowBytes, 0, bufferOverflowBytes.Length);
-                                // move the overflow data to the start of the message buffer
-                                Array.Copy(bufferOverflowBytes, 0, _messageBuffer, 0, bufferOverflowBytes.Length);
-                                // reset the buffer position, ready for next message
-                                _messageByteIndex = bufferOverflowBytes.Length;
-                                Debug.WriteLine($"Moved {bufferOverflowBytes.Length} bytes to start");
+                                // all data received for message
+                                // read in the data
+                                var messageBytes = new byte[totalMessageLength - StringPreambleLength];
+                                Array.Copy(_messageBuffer, TotalHeaderLength + StringPreambleLength, messageBytes, 0, messageBytes.Length);
+                                //var eventStr = UseEncoding.GetString(_messageBuffer, TotalHeaderLength + StringPreambleLength, totalMessageLength - StringPreambleLength);
+                                var eventStr = UseEncoding.GetString(messageBytes);
+                                DataEvent dataEvent;
+                                try
+                                {
+                                    dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
+                                }
+                                catch (JsonException ex)
+                                {
+                                    // failed to deserialize json
+                                    throw new IpcClientException(ex.Message);
+                                }
+                                var e = new EventEntry(dataEvent);
+                                Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
+
+                                // if there is more data received past the initial message size, copy it to the beginning of the buffer
+                                var totalMessageDataLength = TotalHeaderLength + totalMessageLength;
+                                if (_messageByteIndex > totalMessageDataLength)
+                                {
+                                    var bufferOverflowBytes = new byte[_messageByteIndex - totalMessageDataLength];
+                                    // copy the overflow data
+                                    Array.Copy(_messageBuffer, totalMessageDataLength, bufferOverflowBytes, 0, bufferOverflowBytes.Length);
+                                    // move the overflow data to the start of the message buffer
+                                    Array.Copy(bufferOverflowBytes, 0, _messageBuffer, 0, bufferOverflowBytes.Length);
+                                    // reset the buffer position, ready for next message
+                                    _messageByteIndex = bufferOverflowBytes.Length;
+                                    Debug.WriteLine($"Moved {bufferOverflowBytes.Length} bytes to start");
+                                }
+                                else
+                                {
+                                    // reset the buffer position, ready for next message
+                                    _messageByteIndex = 0;
+                                }
+
+                                // let commander know we've received a new message
+                                OnMessageReceived?.Invoke(this, new MessageEventArgs(e));
                             }
                             else
                             {
-                                // reset the buffer position, ready for next message
-                                _messageByteIndex = 0;
+                                // more data needed to process the message
+                                dataToProcess = false;
+                                if (_messageByteIndex > 0)
+                                    Debug.WriteLine($"More data needed, only {_messageByteIndex} bytes in buffer...");
                             }
-
-                            // let commander know we've received a new message
-                            OnMessageReceived?.Invoke(this, new MessageEventArgs(e));
                         }
                         else
                         {
-                            // more data needed to process the message
+                            // more data needed to read the header
                             dataToProcess = false;
-                            if (_messageByteIndex > 0)
-                                Debug.WriteLine($"More data needed, only {_messageByteIndex} bytes in buffer...");
+                            Debug.WriteLine($"More data needed, only {_messageByteIndex} bytes in buffer...");
                         }
                     }
-                    else
-                    {
-                        // more data needed to read the header
-                        dataToProcess = false;
-                        Debug.WriteLine($"More data needed, only {_messageByteIndex} bytes in buffer...");
-                    }
+                }
+                finally
+                {
+                    _lock.Release();
                 }
             }
             // signal ready to read more data
@@ -207,6 +215,8 @@ namespace NUnit.Commander.IO
                 _closeEvent = null;
                 _readThread = null;
                 _console?.Dispose();
+                _lock?.Dispose();
+                _lock = null;
             }
         }
     }

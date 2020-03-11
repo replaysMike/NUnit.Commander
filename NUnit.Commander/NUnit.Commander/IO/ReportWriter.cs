@@ -49,6 +49,10 @@ namespace NUnit.Commander.IO
             var commanderIdMap = _runContext.Runs.ToDictionary(key => key.Key.CommanderRunId, value => value.Value.Select(y => y.TestRunId).ToList());
             var allReports = _runContext.Runs.SelectMany(x => x.Value);
 
+
+            // ***********************
+            // Total Run Summary
+            // ***********************
             var passFail = new ColorTextBuilder();
             var totalDuration = TimeSpan.FromTicks(allReports.Sum(x => x.Duration.Ticks));
             var isPassed = allReports
@@ -116,7 +120,9 @@ namespace NUnit.Commander.IO
                 passFail.AppendLine(Environment.NewLine);
             }
 
-            // build the same type of summary, but for each individual run
+            // ***********************
+            // Multiple Run Summary
+            // ***********************
             var passFailByRun = new ColorTextBuilder();
             if (_runContext.Runs.Count > 1)
             {
@@ -182,6 +188,9 @@ namespace NUnit.Commander.IO
                     passFailByRun.Append($", Inconclusive: ", Color.DarkSlateGray);
                     passFailByRun.AppendLine($"{inconclusive:N0}", Color.Gray);
 
+                    passFailByRun.Append($"  Run Id: ", Color.Gray);
+                    passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), Color.DarkSlateGray);
+
                     passFailByRun.AppendLine(Environment.NewLine);
                 }
             }
@@ -208,7 +217,9 @@ namespace NUnit.Commander.IO
                 performance.AppendLine(Environment.NewLine);
             }
 
-            // output test errors
+            // ***********************
+            // Failed Tests Summary
+            // ***********************
             var testOutput = new ColorTextBuilder();
             var showErrors = _configuration.GenerateReportType.HasFlag(GenerateReportType.Errors);
             var showStackTraces = _configuration.GenerateReportType.HasFlag(GenerateReportType.StackTraces);
@@ -267,8 +278,10 @@ namespace NUnit.Commander.IO
                 }
             }
 
+            // ***********************
+            // Historical Analysis
+            // ***********************
             var historyReport = new HistoryReport();
-            // analyze the historical data
             if (_configuration.HistoryAnalysisConfiguration.Enabled)
             {
                 _testHistoryDatabaseProvider.LoadDatabase();
@@ -283,6 +296,9 @@ namespace NUnit.Commander.IO
                 _testHistoryDatabaseProvider.SaveDatabase();
             }
 
+            // ***********************
+            // Total Run Overview
+            // ***********************
             _console.WriteLine();
             _console.WriteLine(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", Color.Yellow).Append($"{_headerChar}", Color.FromArgb(128,128,0)).Append($"{_headerChar}", Color.FromArgb(64, 64, 0)).AppendLine($"{_headerChar}", Color.FromArgb(32, 32, 0))
                 .AppendLine($"{_headerBorderChar}  NUnit.Commander Test Report", Color.Yellow));
@@ -308,7 +324,9 @@ namespace NUnit.Commander.IO
                 _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"    LogMode=Disabled"));
             _console.WriteLine(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", Color.Yellow).Append($"{_headerChar}", Color.FromArgb(128, 128, 0)).Append($"{_headerChar}", Color.FromArgb(64, 64, 0)).AppendLine($"{_headerChar}", Color.FromArgb(32, 32, 0)));
 
-            // write large PASSED / FAILED ascii art
+            // ***********************
+            // PASSED / FAILED ascii art
+            // ***********************
             if (isPassed)
                 _console.WriteAscii(ColorTextBuilder.Create.Append("PASSED", Color.Lime));
             else
