@@ -313,7 +313,11 @@ namespace NUnit.Commander
                     // **************************
                     // Draw Active Tests
                     // **************************
-                    foreach (var test in _activeTests.OrderByDescending(x => x.Elapsed).Take(_configuration.MaxActiveTestsToDisplay))
+                    var activeTestsToDisplay = _activeTests
+                        .OrderBy(x => x.Event.TestStatus)
+                        .ThenByDescending(x => x.Elapsed)
+                        .Take(_configuration.MaxActiveTestsToDisplay);
+                    foreach (var test in activeTestsToDisplay)
                     {
                         testNumber++;
                         var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
