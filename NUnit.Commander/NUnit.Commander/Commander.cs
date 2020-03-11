@@ -14,10 +14,8 @@ namespace NUnit.Commander
 {
     public class Commander : ICommander, IDisposable
     {
-        // how often to should poll for test event updates
-        private const int DefaultPollIntervalMilliseconds = 33;
         // how often to should draw to the screen
-        private const int DefaultDrawIntervalMilliseconds = 200;
+        private const int DefaultDrawIntervalMilliseconds = 66;
         // how often to should draw to the screen when stdout is redirected
         private const int DefaultRedirectedDrawIntervalMilliseconds = 5000;
         // how long to should keep tests displayed after they have finished running
@@ -173,7 +171,7 @@ namespace NUnit.Commander
 
         private void UpdateThread()
         {
-            while (!_closeEvent.WaitOne(DefaultPollIntervalMilliseconds))
+            while (!_closeEvent.WaitOne(_drawIntervalMilliseconds))
             {
                 RemoveExpiredActiveTests();
                 DisplayActiveTests();
@@ -279,6 +277,8 @@ namespace NUnit.Commander
                             DirectOutputMode.Static);
                         _lastNumberOfLinesDrawn++;
                     }
+
+                    // draw last X test failures
                     _lastNumberOfLinesDrawn += 1;
                     if (!_console.IsOutputRedirected && _configuration.MaxFailedTestsToDisplay > 0)
                     {
