@@ -24,6 +24,9 @@
         <ComponentRef Id="ApplicationShortcut" />
       </Feature>
     </Feature>
+    <WixVariable Id="WixUIDialogBmp" Value="Dialog.bmp"/>
+    <WixVariable Id="WixUIBannerBmp" Value="Banner.bmp"/>
+    <WixVariable Id="WixUIInfoIco" Value="Info.bmp"/>
     <UI Id='Mondo'>
       <UIRef Id="WixUI_Mondo" />
       <UIRef Id="WixUI_ErrorProgressText" />
