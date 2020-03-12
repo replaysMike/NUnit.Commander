@@ -280,6 +280,10 @@ namespace NUnit.Commander
                 var performDrawByTime = true;
                 var performDrawByDataChange = true;
                 var activeTestsCountChanged = _activeTests.Count != _lastNumberOfTestsRunning;
+                var windowWidth = 160;
+                if (!_console.IsOutputRedirected)
+                    windowWidth = Console.WindowWidth;
+
                 if (_console.IsOutputRedirected)
                 {
                     // if any tests have changed state based on checksum, allow a redraw
@@ -295,7 +299,7 @@ namespace NUnit.Commander
                     else if (activeTestsCountChanged)
                     {
                         // number of tests changed
-                        var nextNumberOfTestsDrawn = (int)Math.Min(_activeTests.Count, _configuration.MaxActiveTestsToDisplay);
+                        var nextNumberOfTestsDrawn = Math.Min(_activeTests.Count, _configuration.MaxActiveTestsToDisplay);
                         if (nextNumberOfTestsDrawn < _lastNumberOfTestsDrawn)
                         {
                             // clear the static display if we are displaying less tests than the previous draw
@@ -331,7 +335,7 @@ namespace NUnit.Commander
                             .AppendIf(_totalTestsQueued > 0, $"{((totalTestsProcessed / (double)_totalTestsQueued) * 100.0):F0}%", Color.DarkCyan)
                             .AppendIf(_totalTestsQueued > 0, $"]", Color.White)
                             .Append(_client.IsWaitingForConnection ? $"[waiting]" : "", Color.DarkCyan)
-                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Console.WindowWidth - length)),
+                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
                             0,
                             yPos,
                             DirectOutputMode.Static);
@@ -341,7 +345,7 @@ namespace NUnit.Commander
                         _console.WriteAt(ColorTextBuilder.Create
                             .Append("Runtime: ", Color.White)
                             .Append($"{DateTime.Now.Subtract(StartTime).ToTotalElapsedTime()} ", Color.Cyan)
-                            .Append((length) => new string(' ', Console.WindowWidth - length)),
+                            .Append((length) => new string(' ', Math.Max(0, windowWidth - length))),
                             0,
                             yPos + 1,
                             DirectOutputMode.Static);
@@ -351,7 +355,7 @@ namespace NUnit.Commander
                     {
                         _console.WriteAt(ColorTextBuilder.Create
                             .Append($"{_currentFrameworkVersion}", Color.DarkCyan)
-                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Console.WindowWidth - length)),
+                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
                             0, yPos + _lastNumberOfLinesDrawn, DirectOutputMode.Static);
                         _lastNumberOfLinesDrawn++;
                     }
@@ -401,7 +405,9 @@ namespace NUnit.Commander
                             .Append(prettyTestName)
                             // test duration
                             .Append($" {lifetime.ToTotalElapsedTime()}", Color.Cyan)
-                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Console.WindowWidth - length)),
+                            // clear out the rest of the line
+                            .AppendIf((length) => !_console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
+                            .Truncate(windowWidth),
                             0,
                             yPos + _lastNumberOfLinesDrawn,
                             DirectOutputMode.Static);
@@ -440,7 +446,9 @@ namespace NUnit.Commander
                                     .Append(" [", Color.White)
                                     .Append("FAILED", Color.Red)
                                     .Append("]", Color.White)
-                                    .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Console.WindowWidth - length)),
+                                    // clear out the rest of the line
+                                    .AppendIf((length) => !_console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
+                                    .Truncate(windowWidth),
                                     0,
                                     yPos + _lastNumberOfLinesDrawn,
                                     DirectOutputMode.Static);

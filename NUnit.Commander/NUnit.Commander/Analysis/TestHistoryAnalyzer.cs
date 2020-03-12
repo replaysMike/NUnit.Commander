@@ -79,7 +79,7 @@ namespace NUnit.Commander.Analysis
                 // look for tests with duration changes
                 var currentRunChanges = currentRun
                     .Where(x => x.FullName == test 
-                        && x.Duration.TotalMilliseconds > _configuration.HistoryAnalysisConfiguration.MinTestMillisecondsForDurationAnalysis
+                        && x.Duration.TotalMilliseconds >= _configuration.HistoryAnalysisConfiguration.MinTestMillisecondsForDurationAnalysis
                         && Math.Abs(x.Duration.Ticks - medianDuration) >= differenceThreshold)
                     .GroupBy(x => x.FullName)
                     .ToList();
@@ -92,7 +92,7 @@ namespace NUnit.Commander.Analysis
                     var durationChange = TimeSpan.FromTicks(currentEntry.Duration.Ticks - medianDuration);
                     var anomaly = new TestPoint(test, durationChange, currentEntry.Duration, TimeSpan.FromTicks(medianDuration));
                     // only report test if it's contained in this run. That way deleted and renamed tests will be filtered out.
-                    if (currentRun.Any(x => x.FullName == test))
+                    if (currentRun.Any(x => x.FullName == test) && durationChange.TotalMilliseconds >= _configuration.HistoryAnalysisConfiguration.MinTestMillisecondsForDurationAnalysis)
                         report.DurationAnomalyTests.Add(anomaly);
                 }
             }

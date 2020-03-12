@@ -124,7 +124,10 @@ namespace NUnit.Commander
                 System.Threading.Thread.Sleep(100);
 
                 if (!Console.IsOutputRedirected)
+                {
+                    Console.ResetColor();
                     Console.Clear();
+                }
                 Console.ForegroundColor = Color.Red;
                 Console.Error.WriteLine($"Error: Test runner '{launcher.Options.TestRunner}' closed unexpectedly.");
                 Console.Error.WriteLine($"Commander will now exit.");

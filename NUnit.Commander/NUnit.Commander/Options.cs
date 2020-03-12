@@ -51,7 +51,7 @@ namespace NUnit.Commander
         [Option("ratio", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of failed tests allowed. Default: 0.05 (5%)")]
         public double? MinTestReliabilityThreshold { get; set; }
 
-        [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.2 (20%)")]
+        [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.4 (40%)")]
         public double? MaxTestDurationChange { get; set; }
 
         [Option("min-duration", Required = false, SetName = "Analysis", HelpText = "Tests that complete less than this time will not have duration analysis checked. Default: 1000")]

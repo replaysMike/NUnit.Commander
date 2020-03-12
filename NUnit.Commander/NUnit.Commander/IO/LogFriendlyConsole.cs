@@ -37,7 +37,7 @@ namespace NUnit.Commander.IO
                 Console.CursorVisible = false;
                 if (clearConsole)
                 {
-                    Console.BackgroundColor = Color.Black;
+                    Console.ResetColor();
                     Console.Clear();
                 }
                 if (!string.IsNullOrEmpty(header))
@@ -142,6 +142,7 @@ namespace NUnit.Commander.IO
         {
             var defaultForegroundColor = Console.ForegroundColor;
             var defaultBackgroundColor = Console.BackgroundColor;
+            var totalLength = 0;
             foreach (var text in textBuilder.TextFragments)
             {
                 if (text.ForegroundColor.HasValue)
@@ -152,7 +153,14 @@ namespace NUnit.Commander.IO
                     Console.BackgroundColor = text.BackgroundColor.Value;
                 else
                     Console.BackgroundColor = defaultBackgroundColor;
+                if (textBuilder.MaxLength.HasValue && totalLength + text.Text.Length > textBuilder.MaxLength.Value)
+                {
+                    var txt = text.Text.Substring(0, (totalLength + text.Text.Length) - textBuilder.MaxLength.Value);
+                    writeAction.Invoke(txt);
+                    break;
+                }
                 writeAction.Invoke(text.Text);
+                totalLength += text.Text.Length;
             }
             Console.ForegroundColor = defaultForegroundColor;
             Console.BackgroundColor = defaultBackgroundColor;

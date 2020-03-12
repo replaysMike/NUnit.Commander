@@ -9,54 +9,81 @@ namespace NUnit.Commander.Display
     /// </summary>
     public static class DisplayUtil
     {
-        public static ColorTextBuilder GetPrettyTestName(string testName, int maxTestCaseArgumentLength = 10)
+        public static ColorTextBuilder GetPrettyTestName(string fullName, int maxTestCaseArgumentLength = 10)
         {
-            var test = testName;
-            var testPath = testName;
+            var maxWidth = 160;
+            if (!Console.IsOutputRedirected)
+                maxWidth = Console.WindowWidth - 26;
+            fullName = "ITN.Services.Web.Tests.Services.Eport.FakeOrderResponseServiceTests.BuildCancelOrderResponsesAsync_ReturnsExpectedQueue_ForResultAsync(Accepted)";
+            var test = fullName;
+            var testPath = fullName;
             var testCaseArgs = string.Empty;
-
-            var argsIndex = test.IndexOf('(');
-            var lastIndex = test.LastIndexOf('.', argsIndex > 0 ? argsIndex : test.Length - 1);
-            if (lastIndex >= 0)
+            try
             {
-                // if a path is detected (before the arguments) separate it out
-                test = testName.Substring(lastIndex + 1, test.Length - lastIndex - 1);
-                testPath = testName.Substring(0, lastIndex + 1);
-            }
-            else
-                testPath = string.Empty;
 
-            argsIndex = test.IndexOf('(');
-            if (argsIndex > 0)
-            {
-                // strip the test case arguments if it won't fit on screen
-                var argsEndIndex = test.LastIndexOf(")");
-                if (argsIndex > 0 && argsEndIndex > 0)
+                var argsIndex = test.IndexOf('(');
+                var lastIndex = test.LastIndexOf('.', argsIndex > 0 ? argsIndex : test.Length - 1);
+                if (lastIndex >= 0)
                 {
-                    var maxLength = maxTestCaseArgumentLength;
-                    testCaseArgs = test.Substring(argsIndex, argsEndIndex - argsIndex);
-                    if (testCaseArgs.Length > maxLength)
-                    {
-                        testCaseArgs = testCaseArgs.Substring(0, maxLength) + "...";
-                        if (testCaseArgs.Contains("\"")) testCaseArgs += "\"";
-                    }
-                    testCaseArgs += ")";
-                    // remove args from test name
-                    test = test.Substring(0, argsIndex);
+                    // if a path is detected (before the arguments) separate it out
+                    test = fullName.Substring(lastIndex + 1, test.Length - lastIndex - 1);
+                    testPath = fullName.Substring(0, lastIndex + 1);
                 }
-            }
-            // truncate total size
-            if (testPath.Length + test.Length + testCaseArgs.Length > Console.WindowWidth - 30)
-            {
-                testCaseArgs = string.Empty;
-                if (testPath.Length + test.Length + testCaseArgs.Length > Console.WindowWidth - 30)
-                    test = test.Substring(0, Console.WindowWidth - 30) + "...";
-            }
+                else
+                    testPath = string.Empty;
 
-            return ColorTextBuilder.Create
-                    .AppendIf(testPath?.Length > 0, testPath, Color.DarkSlateGray)
-                    .Append(test)
-                    .AppendIf(!string.IsNullOrEmpty(testCaseArgs), testCaseArgs, Color.DarkSlateGray);
+                argsIndex = test.IndexOf('(');
+                if (argsIndex > 0)
+                {
+                    var argsEndIndex = test.LastIndexOf(")");
+                    if (argsIndex > 0 && argsEndIndex > 0)
+                    {
+                        testCaseArgs = test.Substring(argsIndex, argsEndIndex - argsIndex) + ")";
+                        // remove args from test name
+                        test = test.Substring(0, argsIndex);
+                    }
+                }
+                // truncate total size
+                if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                {
+                    // path truncates first
+                    if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    {
+                        var maxLength = Math.Max(0, testPath.Length - (testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        if (maxLength > 0)
+                            testPath = testPath.Substring(0, maxLength) + "...";
+                        else
+                            testPath = string.Empty;
+                    }
+                    // test args truncates second
+                    if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    {
+                        var maxLength = Math.Max(0, testCaseArgs.Length - (testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        if (maxLength > 0)
+                            testCaseArgs = testCaseArgs.Substring(0, maxLength) + "...";
+                        else
+                            testCaseArgs = string.Empty;
+                    }
+                    // test name truncates last
+                    if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    {
+                        var maxLength = Math.Max(0, test.Length - (testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        if (maxLength > 0)
+                            test = test.Substring(0, maxLength) + "...";
+                        else
+                            test = string.Empty;
+                    }
+                }
+
+                return ColorTextBuilder.Create
+                        .AppendIf(testPath?.Length > 0, testPath, Color.DarkSlateGray)
+                        .Append(test)
+                        .AppendIf(!string.IsNullOrEmpty(testCaseArgs), testCaseArgs, Color.DarkSlateGray);
+            }
+            catch (Exception ex)
+            {
+                return ColorTextBuilder.Create.Append($"{fullName} - ERROR: {ex.Message}");
+            }
         }
 
         private static readonly string[] SizeSuffixes = { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
