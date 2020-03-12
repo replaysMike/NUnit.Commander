@@ -2,6 +2,7 @@
 using CommandLine;
 using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
+using NUnit.Commander.Display;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
 using System;
@@ -68,9 +69,12 @@ namespace NUnit.Commander
                 config.SlowestTestsCount = options.SlowestTestsCount.Value;
             if (options.ShowTestRunnerOutput.HasValue)
                 config.ShowTestRunnerOutput = options.ShowTestRunnerOutput.Value;
+            if (options.ColorScheme.HasValue)
+                config.ColorScheme = options.ColorScheme.Value;
             if (!string.IsNullOrEmpty(options.LogPath))
                 config.LogPath = options.LogPath;
 
+            var colorScheme = new Colors(config.ColorScheme);
             var testRunnerSuccess = true;
             TestRunnerLauncher launcher = null;
             var runNumber = 0;
@@ -95,10 +99,10 @@ namespace NUnit.Commander
                     switch (config.DisplayMode)
                     {
                         case DisplayMode.LogFriendly:
-                            commanderIsSuccess = RunLogFriendly(options, config, runNumber, runContext);
+                            commanderIsSuccess = RunLogFriendly(options, config, colorScheme, runNumber, runContext);
                             break;
                         case DisplayMode.FullScreen:
-                            commanderIsSuccess = RunFullScreen(options, config, runNumber, runContext);
+                            commanderIsSuccess = RunFullScreen(options, config, colorScheme, runNumber, runContext);
                             break;
                     }
 
@@ -107,7 +111,7 @@ namespace NUnit.Commander
                         //Console.Error.WriteLine($"Exit code: {launcher.ExitCode}");
                         //Console.Error.WriteLine($"OUTPUT: {launcher.ConsoleOutput}");
                         //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
-                        ParseConsoleRunnerOutput(commanderIsSuccess, options, config, launcher);
+                        ParseConsoleRunnerOutput(commanderIsSuccess, options, config, colorScheme, launcher);
                         launcher.Dispose();
                     }
                 }
@@ -146,7 +150,7 @@ namespace NUnit.Commander
             return options;
         }
 
-        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, TestRunnerLauncher launcher)
+        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, Colors colorScheme, TestRunnerLauncher launcher)
         {
             launcher.WaitForExit();
             var output = launcher.ConsoleOutput;
@@ -163,47 +167,47 @@ namespace NUnit.Commander
                             // show errors output
                             var endErrorsIndex = output.IndexOf("Test Run Summary", startErrorsIndex);
                             var errors = output.Substring(startErrorsIndex, endErrorsIndex - startErrorsIndex);
-                            Console.ForegroundColor = Color.DarkRed;
+                            Console.ForegroundColor = colorScheme.DarkError;
                             Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                            Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                            Console.ForegroundColor = colorScheme.DarkError;
                             Console.WriteLine("============================");
-                            Console.ForegroundColor = Color.Red;
+                            Console.ForegroundColor = colorScheme.Error;
                             Console.WriteLine(errors);
-                            Console.ForegroundColor = Color.Gray;
+                            Console.ForegroundColor = colorScheme.Default;
                         }
                         else
                         {
                             // show entire output
-                            Console.ForegroundColor = Color.DarkRed;
+                            Console.ForegroundColor = colorScheme.DarkError;
                             Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                            Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                            Console.ForegroundColor = colorScheme.DarkError;
                             Console.WriteLine("============================");
-                            Console.ForegroundColor = Color.Red;
+                            Console.ForegroundColor = colorScheme.Error;
                             Console.WriteLine(output);
-                            Console.ForegroundColor = Color.Gray;
+                            Console.ForegroundColor = colorScheme.Default;
                         }
                     }
                     break;
                 case TestRunner.DotNetTest:
                     if (config.ShowTestRunnerOutput || (!isSuccess && !string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed.")))
                     {
-                        Console.ForegroundColor = Color.DarkRed;
+                        Console.ForegroundColor = colorScheme.DarkError;
                         Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                        Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                        Console.ForegroundColor = colorScheme.DarkError;
                         Console.WriteLine("============================");
-                        Console.ForegroundColor = Color.Red;
+                        Console.ForegroundColor = colorScheme.Error;
                         Console.WriteLine(error);
-                        Console.ForegroundColor = Color.Gray;
+                        Console.ForegroundColor = colorScheme.Default;
                     }
                     else if (config.ShowTestRunnerOutput || (!isSuccess && output.Contains("MSBUILD : error ")))
                     {
-                        Console.ForegroundColor = Color.DarkRed;
+                        Console.ForegroundColor = colorScheme.DarkError;
                         Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                        Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                        Console.ForegroundColor = colorScheme.DarkError;
                         Console.WriteLine("============================");
-                        Console.ForegroundColor = Color.Red;
+                        Console.ForegroundColor = colorScheme.Error;
                         Console.WriteLine(output);
-                        Console.ForegroundColor = Color.Gray;
+                        Console.ForegroundColor = colorScheme.Default;
                     }
                     break;
             }
@@ -211,13 +215,13 @@ namespace NUnit.Commander
             if (config.ShowTestRunnerOutput)
             {
                 // show entire output
-                Console.ForegroundColor = Color.Gray;
+                Console.ForegroundColor = colorScheme.Default;
                 Console.WriteLine($"\r\n{options.TestRunner} Output [{exitCode}]:");
-                Console.ForegroundColor = Color.FromArgb(50, 0, 0);
+                Console.ForegroundColor = colorScheme.DarkError;
                 Console.WriteLine("============================");
-                Console.ForegroundColor = Color.DarkSlateGray;
+                Console.ForegroundColor = colorScheme.DarkDefault;
                 Console.WriteLine(output);
-                Console.ForegroundColor = Color.Gray;
+                Console.ForegroundColor = colorScheme.Default;
             }
         }
 
@@ -241,13 +245,13 @@ namespace NUnit.Commander
             }
         }
 
-        private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, int runNumber, RunContext runContext)
+        private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, Colors colorScheme, int runNumber, RunContext runContext)
         {
             var isSuccess = false;
             var header = $"NUnit.Commander - Version {Assembly.GetExecutingAssembly().GetName().Version}";
             if (options.Repeat > 1)
                 header = header + $", Run #{runNumber}";
-            var console = new LogFriendlyConsole(true, header);
+            var console = new LogFriendlyConsole(true, colorScheme, header);
             using (_commander = new Commander(configuration, console, runNumber))
             {
                 _commander.Connect(true, (c) => c.Close());
@@ -270,7 +274,7 @@ namespace NUnit.Commander
                     }
 
                     console.WriteLine("Generating report...");
-                    var reportWriter = new ReportWriter(console, configuration, runContext);
+                    var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
                     reportWriter.WriteFinalReport();
                 }
             }
@@ -279,16 +283,16 @@ namespace NUnit.Commander
             return isSuccess;
         }
 
-        private static bool RunFullScreen(Options options, ApplicationConfiguration configuration, int runNumber, RunContext runContext)
+        private static bool RunFullScreen(Options options, ApplicationConfiguration configuration, Colors colorScheme, int runNumber, RunContext runContext)
         {
             var isSuccess = false;
             var console = new ExtendedConsole();
             var myDataContext = new ConsoleDataContext();
             console.Configure(config =>
             {
-                config.SetStaticRow("Header", RowLocation.Top, Color.White, Color.DarkRed);
-                config.SetStaticRow("SubHeader", RowLocation.Top, 1, Color.White, Color.FromArgb(30, 30, 30));
-                config.SetStaticRow("Footer", RowLocation.Bottom, Color.White, Color.DarkBlue);
+                config.SetStaticRow("Header", RowLocation.Top, colorScheme.Bright, colorScheme.DarkError);
+                config.SetStaticRow("SubHeader", RowLocation.Top, 1, colorScheme.Bright, colorScheme.DarkDefault);
+                config.SetStaticRow("Footer", RowLocation.Bottom, colorScheme.Bright, colorScheme.DarkHighlight);
                 config.SetLogHistoryContainer(RowLocation.Top, 2);
                 config.SetDataContext(myDataContext);
                 config.SetUpdateInterval(TimeSpan.FromMilliseconds(100));
@@ -300,13 +304,13 @@ namespace NUnit.Commander
                 });
             });
             console.OnKeyPress += Console_OnKeyPress;
-            console.WriteRow("Header", "NUnit Commander", ColumnLocation.Left, Color.Yellow); // show text on the left
+            console.WriteRow("Header", "NUnit Commander", ColumnLocation.Left, colorScheme.Highlight); // show text on the left
             console.WriteRow("Header", Component.Time, ColumnLocation.Right);
             console.WriteRow("Header", Component.CpuUsage, ColumnLocation.Right);
             if (options.Repeat > 1)
                 console.WriteRow("Header", $"Run #{runNumber}", ColumnLocation.Right);
             console.WriteRow("Header", Component.MemoryUsed, ColumnLocation.Right);
-            console.WriteRow("SubHeader", "Real-Time Test Monitor", ColumnLocation.Left, Color.FromArgb(60, 60, 60));
+            console.WriteRow("SubHeader", "Real-Time Test Monitor", ColumnLocation.Left, colorScheme.DarkDefault);
             console.Start();
 
             using (_commander = new Commander(configuration, console, runNumber))
@@ -330,7 +334,7 @@ namespace NUnit.Commander
                     }
 
                     console.WriteLine("Generating report...");
-                    var reportWriter = new ReportWriter(console, configuration, runContext);
+                    var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
                     reportWriter.WriteFinalReport();
                 }
             }

@@ -14,7 +14,6 @@ namespace NUnit.Commander.Display
             var maxWidth = 160;
             if (!Console.IsOutputRedirected)
                 maxWidth = Console.WindowWidth - 26;
-            fullName = "ITN.Services.Web.Tests.Services.Eport.FakeOrderResponseServiceTests.BuildCancelOrderResponsesAsync_ReturnsExpectedQueue_ForResultAsync(Accepted)";
             var test = fullName;
             var testPath = fullName;
             var testCaseArgs = string.Empty;

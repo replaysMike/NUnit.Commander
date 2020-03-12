@@ -37,6 +37,9 @@ namespace NUnit.Commander
         [Option('o', "test-output", Required = false, HelpText = "Show test runner output")]
         public bool? ShowTestRunnerOutput { get; set; }
 
+        [Option('c', "color-scheme", Required = false, HelpText = "Specify the color scheme")]
+        public ColorSchemes? ColorScheme { get; set; }
+
         // test reliability analysis
 
         [Option('r', "test-reliability", Required = false, SetName="Analysis", HelpText = "Enable analysis of unrelaible tests over a period of time")]

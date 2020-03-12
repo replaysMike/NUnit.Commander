@@ -1,7 +1,7 @@
 ﻿using AnyConsole;
+using NUnit.Commander.Display;
 using System;
 using System.Drawing;
-using System.Reflection;
 using System.Text;
 using Console = Colorful.Console;
 
@@ -9,6 +9,7 @@ namespace NUnit.Commander.IO
 {
     public class LogFriendlyConsole : IExtendedConsole
     {
+        private Colors _colorScheme;
         public ConsoleOptions Options { get; set; }
 
         /// <summary>
@@ -27,24 +28,26 @@ namespace NUnit.Commander.IO
             set { Console.OutputEncoding = value; }
         }
 
-        public LogFriendlyConsole(bool clearConsole, string header = null)
+        public LogFriendlyConsole(bool clearConsole, Colors colorScheme, string header = null)
         {
+            _colorScheme = colorScheme;
             Console.OutputEncoding = System.Text.Encoding.UTF8;
-            Console.ForegroundColor = Color.Gray;
-            Console.BackgroundColor = Color.Black;
             if (!IsOutputRedirected)
             {
                 Console.CursorVisible = false;
                 if (clearConsole)
                 {
+                    Console.ReplaceAllColorsWithDefaults();
                     Console.ResetColor();
+                    if (colorScheme.Background.HasValue)
+                        Console.BackgroundColor = Color.Black;
                     Console.Clear();
                 }
                 if (!string.IsNullOrEmpty(header))
                 {
-                    Console.ForegroundColor = Color.Yellow;
+                    Console.ForegroundColor = _colorScheme.Highlight;
                     Console.WriteLine(header);
-                    Console.ForegroundColor = Color.Gray;
+                    Console.ForegroundColor = _colorScheme.Default;
                 }
             }
         }
@@ -141,7 +144,6 @@ namespace NUnit.Commander.IO
         private void WriteColorTextBuilder(ColorTextBuilder textBuilder, Action<string> writeAction)
         {
             var defaultForegroundColor = Console.ForegroundColor;
-            var defaultBackgroundColor = Console.BackgroundColor;
             var totalLength = 0;
             foreach (var text in textBuilder.TextFragments)
             {
@@ -151,8 +153,6 @@ namespace NUnit.Commander.IO
                     Console.ForegroundColor = defaultForegroundColor;
                 if (text.BackgroundColor.HasValue)
                     Console.BackgroundColor = text.BackgroundColor.Value;
-                else
-                    Console.BackgroundColor = defaultBackgroundColor;
                 if (textBuilder.MaxLength.HasValue && totalLength + text.Text.Length > textBuilder.MaxLength.Value)
                 {
                     var txt = text.Text.Substring(0, (totalLength + text.Text.Length) - textBuilder.MaxLength.Value);
@@ -163,7 +163,6 @@ namespace NUnit.Commander.IO
                 totalLength += text.Text.Length;
             }
             Console.ForegroundColor = defaultForegroundColor;
-            Console.BackgroundColor = defaultBackgroundColor;
         }
 
         public void WriteRow(string rowName, Component component, ColumnLocation location)

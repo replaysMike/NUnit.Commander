@@ -7,7 +7,6 @@ using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
 using System.Threading;
 
@@ -109,6 +108,11 @@ namespace NUnit.Commander
         /// </summary>
         public bool IsRunning { get; private set; }
 
+        /// <summary>
+        /// Set/Get the current color scheme
+        /// </summary>
+        public Colors ColorScheme { get; set; }
+
 
         public Commander(ApplicationConfiguration configuration)
         {
@@ -118,6 +122,7 @@ namespace NUnit.Commander
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
             RunReports = new List<DataEvent>();
+            ColorScheme = new Colors(_configuration.ColorScheme);
 
             // start performance counters
             try
@@ -224,9 +229,9 @@ namespace NUnit.Commander
                 // failed connect
                 if (showOutput)
                 {
-                    _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {extensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", Color.Red));
+                    _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {extensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
                     _console.WriteLine($"Please ensure your test runner is launched and the {extensionName} extension is correctly configured.");
-                    _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append($"https://github.com/replaysMike/{extensionName}", Color.Blue).AppendLine(" for more details."));
+                    _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append($"https://github.com/replaysMike/{extensionName}", ColorScheme.Highlight).AppendLine(" for more details."));
                 }
                 onFailedConnect(this);
             });
@@ -318,23 +323,23 @@ namespace NUnit.Commander
                     _lastNumberOfLinesDrawn = 0;
                     // write the summary of all test state
                     _console.WriteAt(ColorTextBuilder.Create
-                            .Append("Tests state: ", Color.White)
-                            .Append($"Active=", Color.Gray)
-                            .Append($"{totalActive} ", Color.Yellow)
-                            .Append($"Pass=", Color.Gray)
-                            .Append($"{totalPasses} ", Color.Green)
-                            .Append($"Fail=", Color.Gray)
-                            .Append($"{totalFails} ", Color.DarkRed)
-                            .Append($"Ignored=", Color.Gray)
-                            .Append($"{totalIgnored} ", Color.DarkSlateGray)
-                            .Append($"Total=", Color.Gray)
-                            .Append($"{totalTestsProcessed} ", Color.DarkSlateGray)
-                            .AppendIf(_totalTestsQueued > 0, $"of ", Color.Gray)
-                            .AppendIf(_totalTestsQueued > 0, $"{_totalTestsQueued} ", Color.DarkSlateGray)
-                            .AppendIf(_totalTestsQueued > 0, $"[", Color.White)
-                            .AppendIf(_totalTestsQueued > 0, $"{((totalTestsProcessed / (double)_totalTestsQueued) * 100.0):F0}%", Color.DarkCyan)
-                            .AppendIf(_totalTestsQueued > 0, $"]", Color.White)
-                            .Append(_client.IsWaitingForConnection ? $"[waiting]" : "", Color.DarkCyan)
+                            .Append("Tests state: ", ColorScheme.Bright)
+                            .Append($"Active=", ColorScheme.Default)
+                            .Append($"{totalActive} ", ColorScheme.Highlight)
+                            .Append($"Pass=", ColorScheme.Default)
+                            .Append($"{totalPasses} ", ColorScheme.DarkSuccess)
+                            .Append($"Fail=", ColorScheme.Default)
+                            .Append($"{totalFails} ", ColorScheme.DarkError)
+                            .Append($"Ignored=", ColorScheme.Default)
+                            .Append($"{totalIgnored} ", ColorScheme.DarkDefault)
+                            .Append($"Total=", ColorScheme.Default)
+                            .Append($"{totalTestsProcessed} ", ColorScheme.DarkDefault)
+                            .AppendIf(_totalTestsQueued > 0, $"of ", ColorScheme.Default)
+                            .AppendIf(_totalTestsQueued > 0, $"{_totalTestsQueued} ", ColorScheme.DarkDefault)
+                            .AppendIf(_totalTestsQueued > 0, $"[", ColorScheme.Bright)
+                            .AppendIf(_totalTestsQueued > 0, $"{((totalTestsProcessed / (double)_totalTestsQueued) * 100.0):F0}%", ColorScheme.DarkDuration)
+                            .AppendIf(_totalTestsQueued > 0, $"]", ColorScheme.Bright)
+                            .Append(_client.IsWaitingForConnection ? $"[waiting]" : "", ColorScheme.DarkDuration)
                             .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
                             0,
                             yPos,
@@ -343,8 +348,8 @@ namespace NUnit.Commander
                     if (!_console.IsOutputRedirected)
                     {
                         _console.WriteAt(ColorTextBuilder.Create
-                            .Append("Runtime: ", Color.White)
-                            .Append($"{DateTime.Now.Subtract(StartTime).ToTotalElapsedTime()} ", Color.Cyan)
+                            .Append("Runtime: ", ColorScheme.Bright)
+                            .Append($"{DateTime.Now.Subtract(StartTime).ToTotalElapsedTime()} ", ColorScheme.Duration)
                             .Append((length) => new string(' ', Math.Max(0, windowWidth - length))),
                             0,
                             yPos + 1,
@@ -354,7 +359,7 @@ namespace NUnit.Commander
                     if (!_console.IsOutputRedirected && !string.IsNullOrEmpty(_currentFrameworkVersion))
                     {
                         _console.WriteAt(ColorTextBuilder.Create
-                            .Append($"{_currentFrameworkVersion}", Color.DarkCyan)
+                            .Append($"{_currentFrameworkVersion}", ColorScheme.DarkDuration)
                             .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
                             0, yPos + _lastNumberOfLinesDrawn, DirectOutputMode.Static);
                         _lastNumberOfLinesDrawn++;
@@ -373,21 +378,21 @@ namespace NUnit.Commander
                         var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
                         if (test.Event.EndTime != DateTime.MinValue)
                             lifetime = test.Event.Duration;
-                        var testColor = Color.Yellow;
+                        var testColor = ColorScheme.Highlight;
                         var testStatus = "RUN ";
                         switch (test.Event.TestStatus)
                         {
                             case TestStatus.Pass:
                                 testStatus = "PASS";
-                                testColor = Color.Lime;
+                                testColor = ColorScheme.Success;
                                 break;
                             case TestStatus.Fail:
                                 testStatus = "FAIL";
-                                testColor = Color.Red;
+                                testColor = ColorScheme.Error;
                                 break;
                             case TestStatus.Skipped:
                                 testStatus = "SKIP";
-                                testColor = Color.DarkSlateGray;
+                                testColor = ColorScheme.DarkDefault;
                                 break;
                         }
 
@@ -395,16 +400,16 @@ namespace NUnit.Commander
                         // print out this test name and duration
                         _console.WriteAt(ColorTextBuilder.Create
                             // test number
-                            .Append($"{testNumber}: ", Color.DarkSlateGray)
+                            .Append($"{testNumber}: ", ColorScheme.DarkDefault)
                             .AppendIf(testNumber < 10, $" ")
                             // test status
-                            .Append("[", Color.DarkSlateGray)
+                            .Append("[", ColorScheme.DarkDefault)
                             .Append(testStatus, testColor)
-                            .Append("] ", Color.DarkSlateGray)
+                            .Append("] ", ColorScheme.DarkDefault)
                             // test name
                             .Append(prettyTestName)
                             // test duration
-                            .Append($" {lifetime.ToTotalElapsedTime()}", Color.Cyan)
+                            .Append($" {lifetime.ToTotalElapsedTime()}", ColorScheme.Duration)
                             // clear out the rest of the line
                             .AppendIf((length) => !_console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
                             .Truncate(windowWidth),
@@ -426,7 +431,7 @@ namespace NUnit.Commander
                             .Take(_configuration.MaxFailedTestsToDisplay);
                         if (failedTests.Any())
                         {
-                            _console.WriteAt(ColorTextBuilder.Create.AppendLine($"{_configuration.MaxFailedTestsToDisplay} Most Recent Failed Tests", Color.Red), 0, yPos + _lastNumberOfLinesDrawn, DirectOutputMode.Static);
+                            _console.WriteAt(ColorTextBuilder.Create.AppendLine($"{_configuration.MaxFailedTestsToDisplay} Most Recent Failed Tests", ColorScheme.Error), 0, yPos + _lastNumberOfLinesDrawn, DirectOutputMode.Static);
                             foreach (var test in failedTests)
                             {
                                 _lastNumberOfLinesDrawn++;
@@ -440,12 +445,12 @@ namespace NUnit.Commander
                                 var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, MaxTestCaseArgumentLength);
                                 // print out this test name and duration
                                 _console.WriteAt(ColorTextBuilder.Create
-                                    .AppendIf(!string.IsNullOrEmpty(label), label, Color.DarkSlateGray)
+                                    .AppendIf(!string.IsNullOrEmpty(label), label, ColorScheme.DarkDefault)
                                     .Append(prettyTestName)
-                                    .Append($" {lifetime.ToTotalElapsedTime()}", Color.Cyan)
-                                    .Append(" [", Color.White)
-                                    .Append("FAILED", Color.Red)
-                                    .Append("]", Color.White)
+                                    .Append($" {lifetime.ToTotalElapsedTime()}", ColorScheme.Duration)
+                                    .Append(" [", ColorScheme.Bright)
+                                    .Append("FAILED", ColorScheme.Error)
+                                    .Append("]", ColorScheme.Bright)
                                     // clear out the rest of the line
                                     .AppendIf((length) => !_console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
                                     .Truncate(windowWidth),

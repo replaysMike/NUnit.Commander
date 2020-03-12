@@ -70,6 +70,11 @@ namespace NUnit.Commander.Configuration
         public bool ShowTestRunnerOutput { get; set; } = false;
 
         /// <summary>
+        /// Specify the color scheme
+        /// </summary>
+        public ColorSchemes ColorScheme { get; set; } = ColorSchemes.Default;
+
+        /// <summary>
         /// History analysis configuration
         /// </summary>
         public HistoryAnalysisConfiguration HistoryAnalysisConfiguration { get; set; } = new HistoryAnalysisConfiguration();

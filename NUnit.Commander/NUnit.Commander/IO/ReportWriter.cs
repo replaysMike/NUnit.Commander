@@ -1,11 +1,9 @@
 ﻿using AnyConsole;
-using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using NUnit.Commander.Models;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 
@@ -16,6 +14,7 @@ namespace NUnit.Commander.IO
     /// </summary>
     public class ReportWriter
     {
+        private Colors _colorScheme;
         private IExtendedConsole _console;
         private ApplicationConfiguration _configuration;
         private RunContext _runContext;
@@ -26,9 +25,10 @@ namespace NUnit.Commander.IO
         private readonly string _lineSeparator = new string(_lineChar, Console.WindowWidth / 2);
 
 
-        public ReportWriter(IExtendedConsole console, ApplicationConfiguration configuration, RunContext runContext)
+        public ReportWriter(IExtendedConsole console, Colors colorScheme, ApplicationConfiguration configuration, RunContext runContext)
         {
             _console = console;
+            _colorScheme = colorScheme;
             _configuration = configuration;
             _runContext = runContext;
         }
@@ -59,16 +59,16 @@ namespace NUnit.Commander.IO
             {
                 var allSuccess = allReports.Sum(x => x.Failed) == 0 && allReports.Sum(x => x.Passed) > 0;
                 var anyFailure = allReports.Sum(x => x.Failed) > 0;
-                var statusColor = Color.Red;
-                var successColor = Color.DarkGreen;
-                var failuresColor = Color.DarkRed;
+                var statusColor = _colorScheme.Error;
+                var successColor = _colorScheme.DarkSuccess;
+                var failuresColor = _colorScheme.DarkError;
                 if (allSuccess)
                 {
-                    successColor = Color.Lime;
-                    statusColor = Color.Lime;
+                    successColor = _colorScheme.Success;
+                    statusColor = _colorScheme.Success;
                 }
                 if (allReports.Sum(x => x.Failed) > 0)
-                    failuresColor = Color.Red;
+                    failuresColor = _colorScheme.Error;
 
                 var testCount = allReports.Sum(x => x.TestCount);
                 var passed = allReports.Sum(x => x.Passed);
@@ -82,52 +82,52 @@ namespace NUnit.Commander.IO
 
                 WriteHeader(passFail, "Test Run Summary");
 
-                passFail.Append($"  Overall result: ", Color.Gray);
+                passFail.Append($"  Overall result: ", _colorScheme.Default);
                 passFail.AppendLine(isPassed ? "Passed" : "Failed", statusColor);
 
-                passFail.Append($"  Duration: ", Color.Gray);
-                passFail.Append($"{testCount:N0} ", Color.White);
-                passFail.Append($"tests run in ", Color.Gray);
-                passFail.AppendLine($"{totalDuration.ToTotalElapsedTime()}", Color.Cyan);
+                passFail.Append($"  Duration: ", _colorScheme.Default);
+                passFail.Append($"{testCount:N0} ", _colorScheme.Bright);
+                passFail.Append($"tests run in ", _colorScheme.Default);
+                passFail.AppendLine($"{totalDuration.ToTotalElapsedTime()}", _colorScheme.Duration);
                 passFail.AppendLine("");
 
-                passFail.Append($"  Test Runs: ", Color.Gray);
-                passFail.AppendLine($"{totalRuns}", Color.White);
+                passFail.Append($"  Test Runs: ", _colorScheme.Default);
+                passFail.AppendLine($"{totalRuns}", _colorScheme.Bright);
 
-                passFail.Append($"  Test Count: ", Color.Gray);
-                passFail.Append($"{testCount:N0}", Color.White);
+                passFail.Append($"  Test Count: ", _colorScheme.Default);
+                passFail.Append($"{testCount:N0}", _colorScheme.Bright);
 
-                passFail.Append($", Passed: ", Color.Gray);
+                passFail.Append($", Passed: ", _colorScheme.Default);
                 passFail.Append($"{passed:N0}", successColor);
-                passFail.Append($", Failed: ", Color.Gray);
+                passFail.Append($", Failed: ", _colorScheme.Default);
                 passFail.AppendLine($"{failed:N0}", failuresColor);
 
-                passFail.Append($"  Errors: ", Color.DarkSlateGray);
-                passFail.Append($"{errors:N0}", Color.DarkRed);
-                passFail.Append($", Warnings: ", Color.DarkSlateGray);
-                passFail.Append($"{warnings:N0}", Color.LightGoldenrodYellow);
-                passFail.Append($", Ignored: ", Color.DarkSlateGray);
-                passFail.AppendLine($"{skipped}", Color.Gray);
+                passFail.Append($"  Errors: ", _colorScheme.DarkDefault);
+                passFail.Append($"{errors:N0}", _colorScheme.DarkError);
+                passFail.Append($", Warnings: ", _colorScheme.DarkDefault);
+                passFail.Append($"{warnings:N0}", _colorScheme.DarkHighlight);
+                passFail.Append($", Ignored: ", _colorScheme.DarkDefault);
+                passFail.AppendLine($"{skipped}", _colorScheme.Default);
 
-                passFail.Append($"  Asserts: ", Color.DarkSlateGray);
-                passFail.Append($"{asserts:N0}", Color.Gray);
-                passFail.Append($", Inconclusive: ", Color.DarkSlateGray);
-                passFail.AppendLine($"{inconclusive:N0}", Color.Gray);
+                passFail.Append($"  Asserts: ", _colorScheme.DarkDefault);
+                passFail.Append($"{asserts:N0}", _colorScheme.Default);
+                passFail.Append($", Inconclusive: ", _colorScheme.DarkDefault);
+                passFail.AppendLine($"{inconclusive:N0}", _colorScheme.Default);
 
-                passFail.Append($"  Peak Cpu: ", Color.DarkSlateGray);
-                passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakCpuUsed):N0}%", Color.Gray);
-                passFail.Append($", Median: ", Color.DarkSlateGray);
-                passFail.AppendLine($"{_runContext.Runs.Median(x => x.Key.Performance.MedianCpuUsed):N0}%", Color.Gray);
+                passFail.Append($"  Peak Cpu: ", _colorScheme.DarkDefault);
+                passFail.Append($"{(_runContext.Runs.Any() ? _runContext.Runs.Max(x => x.Key.Performance.PeakCpuUsed) : 0):N0}%", _colorScheme.Default);
+                passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                passFail.AppendLine($"{(_runContext.Runs.Any() ? _runContext.Runs.Median(x => x.Key.Performance.MedianCpuUsed) : 0):N0}%", _colorScheme.Default);
 
-                passFail.Append($"  Peak Memory: ", Color.DarkSlateGray);
-                passFail.Append($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Max(x => x.Key.Performance.PeakMemoryUsed))}", Color.Gray);
-                passFail.Append($", Median: ", Color.DarkSlateGray);
-                passFail.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Median(x => x.Key.Performance.MedianMemoryUsed))}", Color.Gray);
+                passFail.Append($"  Peak Memory: ", _colorScheme.DarkDefault);
+                passFail.Append($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Max(x => x.Key.Performance.PeakMemoryUsed))}", _colorScheme.Default);
+                passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                passFail.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Median(x => x.Key.Performance.MedianMemoryUsed))}", _colorScheme.Default);
 
-                passFail.Append($"  Peak Disk Time: ", Color.DarkSlateGray);
-                passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakDiskTime):N0}%", Color.Gray);
-                passFail.Append($", Median: ", Color.DarkSlateGray);
-                passFail.AppendLine($"{_runContext.Runs.Median(x => x.Key.Performance.MedianDiskTime):N0}%", Color.Gray);
+                passFail.Append($"  Peak Disk Time: ", _colorScheme.DarkDefault);
+                passFail.Append($"{(_runContext.Runs.Any() ? _runContext.Runs.Max(x => x.Key.Performance.PeakDiskTime) : 0):N0}%", _colorScheme.Default);
+                passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                passFail.AppendLine($"{(_runContext.Runs.Any() ? _runContext.Runs.Median(x => x.Key.Performance.MedianDiskTime) : 0):N0}%", _colorScheme.Default);
 
                 passFail.AppendLine(Environment.NewLine);
             }
@@ -145,16 +145,16 @@ namespace NUnit.Commander.IO
 
                     var allSuccess = run.Value.Sum(x => x.Failed) == 0 && run.Value.Sum(x => x.Passed) > 0;
                     var anyFailure = run.Value.Sum(x => x.Failed) > 0;
-                    var statusColor = Color.Red;
-                    var successColor = Color.DarkGreen;
-                    var failuresColor = Color.DarkRed;
+                    var statusColor = _colorScheme.Error;
+                    var successColor = _colorScheme.DarkSuccess;
+                    var failuresColor = _colorScheme.DarkError;
                     if (allSuccess)
                     {
-                        successColor = Color.DarkGreen;
-                        statusColor = Color.DarkGreen;
+                        successColor = _colorScheme.DarkSuccess;
+                        statusColor = _colorScheme.DarkSuccess;
                     }
                     if (allReports.Sum(x => x.Failed) > 0)
-                        failuresColor = Color.DarkRed;
+                        failuresColor = _colorScheme.DarkError;
                     
                     var testCount = run.Value.Sum(x => x.TestCount);
                     var passed = run.Value.Sum(x => x.Passed);
@@ -166,57 +166,57 @@ namespace NUnit.Commander.IO
                     var skipped = run.Value.Sum(x => x.Skipped);
                     var totalRuns = run.Value.GroupBy(x => x.RunNumber).Count();
 
-                    WriteHeader(passFailByRun, $"Test Run #{runNumber} Summary", Color.FromArgb(128,128,0));
+                    WriteHeader(passFailByRun, $"Test Run #{runNumber} Summary", _colorScheme.DarkHighlight);
 
-                    passFailByRun.Append($"  Overall result: ", Color.Gray);
+                    passFailByRun.Append($"  Overall result: ", _colorScheme.Default);
                     passFailByRun.AppendLine(isPassed ? "Passed" : "Failed", statusColor);
 
-                    passFailByRun.Append($"  Duration: ", Color.Gray);
-                    passFailByRun.Append($"{testCount:N0} ", Color.White);
-                    passFailByRun.Append($"tests run in ", Color.Gray);
-                    passFailByRun.AppendLine($"{run.Key.EndTime.Subtract(run.Key.StartTime).ToTotalElapsedTime()}", Color.Cyan);
+                    passFailByRun.Append($"  Duration: ", _colorScheme.Default);
+                    passFailByRun.Append($"{testCount:N0} ", _colorScheme.Bright);
+                    passFailByRun.Append($"tests run in ", _colorScheme.Default);
+                    passFailByRun.AppendLine($"{run.Key.EndTime.Subtract(run.Key.StartTime).ToTotalElapsedTime()}", _colorScheme.Duration);
                     passFailByRun.AppendLine("");
 
-                    passFailByRun.Append($"  Test Runs: ", Color.Gray);
-                    passFailByRun.AppendLine($"{totalRuns}", Color.White);
+                    passFailByRun.Append($"  Test Runs: ", _colorScheme.Default);
+                    passFailByRun.AppendLine($"{totalRuns}", _colorScheme.Bright);
 
-                    passFailByRun.Append($"  Test Count: ", Color.Gray);
-                    passFailByRun.Append($"{testCount:N0}", Color.White);
+                    passFailByRun.Append($"  Test Count: ", _colorScheme.Default);
+                    passFailByRun.Append($"{testCount:N0}", _colorScheme.Bright);
 
-                    passFailByRun.Append($", Passed: ", Color.Gray);
+                    passFailByRun.Append($", Passed: ", _colorScheme.Default);
                     passFailByRun.Append($"{passed:N0}", successColor);
-                    passFailByRun.Append($", Failed: ", Color.Gray);
+                    passFailByRun.Append($", Failed: ", _colorScheme.Default);
                     passFailByRun.AppendLine($"{failed:N0}", failuresColor);
 
-                    passFailByRun.Append($"  Errors: ", Color.DarkSlateGray);
-                    passFailByRun.Append($"{errors:N0}", Color.DarkRed);
-                    passFailByRun.Append($", Warnings: ", Color.DarkSlateGray);
-                    passFailByRun.Append($"{warnings:N0}", Color.LightGoldenrodYellow);
-                    passFailByRun.Append($", Ignored: ", Color.DarkSlateGray);
-                    passFailByRun.AppendLine($"{skipped}", Color.Gray);
+                    passFailByRun.Append($"  Errors: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{errors:N0}", _colorScheme.DarkError);
+                    passFailByRun.Append($", Warnings: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{warnings:N0}", _colorScheme.DarkHighlight);
+                    passFailByRun.Append($", Ignored: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{skipped}", _colorScheme.Default);
 
-                    passFailByRun.Append($"  Asserts: ", Color.DarkSlateGray);
-                    passFailByRun.Append($"{asserts:N0}", Color.Gray);
-                    passFailByRun.Append($", Inconclusive: ", Color.DarkSlateGray);
-                    passFailByRun.AppendLine($"{inconclusive:N0}", Color.Gray);
+                    passFailByRun.Append($"  Asserts: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{asserts:N0}", _colorScheme.Default);
+                    passFailByRun.Append($", Inconclusive: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{inconclusive:N0}", _colorScheme.Default);
 
-                    passFailByRun.Append($"  Peak Cpu: ", Color.DarkSlateGray);
-                    passFailByRun.Append($"{run.Key.Performance.PeakCpuUsed:N0}%", Color.Gray);
-                    passFailByRun.Append($", Median: ", Color.DarkSlateGray);
-                    passFailByRun.AppendLine($"{run.Key.Performance.MedianCpuUsed:N0}%", Color.Gray);
+                    passFailByRun.Append($"  Peak Cpu: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{run.Key.Performance.PeakCpuUsed:N0}%", _colorScheme.Default);
+                    passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianCpuUsed:N0}%", _colorScheme.Default);
 
-                    passFailByRun.Append($"  Peak Memory: ", Color.DarkSlateGray);
-                    passFailByRun.Append($"{DisplayUtil.GetFriendlyBytes((long)run.Key.Performance.PeakMemoryUsed)}", Color.Gray);
-                    passFailByRun.Append($", Median: ", Color.DarkSlateGray);
-                    passFailByRun.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)run.Key.Performance.MedianMemoryUsed)}", Color.Gray);
+                    passFailByRun.Append($"  Peak Memory: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{DisplayUtil.GetFriendlyBytes((long)run.Key.Performance.PeakMemoryUsed)}", _colorScheme.Default);
+                    passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)run.Key.Performance.MedianMemoryUsed)}", _colorScheme.Default);
 
-                    passFailByRun.Append($"  Peak Disk Time: ", Color.DarkSlateGray);
-                    passFailByRun.Append($"{run.Key.Performance.PeakDiskTime:N0}%", Color.Gray);
-                    passFailByRun.Append($", Median: ", Color.DarkSlateGray);
-                    passFailByRun.AppendLine($"{run.Key.Performance.MedianDiskTime:N0}%", Color.Gray);
+                    passFailByRun.Append($"  Peak Disk Time: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{run.Key.Performance.PeakDiskTime:N0}%", _colorScheme.Default);
+                    passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianDiskTime:N0}%", _colorScheme.Default);
 
-                    passFailByRun.Append($"  Run Id: ", Color.Gray);
-                    passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), Color.DarkSlateGray);
+                    passFailByRun.Append($"  Run Id: ", _colorScheme.Default);
+                    passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), _colorScheme.DarkDefault);
 
                     passFailByRun.AppendLine(Environment.NewLine);
                 }
@@ -242,7 +242,7 @@ namespace NUnit.Commander.IO
                 {
                     performance.Append($" \u2022 ");
                     performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName));
-                    performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", Color.Cyan);
+                    performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", _colorScheme.Duration);
                 }
                 performance.AppendLine(Environment.NewLine);
             }
@@ -259,7 +259,7 @@ namespace NUnit.Commander.IO
             {
                 if (!isPassed)
                 {
-                    WriteHeader(testOutput, "FAILED TESTS", Color.Red);
+                    WriteHeader(testOutput, "FAILED TESTS", _colorScheme.Error);
                 }
 
                 var testIndex = 0;
@@ -273,35 +273,35 @@ namespace NUnit.Commander.IO
                     {
                         testIndex++;
                         var testIndexStr = $"#{runNumber}-{testIndex}) ";
-                        testOutput.Append(testIndexStr, Color.DarkRed);
-                        testOutput.AppendLine($"{test.TestName}", Color.Red);
-                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}", Color.DarkSlateGray);
-                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.RuntimeVersion}", Color.DarkCyan);
+                        testOutput.Append(testIndexStr, _colorScheme.DarkError);
+                        testOutput.AppendLine($"{test.TestName}", _colorScheme.Error);
+                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}", _colorScheme.DarkDefault);
+                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.RuntimeVersion}", _colorScheme.DarkDuration);
                         testOutput.AppendLine();
 
-                        testOutput.Append($"  Duration: ", Color.DarkSlateGray);
-                        testOutput.AppendLine($"{test.Duration.ToElapsedTime()}", Color.Cyan);
+                        testOutput.Append($"  Duration: ", _colorScheme.DarkDefault);
+                        testOutput.AppendLine($"{test.Duration.ToElapsedTime()}", _colorScheme.Duration);
 
                         if (showErrors && !string.IsNullOrEmpty(test.ErrorMessage))
                         {
-                            testOutput.AppendLine($"  Error Output: ", Color.White);
-                            testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
-                            testOutput.AppendLine($"{test.ErrorMessage}", Color.DarkRed);
-                            testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
+                            testOutput.AppendLine($"  Error Output: ", _colorScheme.Bright);
+                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine($"{test.ErrorMessage}", _colorScheme.DarkError);
+                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
                         }
                         if (showStackTraces && !string.IsNullOrEmpty(test.StackTrace))
                         {
-                            testOutput.AppendLine($"  Stack Trace:", Color.White);
-                            testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
-                            testOutput.AppendLine($"{test.StackTrace}", Color.DarkRed);
-                            testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
+                            testOutput.AppendLine($"  Stack Trace:", _colorScheme.Bright);
+                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine($"{test.StackTrace}", _colorScheme.DarkError);
+                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
                         }
                         if (showTestOutput && !string.IsNullOrEmpty(test.TestOutput))
                         {
-                            testOutput.AppendLine($"  Test Output: ", Color.White);
-                            testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
-                            testOutput.AppendLine($"{test.TestOutput}", Color.Gray);
-                            testOutput.AppendLine(_lineSeparator, Color.DarkSlateGray);
+                            testOutput.AppendLine($"  Test Output: ", _colorScheme.Bright);
+                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine($"{test.TestOutput}", _colorScheme.Default);
+                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
                         }
                         testOutput.AppendLine(Environment.NewLine);
                     }
@@ -312,37 +312,37 @@ namespace NUnit.Commander.IO
             // Total Run Overview
             // ***********************
             _console.WriteLine();
-            _console.WriteLine(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", Color.Yellow).Append($"{_headerChar}", Color.FromArgb(128,128,0)).Append($"{_headerChar}", Color.FromArgb(64, 64, 0)).AppendLine($"{_headerChar}", Color.FromArgb(32, 32, 0))
-                .AppendLine($"{_headerBorderChar}  NUnit.Commander Test Report", Color.Yellow));
+            _console.WriteLine(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3)
+                .AppendLine($"{_headerBorderChar}  NUnit.Commander Test Report", _colorScheme.Highlight));
             var testRunIds = allReports.GroupBy(x => x.TestRunId).Select(x => x.Key);
             if (testRunIds?.Any() == true)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"  Test Run Id(s): {string.Join(", ", testRunIds)}"));
+                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Test Run Id(s): {string.Join(", ", testRunIds)}"));
             var frameworks = _runContext.Runs.SelectMany(x => x.Key.Frameworks).Distinct();
             if (frameworks.Any() == true)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"  Framework(s): {string.Join(", ", frameworks)}"));
+                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework(s): {string.Join(", ", frameworks)}"));
             var frameworkRuntimes = _runContext.Runs.SelectMany(x => x.Key.FrameworkRuntimes).Distinct();
             if (frameworkRuntimes.Any() == true)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
+                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
             var startTime = _runContext.Runs.Select(x => x.Key.StartTime).OrderBy(x => x).FirstOrDefault();
             var endTime = _runContext.Runs.Select(x => x.Key.EndTime).OrderByDescending(x => x).FirstOrDefault();
-            _console.Write(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).Append($"  Test Start: {startTime}"));
+            _console.Write(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).Append($"  Test Start: {startTime}"));
             _console.Write($"  Test End: {endTime}");
             _console.WriteLine($"  Total Duration: {endTime.Subtract(startTime)}");
-            _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"  Settings:"));
-            _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"    Runtime={totalDuration}"));
+            _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Settings:"));
+            _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    Runtime={totalDuration}"));
             if (_console.IsOutputRedirected)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"    LogMode=Enabled"));
+                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Enabled"));
             else
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", Color.Yellow).AppendLine($"    LogMode=Disabled"));
-            _console.WriteLine(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", Color.Yellow).Append($"{_headerChar}", Color.FromArgb(128, 128, 0)).Append($"{_headerChar}", Color.FromArgb(64, 64, 0)).AppendLine($"{_headerChar}", Color.FromArgb(32, 32, 0)));
+                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Disabled"));
+            _console.WriteLine(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3));
 
             // ***********************
             // PASSED / FAILED ascii art
             // ***********************
             if (isPassed)
-                _console.WriteAscii(ColorTextBuilder.Create.Append("PASSED", Color.Lime));
+                _console.WriteAscii(ColorTextBuilder.Create.Append("PASSED", _colorScheme.Success));
             else
-                _console.WriteAscii(ColorTextBuilder.Create.Append("FAILED", Color.Red));
+                _console.WriteAscii(ColorTextBuilder.Create.Append("FAILED", _colorScheme.Error));
 
             if (performance.Length > 0)
                 _console.WriteLine(performance);
@@ -365,9 +365,9 @@ namespace NUnit.Commander.IO
 
         private void WriteHeader(ColorTextBuilder builder, string str, Color? color = null)
         {
-            builder.AppendLine($"╔{new string(_headerChar, str.Length + 4)}╗", color ?? Color.Yellow);
-            builder.AppendLine($"{_headerBorderChar}  {str}  {_headerBorderChar}", color ?? Color.Yellow);
-            builder.AppendLine($"╚{new string(_headerChar, str.Length + 4)}╝", color ?? Color.Yellow);
+            builder.AppendLine($"╔{new string(_headerChar, str.Length + 4)}╗", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"{_headerBorderChar}  {str}  {_headerBorderChar}", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"╚{new string(_headerChar, str.Length + 4)}╝", color ?? _colorScheme.Highlight);
         }
     }
 }

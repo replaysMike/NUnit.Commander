@@ -1,13 +1,14 @@
 ﻿using AnyConsole;
+using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 
 namespace NUnit.Commander.Models
 {
     public class HistoryReport
     {
+        private Colors _colorScheme;
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
 
@@ -16,13 +17,18 @@ namespace NUnit.Commander.Models
         /// </summary>
         public int TotalDataPoints { get; set; }
 
+        public HistoryReport(Colors colorScheme)
+        {
+            _colorScheme = colorScheme;
+        }
+
         public ColorTextBuilder BuildReport()
         {
             var str = new ColorTextBuilder();
 
-            str.Append("  Total Runs Analyzed: [", Color.White).Append($"{TotalDataPoints}", Color.Yellow).AppendLine("]", Color.White);
+            str.Append("  Total Runs Analyzed: [", _colorScheme.Bright).Append($"{TotalDataPoints}", _colorScheme.Highlight).AppendLine("]", _colorScheme.Bright);
             str.AppendLine();
-            str.Append("  Unstable Tests:", Color.White);
+            str.Append("  Unstable Tests:", _colorScheme.Bright);
             if (UnstableTests.Count == 0)
                 str.AppendLine(" <none>");
             else
@@ -33,17 +39,17 @@ namespace NUnit.Commander.Models
                     var lastDot = test.FullName.LastIndexOf(".");
                     var testName = test.FullName.Substring(lastDot + 1, test.FullName.Length - lastDot - 1);
                     str.Append($" \u2022 {test.FullName.Replace(testName, "")}")
-                        .Append($"{testName} ", Color.White)
-                        .Append("[", Color.White)
-                        .Append(string.Format("{0:0.0}% failures", test.Percentage * 100.0), Color.Red)
+                        .Append($"{testName} ", _colorScheme.Bright)
+                        .Append("[", _colorScheme.Bright)
+                        .Append(string.Format("{0:0.0}% failures", test.Percentage * 100.0), _colorScheme.Error)
                         .Append(", ")
-                        .Append(test.Ratio, Color.Red)
-                        .AppendLine("]", Color.White);
+                        .Append(test.Ratio, _colorScheme.Error)
+                        .AppendLine("]", _colorScheme.Bright);
                 }
             }
 
             str.AppendLine();
-            str.Append("  Duration Anomalies:", Color.White);
+            str.Append("  Duration Anomalies:", _colorScheme.Bright);
             if (DurationAnomalyTests.Count == 0)
                 str.AppendLine(" <none>");
             else
@@ -52,30 +58,30 @@ namespace NUnit.Commander.Models
                 foreach (var test in DurationAnomalyTests)
                 {
                     // test got slower
-                    var color = Color.Red;
+                    var color = _colorScheme.Error;
                     var direction = "+";
                     if (test.DurationChange.Ticks < 0)
                     {
                         // test got faster
-                        color = Color.Green;
+                        color = _colorScheme.DarkSuccess;
                         direction = "";
                     }
                     var lastDot = test.FullName.LastIndexOf(".");
                     var testName = test.FullName.Substring(lastDot + 1, test.FullName.Length - lastDot - 1);
                     str.Append($" \u2022 {test.FullName.Replace(testName, "")}")
-                        .Append($"{testName} ", Color.White)
-                        .Append($"Diff", Color.White)
-                        .Append("[", Color.White)
+                        .Append($"{testName} ", _colorScheme.Bright)
+                        .Append($"Diff", _colorScheme.Bright)
+                        .Append("[", _colorScheme.Bright)
                         .Append($"{direction}{test.DurationChange.ToElapsedTime()}", color)
-                        .Append("]", Color.White)
-                        .Append($" Time", Color.White)
-                        .Append("[", Color.White)
-                        .Append($"{test.Duration.ToElapsedTime()}", Color.Cyan)
-                        .Append("]", Color.White)
-                        .Append($" Median", Color.White)
-                        .Append("[", Color.White)
-                        .Append($"{test.Average.ToElapsedTime()}", Color.Cyan)
-                        .AppendLine("]", Color.White);
+                        .Append("]", _colorScheme.Bright)
+                        .Append($" Time", _colorScheme.Bright)
+                        .Append("[", _colorScheme.Bright)
+                        .Append($"{test.Duration.ToElapsedTime()}", _colorScheme.Duration)
+                        .Append("]", _colorScheme.Bright)
+                        .Append($" Median", _colorScheme.Bright)
+                        .Append("[", _colorScheme.Bright)
+                        .Append($"{test.Average.ToElapsedTime()}", _colorScheme.Duration)
+                        .AppendLine("]", _colorScheme.Bright);
                 }
             }
             str.AppendLine();
