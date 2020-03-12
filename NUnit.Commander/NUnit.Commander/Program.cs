@@ -83,12 +83,16 @@ namespace NUnit.Commander
             if (options.ListColors)
             {
                 colorScheme.PrintColorsToConsole();
+                if (!Console.IsOutputRedirected)
+                    Console.CursorVisible = true;
                 Environment.Exit(0);
             }
             if (options.ClearHistory)
             {
                 runContext.TestHistoryDatabaseProvider.DeleteAll();
                 runContext.TestHistoryDatabaseProvider.Dispose();
+                if (!Console.IsOutputRedirected)
+                    Console.CursorVisible = true;
                 Environment.Exit(0);
             }
 
@@ -142,6 +146,7 @@ namespace NUnit.Commander
                 {
                     Console.ResetColor();
                     Console.Clear();
+                    Console.CursorVisible = true;
                 }
                 Console.ForegroundColor = Color.Red;
                 Console.Error.WriteLine($"Error: Test runner '{launcher.Options.TestRunner}' closed unexpectedly.");
