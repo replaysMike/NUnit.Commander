@@ -4,9 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace NUnit.Commander.Json
 {
-    public class TimespanConverter : JsonConverter<TimeSpan>
+    public class TimeSpanConverter : JsonConverter<TimeSpan>
     {
-        public TimespanConverter() { }
+        public TimeSpanConverter() { }
 
         public override TimeSpan Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {

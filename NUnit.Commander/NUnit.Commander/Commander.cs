@@ -1,5 +1,6 @@
 ﻿using AnyConsole;
 using NUnit.Commander.Configuration;
+using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
@@ -51,6 +52,12 @@ namespace NUnit.Commander
         private string _currentFramework;
         private string _currentFrameworkVersion;
         private int _totalTestsQueued = 0;
+        private PerformanceLog _performanceLog = new PerformanceLog();
+        private int _performanceIteration;
+
+        // performance monitoring
+        private PerformanceCounter _cpuCounter;
+        private PerformanceCounter _diskCounter;
 
         /// <summary>
         /// List of tests that are currently running
@@ -97,6 +104,11 @@ namespace NUnit.Commander
         /// </summary>
         public ReportContext ReportContext { get; private set; }
 
+        /// <summary>
+        /// True if commander is running
+        /// </summary>
+        public bool IsRunning { get; private set; }
+
 
         public Commander(ApplicationConfiguration configuration)
         {
@@ -107,11 +119,24 @@ namespace NUnit.Commander
             _activeTests = new List<EventEntry>();
             RunReports = new List<DataEvent>();
 
+            // start performance counters
+            try
+            {
+                _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                _diskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
+            }
+            catch (Exception)
+            {
+                // unable to use performance counters.
+                // possibly need to run C:\Windows\SysWOW64> lodctr /r
+            }
+
             // start the display thread
             _updateThread = new Thread(new ThreadStart(UpdateThread));
             _updateThread.IsBackground = true;
             _updateThread.Name = "UpdateThread";
             _updateThread.Start();
+
             StartTime = DateTime.Now;
         }
 
@@ -188,12 +213,14 @@ namespace NUnit.Commander
             {
                 // successful connect
                 _allowDrawActiveTests = true;
+                IsRunning = true;
                 if (showOutput)
                 {
                     _console.WriteLine($"Connected to {extensionName}, Run #{RunNumber}.");
                 }
             }, (client) =>
             {
+                IsRunning = false;
                 // failed connect
                 if (showOutput)
                 {
@@ -212,7 +239,7 @@ namespace NUnit.Commander
 
         public void Close()
         {
-            _closeEvent.Set();
+            _closeEvent?.Set();
         }
 
         private void UpdateThread()
@@ -221,6 +248,23 @@ namespace NUnit.Commander
             {
                 RemoveExpiredActiveTests();
                 DisplayActiveTests();
+                LogPerformance();
+            }
+        }
+
+        private void LogPerformance()
+        {
+            Interlocked.Increment(ref _performanceIteration);
+            if (_eventLog.Count > 0 && _performanceIteration > 30 && _performanceIteration % 10 == 0)
+            {
+                if (_cpuCounter != null)
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, _cpuCounter.NextValue());
+                if (_diskCounter != null)
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, _diskCounter.NextValue());
+
+                var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
+                var totalMemoryBytes = PerformanceInfo.GetTotalMemoryInMiB() * 1024;
+                _performanceLog.AddEntry(PerformanceLog.PerformanceType.MemoryUsed, totalMemoryBytes - availableMemoryBytes);
             }
         }
 
@@ -343,7 +387,7 @@ namespace NUnit.Commander
                                 break;
                         }
 
-                        var prettyTestName = GetPrettyTestName(test.Event.TestName);
+                        var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, MaxTestCaseArgumentLength);
                         // print out this test name and duration
                         _console.WriteAt(ColorTextBuilder.Create
                             // test number
@@ -387,7 +431,7 @@ namespace NUnit.Commander
                                 var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
                                 if (test.Event.EndTime != DateTime.MinValue)
                                     lifetime = test.Event.Duration;
-                                var prettyTestName = GetPrettyTestName(test.Event.TestName);
+                                var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, MaxTestCaseArgumentLength);
                                 // print out this test name and duration
                                 _console.WriteAt(ColorTextBuilder.Create
                                     .AppendIf(!string.IsNullOrEmpty(label), label, Color.DarkSlateGray)
@@ -410,40 +454,6 @@ namespace NUnit.Commander
                 _lock.Release();
                 _lastDrawTime = DateTime.Now;
             }
-        }
-
-        private ColorTextBuilder GetPrettyTestName(string testName)
-        {
-            var testCaseArgs = string.Empty;
-            if (testName.Contains("("))
-            {
-                // strip the test case arguments if it won't fit on screen
-                var testCaseSourceIndex = testName.IndexOf("(");
-                var testCaseSourceEndIndex = testName.LastIndexOf(")");
-                if (testCaseSourceIndex > 0 && testCaseSourceIndex > 0)
-                {
-                    var maxLength = MaxTestCaseArgumentLength;
-                    testCaseArgs = testName.Substring(testCaseSourceIndex, testCaseSourceEndIndex - testCaseSourceIndex);
-                    if (testCaseArgs.Length > maxLength)
-                    {
-                        testCaseArgs = testCaseArgs.Substring(0, maxLength) + "...";
-                        if (testCaseArgs.Contains("\"")) testCaseArgs += "\"";
-                    }
-                    testCaseArgs += ")";
-                    // remove args from test name
-                    testName = testName.Substring(0, testCaseSourceIndex);
-                }
-            }
-            if (testName.Length + testCaseArgs.Length > Console.WindowWidth - 30)
-            {
-                testCaseArgs = string.Empty;
-                if (testName.Length + testCaseArgs.Length > Console.WindowWidth - 30)
-                    testName = testName.Substring(0, Console.WindowWidth - 30) + "...";
-            }
-
-            return ColorTextBuilder.Create
-                                    .Append(testName)
-                                    .AppendIf(!string.IsNullOrEmpty(testCaseArgs), testCaseArgs, Color.DarkSlateGray);
         }
 
         private bool IsTestRunIdReceived(Guid? testRunId)
@@ -487,6 +497,7 @@ namespace NUnit.Commander
 
         private void FinalizeTestRun()
         {
+            IsRunning = false;
             EndTime = DateTime.Now;
             if (!_console.IsOutputRedirected)
             {
@@ -501,7 +512,16 @@ namespace NUnit.Commander
                 FrameworkRuntimes = _frameworkVersions,
                 Frameworks = _frameworks,
                 TestRunIds = _testRunIds,
-                EventEntries = _eventLog
+                EventEntries = _eventLog,
+                Performance = new ReportContext.PerformanceOverview
+                {
+                    PeakCpuUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.CpuUsed),
+                    MedianCpuUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.CpuUsed),
+                    PeakMemoryUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.MemoryUsed),
+                    MedianMemoryUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.MemoryUsed),
+                    PeakDiskTime = _performanceLog.GetPeak(PerformanceLog.PerformanceType.DiskTime),
+                    MedianDiskTime = _performanceLog.GetMedian(PerformanceLog.PerformanceType.DiskTime),
+                }
             };
         }
 
@@ -582,12 +602,36 @@ namespace NUnit.Commander
         {
             if (isDisposing)
             {
-                _client?.Dispose();
-                _closeEvent?.Set();
-                _closeEvent?.Dispose();
-                _closeEvent = null;
-                _client = null;
-                _console?.Dispose();
+                _lock.Wait();
+                try
+                {
+                    _client?.Dispose();
+                    _closeEvent?.Set();
+                    if (_updateThread?.Join(5 * 1000) == false)
+                        _updateThread.Abort();
+                    _closeEvent?.Dispose();
+                    _closeEvent = null;
+                    _client = null;
+                    _updateThread = null;
+                    _testRunIds?.Clear();
+                    _testRunIds = null;
+                    _frameworks?.Clear();
+                    _frameworks = null;
+                    _frameworkVersions?.Clear();
+                    _frameworkVersions = null;
+                    _eventLog?.Clear();
+                    _eventLog = null;
+                    _activeTests?.Clear();
+                    _activeTests = null;
+                    _cpuCounter?.Dispose();
+                    _diskCounter?.Dispose();
+                    _console?.Dispose();
+                }
+                finally
+                {
+                    _lock.Release();
+                    _lock.Dispose();
+                }
             }
         }
     }

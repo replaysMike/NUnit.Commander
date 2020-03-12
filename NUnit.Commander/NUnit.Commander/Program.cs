@@ -1,11 +1,13 @@
 ﻿using AnyConsole;
 using CommandLine;
+using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Reflection;
 using Console = Colorful.Console;
 
@@ -13,6 +15,8 @@ namespace NUnit.Commander
 {
     class Program
     {
+        static Commander _commander;
+
         static void Main(string[] args)
         {
             var configProvider = new ConfigurationProvider();
@@ -58,6 +62,8 @@ namespace NUnit.Commander
                 config.MaxFailedTestsToDisplay = options.MaxFailedTestsToDisplay.Value;
             if (options.GenerateReportType.HasValue)
                 config.GenerateReportType = options.GenerateReportType.Value;
+            if (options.EventFormatType.HasValue)
+                config.EventFormatType = options.EventFormatType.Value;
             if (options.SlowestTestsCount.HasValue)
                 config.SlowestTestsCount = options.SlowestTestsCount.Value;
             if (options.ShowTestRunnerOutput.HasValue)
@@ -69,6 +75,8 @@ namespace NUnit.Commander
             TestRunnerLauncher launcher = null;
             var runNumber = 0;
             var runContext = new RunContext();
+            runContext.TestHistoryDatabaseProvider = new TestHistoryDatabaseProvider(config);
+
             while (runNumber < options.Repeat)
             {
                 runNumber++;
@@ -76,6 +84,7 @@ namespace NUnit.Commander
                 {
                     // launch test runner in another process if asked
                     launcher = new TestRunnerLauncher(options);
+                    launcher.OnTestRunnerExit += Launcher_OnTestRunnerExit;
                     testRunnerSuccess = launcher.StartTestRunner();
                 }
 
@@ -104,6 +113,26 @@ namespace NUnit.Commander
                 }
             }
         }
+
+        private static void Launcher_OnTestRunnerExit(object sender, EventArgs e)
+        {
+            var launcher = sender as TestRunnerLauncher;
+            if (_commander.IsRunning)
+            {
+                // unexpected exit
+                _commander?.Close();
+                System.Threading.Thread.Sleep(100);
+
+                if (!Console.IsOutputRedirected)
+                    Console.Clear();
+                Console.ForegroundColor = Color.Red;
+                Console.Error.WriteLine($"Error: Test runner '{launcher.Options.TestRunner}' closed unexpectedly.");
+                Console.Error.WriteLine($"Commander will now exit.");
+                Console.ForegroundColor = Color.Gray;
+                Environment.Exit(-3);
+            }
+        }
+
         private static Options ProcessQuotedParameters(Options options)
         {
             if (options.TestRunnerArguments.Contains(@"\"""))
@@ -216,16 +245,28 @@ namespace NUnit.Commander
             if (options.Repeat > 1)
                 header = header + $", Run #{runNumber}";
             var console = new LogFriendlyConsole(true, header);
-            using (var commander = new Commander(configuration, console, runNumber))
+            using (_commander = new Commander(configuration, console, runNumber))
             {
-                commander.Connect(true, (c) => c.Close());
-                commander.WaitForClose();
-                isSuccess = commander.RunReports.Count > 0;
-                runContext.Runs.Add(commander.ReportContext, commander.RunReports);
+                _commander.Connect(true, (c) => c.Close());
+                _commander.WaitForClose();
+                isSuccess = _commander.RunReports.Count > 0;
+                if (_commander.ReportContext != null)
+                    runContext.Runs.Add(_commander.ReportContext, _commander.RunReports);
+
+                // add the run data to the history
+                var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
 
                 if (runNumber == options.Repeat)
                 {
                     // write the final report to the output
+                    if (configuration.HistoryAnalysisConfiguration.Enabled)
+                    {
+                        console.WriteLine("Analyzing...");
+                        var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                        runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
+                    }
+
+                    console.WriteLine("Generating report...");
                     var reportWriter = new ReportWriter(console, configuration, runContext);
                     reportWriter.WriteFinalReport();
                 }
@@ -265,16 +306,27 @@ namespace NUnit.Commander
             console.WriteRow("SubHeader", "Real-Time Test Monitor", ColumnLocation.Left, Color.FromArgb(60, 60, 60));
             console.Start();
 
-            using (var commander = new Commander(configuration, console, runNumber))
+            using (_commander = new Commander(configuration, console, runNumber))
             {
-                commander.Connect(true, (c) => c.Close());
-                commander.WaitForClose();
-                isSuccess = commander.RunReports.Count > 0;
-                runContext.Runs.Add(commander.ReportContext, commander.RunReports);
+                _commander.Connect(true, (c) => c.Close());
+                _commander.WaitForClose();
+                isSuccess = _commander.RunReports.Count > 0;
+                runContext.Runs.Add(_commander.ReportContext, _commander.RunReports);
+
+                // add the run data to the history
+                var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
 
                 if (runNumber == options.Repeat)
                 {
                     // write the final report to the output
+                    if (configuration.HistoryAnalysisConfiguration.Enabled)
+                    {
+                        console.WriteLine("Analyzing...");
+                        var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                        runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
+                    }
+
+                    console.WriteLine("Generating report...");
                     var reportWriter = new ReportWriter(console, configuration, runContext);
                     reportWriter.WriteFinalReport();
                 }
@@ -283,6 +335,25 @@ namespace NUnit.Commander
             console.Close();
             console.Dispose();
             return isSuccess;
+        }
+
+        private static IEnumerable<TestHistoryEntry> AddCurrentRunToHistory(ApplicationConfiguration configuration, RunContext runContext)
+        {
+            if (configuration.HistoryAnalysisConfiguration.Enabled)
+            {
+                var commanderIdMap = runContext.Runs.ToDictionary(key => key.Key.CommanderRunId, value => value.Value.Select(y => y.TestRunId).ToList());
+                var allReports = runContext.Runs.SelectMany(x => x.Value);
+                var currentRunTestHistoryEntries = allReports
+                    .SelectMany(x => x.Report.TestReports
+                    .Where(y => y.TestStatus != TestStatus.Skipped)
+                    .Select(y => new TestHistoryEntry(commanderIdMap.Where(z => z.Value.Contains(x.TestRunId)).Select(z => z.Key).FirstOrDefault().ToString(), x.TestRunId.ToString(), y)));
+
+                runContext.TestHistoryDatabaseProvider.LoadDatabase();
+                runContext.TestHistoryDatabaseProvider.AddTestHistoryRange(currentRunTestHistoryEntries);
+                runContext.TestHistoryDatabaseProvider.SaveDatabase();
+                return currentRunTestHistoryEntries;
+            }
+            return null;
         }
 
         private static void Console_OnKeyPress(KeyPressEventArgs e)

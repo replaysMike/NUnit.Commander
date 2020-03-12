@@ -1,4 +1,6 @@
-﻿namespace NUnit.Commander.Configuration
+﻿using NUnit.Commander.Models;
+
+namespace NUnit.Commander.Configuration
 {
     public class ApplicationConfiguration
     {
@@ -16,6 +18,11 @@
         /// True to log final reports to a file
         /// </summary>
         public bool EnableLog { get; set; } = false;
+
+        /// <summary>
+        /// The event format type NUnit.Extension.TestMonitor is configured to send
+        /// </summary>
+        public EventFormatTypes EventFormatType { get; set; } = EventFormatTypes.Json;
 
         /// <summary>
         /// The reports you want to see when the run is completed

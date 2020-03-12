@@ -13,8 +13,6 @@ namespace NUnit.Commander.Analysis
         TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
         ApplicationConfiguration _configuration;
 
-        public int TotalDataPoints { get; private set; }
-
         public TestHistoryAnalyzer(ApplicationConfiguration configuration, TestHistoryDatabaseProvider testHistoryDatabaseProvider)
         {
             _testHistoryDatabaseProvider = testHistoryDatabaseProvider;
@@ -33,7 +31,7 @@ namespace NUnit.Commander.Analysis
             var total = 0;
             var passed = 0;
             var failed = 0;
-            TotalDataPoints = data.GroupBy(x => x.CommanderRunId).Count();
+            report.TotalDataPoints = data.GroupBy(x => x.CommanderRunId).Count();
 
             // look for unstable tests. Those are defined as tests which have a high ratio of pass/fail
             var ratio = string.Empty;
@@ -88,6 +86,7 @@ namespace NUnit.Commander.Analysis
                 if (currentRunChanges.Any())
                 {
                     var currentEntry = currentRun
+                        .Where(x => x.FullName == test)
                         .OrderByDescending(x => x.Duration)
                         .First();
                     var durationChange = TimeSpan.FromTicks(currentEntry.Duration.Ticks - medianDuration);

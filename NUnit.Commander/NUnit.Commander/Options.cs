@@ -28,6 +28,9 @@ namespace NUnit.Commander
         [Option("generate-reports", Required = false, HelpText = "Specify which reports to generate")]
         public GenerateReportType? GenerateReportType { get; set; }
 
+        [Option("event-format", Required = false, HelpText = "Specify which event format type NUnit.Extension.TestMonitor is configured to send. Default: json")]
+        public EventFormatTypes? EventFormatType { get; set; }
+
         [Option("slowest", Required = false, HelpText = "Specify the number of slowest tests to display in report")]
         public int? SlowestTestsCount { get; set; }
 
@@ -45,10 +48,10 @@ namespace NUnit.Commander
         [Option("min-runs", Required = false, SetName = "Analysis", HelpText = "The minimum number of history entries to analyze")]
         public int? MinTestHistoryToAnalyze { get; set; }
 
-        [Option("ratio", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of history entries to analyze. Default: 0.05")]
+        [Option("ratio", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of failed tests allowed. Default: 0.05 (5%)")]
         public double? MinTestReliabilityThreshold { get; set; }
 
-        [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of duration changes to analyze. Default: 0.1")]
+        [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.2 (20%)")]
         public double? MaxTestDurationChange { get; set; }
 
         [Option("min-duration", Required = false, SetName = "Analysis", HelpText = "Tests that complete less than this time will not have duration analysis checked. Default: 1000")]

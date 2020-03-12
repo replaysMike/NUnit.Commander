@@ -1,14 +1,17 @@
-﻿using System.Collections.Generic;
+﻿using ProtoBuf;
+using System.Collections.Generic;
 
 namespace NUnit.Commander.Models
 {
+    [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
     public class DataReport
     {
         public int TotalTests { get; set; }
 
-        public ICollection<TestCaseReport> TestReports { get; set; } = new List<TestCaseReport>();
+        public List<TestCaseReport> TestReports { get; set; } = new List<TestCaseReport>();
 
         public DataReport() { }
+
         public DataReport(DataReport dataReport)
         {
             TotalTests = dataReport.TotalTests;

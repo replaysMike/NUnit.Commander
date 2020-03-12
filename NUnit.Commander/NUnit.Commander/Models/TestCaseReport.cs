@@ -1,9 +1,11 @@
 ﻿using NUnit.Commander.Json;
+using ProtoBuf;
 using System;
 using System.Text.Json.Serialization;
 
 namespace NUnit.Commander.Models
 {
+    [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
     public class TestCaseReport
     {
         /// <summary>
@@ -22,7 +24,7 @@ namespace NUnit.Commander.Models
         public string RuntimeVersion { get; set; }
 
         /// <summary>
-        /// Parent test suite
+        /// Parent object id
         /// </summary>
         public string TestSuite { get; set; }
 
@@ -60,7 +62,7 @@ namespace NUnit.Commander.Models
         /// <summary>
         /// Duration of test/suite/run
         /// </summary>
-        [JsonConverter(typeof(TimespanConverter))]
+        [JsonConverter(typeof(TimeSpanConverter))]
         public TimeSpan Duration { get; set; }
 
         /// <summary>
@@ -89,11 +91,16 @@ namespace NUnit.Commander.Models
         public bool IsSkipped { get; set; }
 
         public TestCaseReport() { }
+
         public TestCaseReport(TestCaseReport dataEvent)
         {
             // clone the entire object
             if (dataEvent.Id != null)
                 Id = new string(dataEvent.Id.ToCharArray());
+            if (dataEvent.Runtime != null)
+                Runtime = new string(dataEvent.Runtime.ToCharArray());
+            if (dataEvent.RuntimeVersion != null)
+                RuntimeVersion = new string(dataEvent.RuntimeVersion.ToCharArray());
             if (dataEvent.TestSuite != null)
                 TestSuite = new string(dataEvent.TestSuite.ToCharArray());
             if (dataEvent.TestSuite != null)
@@ -113,6 +120,8 @@ namespace NUnit.Commander.Models
                 ErrorMessage = new string(dataEvent.ErrorMessage.ToCharArray());
             if (dataEvent.StackTrace != null)
                 StackTrace = new string(dataEvent.StackTrace.ToCharArray());
+            Asserts = dataEvent.Asserts;
+            IsSkipped = dataEvent.IsSkipped;
         }
 
         public override string ToString()

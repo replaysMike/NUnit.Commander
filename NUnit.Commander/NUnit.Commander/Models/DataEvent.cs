@@ -1,9 +1,11 @@
 ﻿using NUnit.Commander.Json;
+using ProtoBuf;
 using System;
 using System.Text.Json.Serialization;
 
 namespace NUnit.Commander.Models
 {
+    [ProtoContract(ImplicitFields = ImplicitFields.AllPublic)]
     public class DataEvent
     {
         /// <summary>
@@ -86,7 +88,7 @@ namespace NUnit.Commander.Models
         /// <summary>
         /// Duration of test/suite/run
         /// </summary>
-        [JsonConverter(typeof(TimespanConverter))]
+        [JsonConverter(typeof(TimeSpanConverter))]
         public TimeSpan Duration { get; set; }
 
         /// <summary>
@@ -152,14 +154,23 @@ namespace NUnit.Commander.Models
         /// <summary>
         /// The commander run number
         /// </summary>
+        [ProtoIgnore]
         public int RunNumber { get; set; }
 
         public DataEvent() { }
+
+        public DataEvent(EventNames eventName)
+        {
+            Event = eventName;
+        }
+
         public DataEvent(DataEvent dataEvent)
         {
             // clone the entire object
             if (dataEvent.Runtime != null)
                 Runtime = new string(dataEvent.Runtime.ToCharArray());
+            if (dataEvent.RuntimeVersion != null)
+                RuntimeVersion = new string(dataEvent.RuntimeVersion.ToCharArray());
             Event = dataEvent.Event;
             if (dataEvent.Id != null)
                 Id = new string(dataEvent.Id.ToCharArray());
@@ -171,6 +182,8 @@ namespace NUnit.Commander.Models
                 TestName = new string(dataEvent.TestName.ToCharArray());
             if (dataEvent.FullName != null)
                 FullName = new string(dataEvent.FullName.ToCharArray());
+            if (dataEvent.TestType != null)
+                TestType = new string(dataEvent.TestType.ToCharArray());
             TestResult = dataEvent.TestResult;
             TestStatus = dataEvent.TestStatus;
             StartTime = dataEvent.StartTime;
@@ -180,6 +193,8 @@ namespace NUnit.Commander.Models
             Failed = dataEvent.Failed;
             Warnings = dataEvent.Warnings;
             Skipped = dataEvent.Skipped;
+            Asserts = dataEvent.Asserts;
+            IsSkipped = dataEvent.IsSkipped;
             Inconclusive = dataEvent.Inconclusive;
             TestCount = dataEvent.TestCount;
             if (dataEvent.TestOutput != null)
@@ -190,6 +205,7 @@ namespace NUnit.Commander.Models
                 StackTrace = new string(dataEvent.StackTrace.ToCharArray());
             if (dataEvent.Report != null)
                 Report = new DataReport(dataEvent.Report);
+            RunNumber = dataEvent.RunNumber;
         }
 
         public override string ToString()

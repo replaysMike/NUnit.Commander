@@ -54,6 +54,11 @@ namespace NUnit.Commander
         ReportContext ReportContext { get; }
 
         /// <summary>
+        /// True if commander is running
+        /// </summary>
+        bool IsRunning { get; }
+
+        /// <summary>
         /// Wait for commander to close
         /// </summary>
         void WaitForClose();

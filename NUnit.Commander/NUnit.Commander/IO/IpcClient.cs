@@ -1,12 +1,17 @@
 ﻿using AnyConsole;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.Models;
+using ProtoBuf;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Xml;
+using System.Xml.Serialization;
 
 namespace NUnit.Commander.IO
 {
@@ -42,6 +47,8 @@ namespace NUnit.Commander.IO
         private ManualResetEvent _closeEvent;
         private ApplicationConfiguration _config;
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private XmlSerializer _xmlSerializer = new XmlSerializer(typeof(DataEvent));
+
 
         public bool IsWaitingForConnection { get; private set; }
 
@@ -109,7 +116,7 @@ namespace NUnit.Commander.IO
 
             if (bytesRead > 0)
             {
-                _lock.Wait();
+                _lock?.Wait();
                 try
                 {
                     // copy data into the main message buffer for processing
@@ -117,8 +124,10 @@ namespace NUnit.Commander.IO
                     _messageByteIndex += bytesRead;
 
                     var dataToProcess = true;
+                    var loopCounter = 0;
                     while (dataToProcess)
                     {
+                        loopCounter++;
                         if (_messageByteIndex >= TotalHeaderLength)
                         {
                             // we have at least the header, read it and any additional data
@@ -129,24 +138,42 @@ namespace NUnit.Commander.IO
                                 throw new InvalidOperationException($"ERROR|Message start header '{startMessageHeader}' was not the expected value of '{StartMessageHeader}'.");
                             if (endMessageHeader != EndMessageHeader)
                                 throw new InvalidOperationException($"ERROR|Message end header '{endMessageHeader}' was not the expected value of '{EndMessageHeader}'.");
-                            // have we received all the data?
-                            if (_messageByteIndex >= totalMessageLength)
+                            // have we received all the data? (message size, plus it's header)
+                            if (_messageByteIndex >= totalMessageLength + TotalHeaderLength)
                             {
                                 // all data received for message
                                 // read in the data
                                 var messageBytes = new byte[totalMessageLength - StringPreambleLength];
                                 Array.Copy(_messageBuffer, TotalHeaderLength + StringPreambleLength, messageBytes, 0, messageBytes.Length);
-                                //var eventStr = UseEncoding.GetString(_messageBuffer, TotalHeaderLength + StringPreambleLength, totalMessageLength - StringPreambleLength);
-                                var eventStr = UseEncoding.GetString(messageBytes);
-                                DataEvent dataEvent;
+                                DataEvent dataEvent = null;
+                                string eventStr = null;
                                 try
                                 {
-                                    dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
+                                    switch (_config.EventFormatType)
+                                    {
+                                        case EventFormatTypes.Json:
+                                            eventStr = UseEncoding.GetString(messageBytes);
+                                            dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
+                                            break;
+                                        case EventFormatTypes.Xml:
+                                            eventStr = UseEncoding.GetString(messageBytes);
+                                            using (var stringReader = new StringReader(eventStr))
+                                            {
+                                                dataEvent = _xmlSerializer.Deserialize(stringReader) as DataEvent;
+                                            }
+                                            break;
+                                        case EventFormatTypes.Binary:
+                                            using (var stream = new MemoryStream(messageBytes))
+                                            {
+                                                dataEvent = Serializer.Deserialize<DataEvent>(stream);
+                                            }
+                                            break;
+                                    }
                                 }
-                                catch (JsonException ex)
+                                catch (Exception ex)
                                 {
                                     // failed to deserialize json
-                                    throw new IpcClientException(ex.Message);
+                                    throw new IpcClientException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
                                 }
                                 var e = new EventEntry(dataEvent);
                                 Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
@@ -162,7 +189,6 @@ namespace NUnit.Commander.IO
                                     Array.Copy(bufferOverflowBytes, 0, _messageBuffer, 0, bufferOverflowBytes.Length);
                                     // reset the buffer position, ready for next message
                                     _messageByteIndex = bufferOverflowBytes.Length;
-                                    Debug.WriteLine($"Moved {bufferOverflowBytes.Length} bytes to start");
                                 }
                                 else
                                 {
@@ -177,21 +203,18 @@ namespace NUnit.Commander.IO
                             {
                                 // more data needed to process the message
                                 dataToProcess = false;
-                                if (_messageByteIndex > 0)
-                                    Debug.WriteLine($"More data needed, only {_messageByteIndex} bytes in buffer...");
                             }
                         }
                         else
                         {
                             // more data needed to read the header
                             dataToProcess = false;
-                            Debug.WriteLine($"More data needed, only {_messageByteIndex} bytes in buffer...");
                         }
                     }
                 }
                 finally
                 {
-                    _lock.Release();
+                    _lock?.Release();
                 }
             }
             // signal ready to read more data
@@ -209,14 +232,22 @@ namespace NUnit.Commander.IO
             if (isDisposing)
             {
                 _closeEvent?.Set();
-                if (_readThread?.Join(5 * 1000) == false)
-                    _readThread.Abort();
-                _closeEvent?.Dispose();
-                _closeEvent = null;
-                _readThread = null;
-                _console?.Dispose();
-                _lock?.Dispose();
-                _lock = null;
+                _lock.Wait();
+                try
+                {
+                    if (_readThread?.Join(5 * 1000) == false)
+                        _readThread.Abort();
+                    _closeEvent?.Dispose();
+                    _closeEvent = null;
+                    _readThread = null;
+                    _console?.Dispose();
+                }
+                finally
+                {
+                    _lock.Release();
+                    _lock.Dispose();
+                    _lock = null;
+                }
             }
         }
     }

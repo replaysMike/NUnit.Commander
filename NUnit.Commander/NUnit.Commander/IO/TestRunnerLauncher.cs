@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace NUnit.Commander.IO
 {
@@ -12,7 +13,12 @@ namespace NUnit.Commander.IO
         private readonly Stream _streamError;
         private readonly StreamWriter _streamWriter;
         private readonly StreamWriter _streamErrorWriter;
+        private readonly ProcessJobTracker _jobTracker;
         private Process _process;
+
+        public event EventHandler OnTestRunnerExit;
+        public Options Options => _options;
+
 
         public string ConsoleOutput
         {
@@ -37,7 +43,22 @@ namespace NUnit.Commander.IO
         /// <summary>
         /// Get the exit code for the process
         /// </summary>
-        public int ExitCode => _process?.ExitCode ?? 0;
+        public int ExitCode
+        {
+            get
+            {
+                var exitCode = 0;
+                try
+                {
+                    exitCode = _process?.ExitCode ?? 0;
+                }
+                catch (Exception)
+                {
+                }
+                return exitCode;
+            }
+
+        }
 
         public TestRunnerLauncher(Options options)
         {
@@ -48,12 +69,23 @@ namespace NUnit.Commander.IO
             _streamError = new MemoryStream();
             _streamErrorWriter = new StreamWriter(_streamError);
             _streamErrorWriter.AutoFlush = true;
+            _jobTracker = new ProcessJobTracker();
         }
 
         /// <summary>
         /// Wait for process to exit
         /// </summary>
-        public void WaitForExit() => _process.WaitForExit();
+        public void WaitForExit()
+        {
+            try
+            {
+                _process?.WaitForExit();
+            }
+            catch (COMException)
+            {
+                // the process ended and handle was already released
+            }
+        }
 
         public bool StartTestRunner()
         {
@@ -115,13 +147,24 @@ namespace NUnit.Commander.IO
                 _process.OutputDataReceived += Process_OutputDataReceived;
                 _process.ErrorDataReceived += Process_ErrorDataReceived;
             }
-            _process.Start();
+            _process.Exited += Process_Exited;
+            if (_process.Start())
+            {
+                // tell windows to close this process if Commander is closed
+                _jobTracker.AddProcess(_process);
+            }
             if (!_options.EnableDisplayOutput)
             {
                 _process.BeginErrorReadLine();
                 _process.BeginOutputReadLine();
             }
             return true;
+        }
+
+        private void Process_Exited(object sender, EventArgs e)
+        {
+            _process = null;
+            OnTestRunnerExit?.Invoke(this, e);
         }
 
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
@@ -152,7 +195,12 @@ namespace NUnit.Commander.IO
                 _streamErrorWriter?.Dispose();
                 _stream?.Dispose();
                 _streamError?.Dispose();
-                _process?.Dispose();
+                try
+                {
+                    _process?.Dispose();
+                }
+                catch (Exception) { }
+                _jobTracker?.Dispose();
             }
         }
     }

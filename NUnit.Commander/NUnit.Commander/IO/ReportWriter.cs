@@ -1,6 +1,7 @@
 ﻿using AnyConsole;
 using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
+using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using NUnit.Commander.Models;
 using System;
@@ -17,8 +18,6 @@ namespace NUnit.Commander.IO
     {
         private IExtendedConsole _console;
         private ApplicationConfiguration _configuration;
-        private TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
-        private TestHistoryAnalyzer _testHistoryAnalyzer;
         private RunContext _runContext;
         private const char _headerChar = '═';
         private const char _headerBorderChar = '║';
@@ -31,8 +30,6 @@ namespace NUnit.Commander.IO
         {
             _console = console;
             _configuration = configuration;
-            _testHistoryDatabaseProvider = new TestHistoryDatabaseProvider(_configuration);
-            _testHistoryAnalyzer = new TestHistoryAnalyzer(_configuration, _testHistoryDatabaseProvider);
             _runContext = runContext;
         }
 
@@ -117,6 +114,21 @@ namespace NUnit.Commander.IO
                 passFail.Append($", Inconclusive: ", Color.DarkSlateGray);
                 passFail.AppendLine($"{inconclusive:N0}", Color.Gray);
 
+                passFail.Append($"  Peak Cpu: ", Color.DarkSlateGray);
+                passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakCpuUsed):N0}%", Color.Gray);
+                passFail.Append($", Median: ", Color.DarkSlateGray);
+                passFail.AppendLine($"{_runContext.Runs.Median(x => x.Key.Performance.MedianCpuUsed):N0}%", Color.Gray);
+
+                passFail.Append($"  Peak Memory: ", Color.DarkSlateGray);
+                passFail.Append($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Max(x => x.Key.Performance.PeakMemoryUsed))}", Color.Gray);
+                passFail.Append($", Median: ", Color.DarkSlateGray);
+                passFail.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Median(x => x.Key.Performance.MedianMemoryUsed))}", Color.Gray);
+
+                passFail.Append($"  Peak Disk Time: ", Color.DarkSlateGray);
+                passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakDiskTime):N0}%", Color.Gray);
+                passFail.Append($", Median: ", Color.DarkSlateGray);
+                passFail.AppendLine($"{_runContext.Runs.Median(x => x.Key.Performance.MedianDiskTime):N0}%", Color.Gray);
+
                 passFail.AppendLine(Environment.NewLine);
             }
 
@@ -138,11 +150,11 @@ namespace NUnit.Commander.IO
                     var failuresColor = Color.DarkRed;
                     if (allSuccess)
                     {
-                        successColor = Color.Lime;
-                        statusColor = Color.Lime;
+                        successColor = Color.DarkGreen;
+                        statusColor = Color.DarkGreen;
                     }
                     if (allReports.Sum(x => x.Failed) > 0)
-                        failuresColor = Color.Red;
+                        failuresColor = Color.DarkRed;
                     
                     var testCount = run.Value.Sum(x => x.TestCount);
                     var passed = run.Value.Sum(x => x.Passed);
@@ -188,6 +200,21 @@ namespace NUnit.Commander.IO
                     passFailByRun.Append($", Inconclusive: ", Color.DarkSlateGray);
                     passFailByRun.AppendLine($"{inconclusive:N0}", Color.Gray);
 
+                    passFailByRun.Append($"  Peak Cpu: ", Color.DarkSlateGray);
+                    passFailByRun.Append($"{run.Key.Performance.PeakCpuUsed:N0}%", Color.Gray);
+                    passFailByRun.Append($", Median: ", Color.DarkSlateGray);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianCpuUsed:N0}%", Color.Gray);
+
+                    passFailByRun.Append($"  Peak Memory: ", Color.DarkSlateGray);
+                    passFailByRun.Append($"{DisplayUtil.GetFriendlyBytes((long)run.Key.Performance.PeakMemoryUsed)}", Color.Gray);
+                    passFailByRun.Append($", Median: ", Color.DarkSlateGray);
+                    passFailByRun.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)run.Key.Performance.MedianMemoryUsed)}", Color.Gray);
+
+                    passFailByRun.Append($"  Peak Disk Time: ", Color.DarkSlateGray);
+                    passFailByRun.Append($"{run.Key.Performance.PeakDiskTime:N0}%", Color.Gray);
+                    passFailByRun.Append($", Median: ", Color.DarkSlateGray);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianDiskTime:N0}%", Color.Gray);
+
                     passFailByRun.Append($"  Run Id: ", Color.Gray);
                     passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), Color.DarkSlateGray);
 
@@ -195,6 +222,9 @@ namespace NUnit.Commander.IO
                 }
             }
 
+            // ***********************
+            // Slowest Test Summary
+            // ***********************
             var performance = new ColorTextBuilder();
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.Performance))
             {
@@ -210,21 +240,21 @@ namespace NUnit.Commander.IO
                     .Take(_configuration.SlowestTestsCount);
                 foreach (var test in slowestTests)
                 {
-                    performance.Append($" \u2022 {test.FirstOrDefault().FullName.Replace(test.FirstOrDefault().TestName, "")}");
-                    performance.Append($"{test.FirstOrDefault().TestName}", Color.White);
-                    performance.AppendLine($" : {test.FirstOrDefault().Duration.ToElapsedTime()}", Color.Cyan);
+                    performance.Append($" \u2022 ");
+                    performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName));
+                    performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", Color.Cyan);
                 }
                 performance.AppendLine(Environment.NewLine);
             }
 
             // ***********************
-            // Failed Tests Summary
+            // Failed Tests Output
             // ***********************
             var testOutput = new ColorTextBuilder();
             var showErrors = _configuration.GenerateReportType.HasFlag(GenerateReportType.Errors);
             var showStackTraces = _configuration.GenerateReportType.HasFlag(GenerateReportType.StackTraces);
             var showTestOutput = _configuration.GenerateReportType.HasFlag(GenerateReportType.TestOutput);
-            var showTestAnalysis = _configuration.GenerateReportType.HasFlag(GenerateReportType.TestOutput);
+            var showTestAnalysis = _configuration.GenerateReportType.HasFlag(GenerateReportType.TestAnalysis);
             if (showErrors || showStackTraces || showTestOutput)
             {
                 if (!isPassed)
@@ -245,7 +275,7 @@ namespace NUnit.Commander.IO
                         var testIndexStr = $"#{runNumber}-{testIndex}) ";
                         testOutput.Append(testIndexStr, Color.DarkRed);
                         testOutput.AppendLine($"{test.TestName}", Color.Red);
-                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}");
+                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}", Color.DarkSlateGray);
                         testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.RuntimeVersion}", Color.DarkCyan);
                         testOutput.AppendLine();
 
@@ -276,24 +306,6 @@ namespace NUnit.Commander.IO
                         testOutput.AppendLine(Environment.NewLine);
                     }
                 }
-            }
-
-            // ***********************
-            // Historical Analysis
-            // ***********************
-            var historyReport = new HistoryReport();
-            if (_configuration.HistoryAnalysisConfiguration.Enabled)
-            {
-                _testHistoryDatabaseProvider.LoadDatabase();
-                var historyEntries = allReports
-                    .SelectMany(x => x.Report.TestReports
-                        .Where(y => y.TestStatus != TestStatus.Skipped)
-                        .Select(y => new TestHistoryEntry(commanderIdMap.Where(z => z.Value.Contains(x.TestRunId)).Select(z => z.Key).FirstOrDefault().ToString(), x.TestRunId.ToString(), y)));
-                // analyze before saving new results
-                historyReport = _testHistoryAnalyzer.Analyze(historyEntries);
-                // save results
-                _testHistoryDatabaseProvider.AddTestHistoryRange(historyEntries);
-                _testHistoryDatabaseProvider.SaveDatabase();
             }
 
             // ***********************
@@ -342,7 +354,8 @@ namespace NUnit.Commander.IO
                 WriteHeader(testAnalysisOutput, "Historical Analysis Report");
                 _console.WriteLine(testAnalysisOutput);
                 // write the analysis report
-                _console.WriteLine(historyReport.BuildReport(_testHistoryAnalyzer.TotalDataPoints));
+                if(_runContext.HistoryReport != null)
+                    _console.WriteLine(_runContext.HistoryReport.BuildReport());
             }
             if (passFailByRun.Length > 0)
                 _console.WriteLine(passFailByRun);

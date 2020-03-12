@@ -11,11 +11,16 @@ namespace NUnit.Commander.Models
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
 
-        public ColorTextBuilder BuildReport(int totalDataPoints)
+        /// <summary>
+        /// The total number of data points used to compute the report
+        /// </summary>
+        public int TotalDataPoints { get; set; }
+
+        public ColorTextBuilder BuildReport()
         {
             var str = new ColorTextBuilder();
 
-            str.Append("  Total Runs Analyzed: [", Color.White).Append($"{totalDataPoints}", Color.Yellow).AppendLine("]", Color.White);
+            str.Append("  Total Runs Analyzed: [", Color.White).Append($"{TotalDataPoints}", Color.Yellow).AppendLine("]", Color.White);
             str.AppendLine();
             str.Append("  Unstable Tests:", Color.White);
             if (UnstableTests.Count == 0)
