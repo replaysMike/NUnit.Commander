@@ -36,8 +36,6 @@ namespace NUnit.Commander
 
         private static void Start(Options options, ApplicationConfiguration config)
         {
-            options = ProcessQuotedParameters(options);
-
             // override any configuration options via commandline
             if (options.EnableLog.HasValue)
                 config.EnableLog = options.EnableLog.Value;
@@ -80,6 +78,19 @@ namespace NUnit.Commander
             var runNumber = 0;
             var runContext = new RunContext();
             runContext.TestHistoryDatabaseProvider = new TestHistoryDatabaseProvider(config);
+
+            // handle custom operations
+            if (options.ListColors)
+            {
+                colorScheme.PrintColorsToConsole();
+                Environment.Exit(0);
+            }
+            if (options.ClearHistory)
+            {
+                runContext.TestHistoryDatabaseProvider.DeleteAll();
+                runContext.TestHistoryDatabaseProvider.Dispose();
+                Environment.Exit(0);
+            }
 
             while (runNumber < options.Repeat)
             {
@@ -140,16 +151,6 @@ namespace NUnit.Commander
             }
         }
 
-        private static Options ProcessQuotedParameters(Options options)
-        {
-            if (options.TestRunnerArguments.Contains(@"\"""))
-            {
-                // replace \" with "
-                options.TestRunnerArguments = options.TestRunnerArguments.Replace("\\\"", "\"");
-            }
-            return options;
-        }
-
         private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, Colors colorScheme, TestRunnerLauncher launcher)
         {
             launcher.WaitForExit();
@@ -173,7 +174,7 @@ namespace NUnit.Commander
                             Console.WriteLine("============================");
                             Console.ForegroundColor = colorScheme.Error;
                             Console.WriteLine(errors);
-                            Console.ForegroundColor = colorScheme.Default;
+                            Console.ForegroundColor = colorScheme.DarkHighlight;
                         }
                         else
                         {
@@ -184,7 +185,7 @@ namespace NUnit.Commander
                             Console.WriteLine("============================");
                             Console.ForegroundColor = colorScheme.Error;
                             Console.WriteLine(output);
-                            Console.ForegroundColor = colorScheme.Default;
+                            Console.ForegroundColor = colorScheme.DarkHighlight;
                         }
                     }
                     break;
@@ -197,7 +198,7 @@ namespace NUnit.Commander
                         Console.WriteLine("============================");
                         Console.ForegroundColor = colorScheme.Error;
                         Console.WriteLine(error);
-                        Console.ForegroundColor = colorScheme.Default;
+                        Console.ForegroundColor = colorScheme.DarkHighlight;
                     }
                     else if (config.ShowTestRunnerOutput || (!isSuccess && output.Contains("MSBUILD : error ")))
                     {
@@ -207,7 +208,7 @@ namespace NUnit.Commander
                         Console.WriteLine("============================");
                         Console.ForegroundColor = colorScheme.Error;
                         Console.WriteLine(output);
-                        Console.ForegroundColor = colorScheme.Default;
+                        Console.ForegroundColor = colorScheme.DarkHighlight;
                     }
                     break;
             }
@@ -215,13 +216,13 @@ namespace NUnit.Commander
             if (config.ShowTestRunnerOutput)
             {
                 // show entire output
-                Console.ForegroundColor = colorScheme.Default;
+                Console.ForegroundColor = colorScheme.DarkHighlight;
                 Console.WriteLine($"\r\n{options.TestRunner} Output [{exitCode}]:");
                 Console.ForegroundColor = colorScheme.DarkError;
                 Console.WriteLine("============================");
                 Console.ForegroundColor = colorScheme.DarkDefault;
                 Console.WriteLine(output);
-                Console.ForegroundColor = colorScheme.Default;
+                Console.ForegroundColor = colorScheme.DarkHighlight;
             }
         }
 

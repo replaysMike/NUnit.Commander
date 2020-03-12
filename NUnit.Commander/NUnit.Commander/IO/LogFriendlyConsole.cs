@@ -47,7 +47,7 @@ namespace NUnit.Commander.IO
                 {
                     Console.ForegroundColor = _colorScheme.Highlight;
                     Console.WriteLine(header);
-                    Console.ForegroundColor = _colorScheme.Default;
+                    Console.ForegroundColor = _colorScheme.DarkHighlight;
                 }
             }
         }

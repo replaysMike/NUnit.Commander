@@ -77,6 +77,12 @@ namespace NUnit.Commander
         [Option("repeat", Required = false, Default = 1, SetName = "TestRunner", HelpText = "Run tests continuously up to a specified count")]
         public int Repeat { get; set; }
 
+        [Option("list-colors", Required = false, SetName = "TestRunner", HelpText = "List all of the colors in the color scheme")]
+        public bool ListColors { get; set; }
+
+        [Option("clear-history", Required = false, SetName = "TestRunner", HelpText = "Clear the run history database")]
+        public bool ClearHistory { get; set; }
+
         [Usage(ApplicationAlias = @".\NUnit.Commander.exe")]
         public static IEnumerable<Example> Examples
         {

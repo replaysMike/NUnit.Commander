@@ -112,6 +112,15 @@ namespace NUnit.Commander.IO
             }
         }
 
+        /// <summary>
+        /// Delete all test history entries
+        /// </summary>
+        public void DeleteAll()
+        {
+            var path = Path.Combine(_configuration.LogPath, Filename);
+            File.Delete(path);
+        }
+
         public void TruncateLog()
         {
             _lock.EnterWriteLock();
