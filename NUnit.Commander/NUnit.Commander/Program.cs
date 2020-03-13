@@ -7,10 +7,12 @@ using NUnit.Commander.IO;
 using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
-using Console = Colorful.Console;
+using Console = NUnit.Commander.Display.CommanderConsole;
+using ColorfulConsole = Colorful.Console;
 
 namespace NUnit.Commander
 {
@@ -72,7 +74,8 @@ namespace NUnit.Commander
             if (!string.IsNullOrEmpty(options.LogPath))
                 config.LogPath = options.LogPath;
 
-            var colorScheme = new Colors(config.ColorScheme);
+            var colorScheme = new ColorManager(config.ColorScheme);
+            Console.SetColorManager(colorScheme);
             var testRunnerSuccess = true;
             TestRunnerLauncher launcher = null;
             var runNumber = 0;
@@ -94,6 +97,31 @@ namespace NUnit.Commander
                 if (!Console.IsOutputRedirected)
                     Console.CursorVisible = true;
                 Environment.Exit(0);
+            }
+
+            // display logo
+            if (!Console.IsOutputRedirected)
+            {
+                Console.Clear();
+                var fontBytes = ResourceLoader.Load("big.flf");
+                var font = Colorful.FigletFont.Load(fontBytes);
+                ColorfulConsole.WriteAscii("NUnit Commander", font, Color.Yellow);
+                ColorfulConsole.WriteLine($"Version {Assembly.GetExecutingAssembly().GetName().Version}", Color.Yellow);
+            }
+
+            // initialize the performance counters before launching the test runner
+            // this is because it can be slow, we don't want to delay connecting to the test runner
+            try
+            {
+                Console.WriteLine($"Initializing performance counters...", colorScheme.Default);
+                runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                runContext.PerformanceCounters.DiskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing performance counters... {ex.Message}", colorScheme.Default);
+                // unable to use performance counters.
+                // possibly need to run C:\Windows\SysWOW64> lodctr /r
             }
 
             while (runNumber < options.Repeat)
@@ -128,9 +156,14 @@ namespace NUnit.Commander
                         //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
                         ParseConsoleRunnerOutput(commanderIsSuccess, options, config, colorScheme, launcher);
                         launcher.Dispose();
+                        runContext?.PerformanceCounters?.CpuCounter?.Dispose();
+                        runContext?.PerformanceCounters?.DiskCounter?.Dispose();
                     }
                 }
             }
+
+            if (!Console.IsOutputRedirected)
+                Console.ResetColor();
         }
 
         private static void Launcher_OnTestRunnerExit(object sender, EventArgs e)
@@ -156,7 +189,7 @@ namespace NUnit.Commander
             }
         }
 
-        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, Colors colorScheme, TestRunnerLauncher launcher)
+        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, ColorManager colorScheme, TestRunnerLauncher launcher)
         {
             launcher.WaitForExit();
             var output = launcher.ConsoleOutput;
@@ -173,23 +206,17 @@ namespace NUnit.Commander
                             // show errors output
                             var endErrorsIndex = output.IndexOf("Test Run Summary", startErrorsIndex);
                             var errors = output.Substring(startErrorsIndex, endErrorsIndex - startErrorsIndex);
-                            Console.ForegroundColor = colorScheme.DarkError;
-                            Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                            Console.ForegroundColor = colorScheme.DarkError;
-                            Console.WriteLine("============================");
-                            Console.ForegroundColor = colorScheme.Error;
-                            Console.WriteLine(errors);
+                            Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:", colorScheme.DarkError);
+                            Console.WriteLine("============================", colorScheme.DarkError);
+                            Console.WriteLine(errors, colorScheme.Error);
                             Console.ForegroundColor = colorScheme.DarkHighlight;
                         }
                         else
                         {
                             // show entire output
-                            Console.ForegroundColor = colorScheme.DarkError;
-                            Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                            Console.ForegroundColor = colorScheme.DarkError;
-                            Console.WriteLine("============================");
-                            Console.ForegroundColor = colorScheme.Error;
-                            Console.WriteLine(output);
+                            Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:", colorScheme.DarkError);
+                            Console.WriteLine("============================", colorScheme.DarkError);
+                            Console.WriteLine(output, colorScheme.DarkError);
                             Console.ForegroundColor = colorScheme.DarkHighlight;
                         }
                     }
@@ -197,22 +224,16 @@ namespace NUnit.Commander
                 case TestRunner.DotNetTest:
                     if (config.ShowTestRunnerOutput || (!isSuccess && !string.IsNullOrEmpty(error) && error != Environment.NewLine && !error.Contains("Test Run Failed.")))
                     {
-                        Console.ForegroundColor = colorScheme.DarkError;
-                        Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                        Console.ForegroundColor = colorScheme.DarkError;
-                        Console.WriteLine("============================");
-                        Console.ForegroundColor = colorScheme.Error;
-                        Console.WriteLine(error);
+                        Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:", colorScheme.DarkError);
+                        Console.WriteLine("============================", colorScheme.DarkError);
+                        Console.WriteLine(error, colorScheme.Error);
                         Console.ForegroundColor = colorScheme.DarkHighlight;
                     }
                     else if (config.ShowTestRunnerOutput || (!isSuccess && output.Contains("MSBUILD : error ")))
                     {
-                        Console.ForegroundColor = colorScheme.DarkError;
-                        Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:");
-                        Console.ForegroundColor = colorScheme.DarkError;
-                        Console.WriteLine("============================");
-                        Console.ForegroundColor = colorScheme.Error;
-                        Console.WriteLine(output);
+                        Console.WriteLine($"\r\n{options.TestRunner} Error Output [{exitCode}]:", colorScheme.DarkError);
+                        Console.WriteLine("============================", colorScheme.DarkError);
+                        Console.WriteLine(output, colorScheme.Error);
                         Console.ForegroundColor = colorScheme.DarkHighlight;
                     }
                     break;
@@ -221,12 +242,9 @@ namespace NUnit.Commander
             if (config.ShowTestRunnerOutput)
             {
                 // show entire output
-                Console.ForegroundColor = colorScheme.DarkHighlight;
-                Console.WriteLine($"\r\n{options.TestRunner} Output [{exitCode}]:");
-                Console.ForegroundColor = colorScheme.DarkError;
-                Console.WriteLine("============================");
-                Console.ForegroundColor = colorScheme.DarkDefault;
-                Console.WriteLine(output);
+                Console.WriteLine($"\r\n{options.TestRunner} Output [{exitCode}]:", colorScheme.DarkError);
+                Console.WriteLine("============================", colorScheme.DarkError);
+                Console.WriteLine(output, colorScheme.DarkDefault);
                 Console.ForegroundColor = colorScheme.DarkHighlight;
             }
         }
@@ -251,45 +269,61 @@ namespace NUnit.Commander
             }
         }
 
-        private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, Colors colorScheme, int runNumber, RunContext runContext)
+        private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, ColorManager colorScheme, int runNumber, RunContext runContext)
         {
             var isSuccess = false;
             var header = $"NUnit.Commander - Version {Assembly.GetExecutingAssembly().GetName().Version}";
             if (options.Repeat > 1)
                 header = header + $", Run #{runNumber}";
-            var console = new LogFriendlyConsole(true, colorScheme, header);
-            using (_commander = new Commander(configuration, console, runNumber))
+            var console = new LogFriendlyConsole(false, colorScheme);
+            try
             {
-                _commander.Connect(true, (c) => c.Close());
-                _commander.WaitForClose();
-                isSuccess = _commander.RunReports.Count > 0;
-                if (_commander.ReportContext != null)
-                    runContext.Runs.Add(_commander.ReportContext, _commander.RunReports);
-
-                // add the run data to the history
-                var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
-
-                if (runNumber == options.Repeat)
+                using (_commander = new Commander(configuration, console, runNumber, runContext))
                 {
-                    // write the final report to the output
-                    if (configuration.HistoryAnalysisConfiguration.Enabled)
+                    _commander.Connect(true, (c) =>
                     {
-                        console.WriteLine("Analyzing...");
-                        var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
-                        runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
-                    }
+                        if (!Console.IsOutputRedirected)
+                            Console.Clear();
+                        Console.WriteLine(header, colorScheme.Highlight);
+                    }, (c) => c.Close());
+                    _commander.WaitForClose();
+                    isSuccess = _commander.RunReports.Count > 0;
+                    runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
 
-                    console.WriteLine("Generating report...");
-                    var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
-                    reportWriter.WriteFinalReport();
+                    // add the run data to the history
+                    var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
+
+                    if (runNumber >= options.Repeat)
+                    {
+                        // write the final report to the output
+                        if (configuration.HistoryAnalysisConfiguration.Enabled)
+                        {
+                            Console.WriteLine("Analyzing...", colorScheme.Default);
+                            var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                            runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
+                        }
+
+                        var runCount = runContext.Runs.Count;
+                        var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
+                        Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
+                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
+                        reportWriter.WriteFinalReport();
+                    }
                 }
             }
-            console.Close();
-            console.Dispose();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Commander encountered an unhandled exception: {ex.GetBaseException().Message} Stack Trace: {ex.StackTrace}", colorScheme.Error);
+            }
+            finally
+            {
+                console.Close();
+                console.Dispose();
+            }
             return isSuccess;
         }
 
-        private static bool RunFullScreen(Options options, ApplicationConfiguration configuration, Colors colorScheme, int runNumber, RunContext runContext)
+        private static bool RunFullScreen(Options options, ApplicationConfiguration configuration, ColorManager colorScheme, int runNumber, RunContext runContext)
         {
             var isSuccess = false;
             var console = new ExtendedConsole();
@@ -319,34 +353,46 @@ namespace NUnit.Commander
             console.WriteRow("SubHeader", "Real-Time Test Monitor", ColumnLocation.Left, colorScheme.DarkDefault);
             console.Start();
 
-            using (_commander = new Commander(configuration, console, runNumber))
+            try
             {
-                _commander.Connect(true, (c) => c.Close());
-                _commander.WaitForClose();
-                isSuccess = _commander.RunReports.Count > 0;
-                runContext.Runs.Add(_commander.ReportContext, _commander.RunReports);
-
-                // add the run data to the history
-                var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
-
-                if (runNumber == options.Repeat)
+                using (_commander = new Commander(configuration, console, runNumber, runContext))
                 {
-                    // write the final report to the output
-                    if (configuration.HistoryAnalysisConfiguration.Enabled)
-                    {
-                        console.WriteLine("Analyzing...");
-                        var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
-                        runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
-                    }
+                    _commander.Connect(true, (c) => { }, (c) => c.Close());
+                    _commander.WaitForClose();
+                    isSuccess = _commander.RunReports.Count > 0;
+                    runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
 
-                    console.WriteLine("Generating report...");
-                    var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
-                    reportWriter.WriteFinalReport();
+                    // add the run data to the history
+                    var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
+
+                    if (runNumber >= options.Repeat)
+                    {
+                        // write the final report to the output
+                        if (configuration.HistoryAnalysisConfiguration.Enabled)
+                        {
+                            Console.WriteLine("Analyzing...", colorScheme.Default);
+                            var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                            runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
+                        }
+
+                        var runCount = runContext.Runs.Count;
+                        var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
+                        Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
+                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
+                        reportWriter.WriteFinalReport();
+                    }
                 }
             }
-            console.Flush();
-            console.Close();
-            console.Dispose();
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Commander encountered an unhandled exception: {ex.GetBaseException().Message} Stack Trace: {ex.StackTrace}", colorScheme.Error);
+            }
+            finally
+            {
+                console.Flush();
+                console.Close();
+                console.Dispose();
+            }
             return isSuccess;
         }
 

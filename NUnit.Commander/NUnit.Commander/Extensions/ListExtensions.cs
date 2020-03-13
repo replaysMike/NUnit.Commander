@@ -74,8 +74,12 @@ namespace NUnit.Commander.Extensions
         public static double Median<T>(this IEnumerable<T> sequence, Func<T, double> getValue)
         {
             var list = sequence.Select(getValue).ToList();
-            var mid = (list.Count - 1) / 2;
-            return list.NthOrderStatistic(mid);
+            if (list.Any())
+            {
+                var mid = (list.Count - 1) / 2;
+                return list.NthOrderStatistic(mid);
+            }
+            return 0;
         }
     }
 }

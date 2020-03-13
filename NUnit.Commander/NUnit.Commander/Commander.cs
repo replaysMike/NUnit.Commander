@@ -16,6 +16,8 @@ namespace NUnit.Commander
     {
         // how often to should draw to the screen
         private const int DefaultDrawIntervalMilliseconds = 66;
+        // how often to run utility functions
+        private const int DefaultUtilityIntervalMilliseconds = 66;
         // how often to should draw to the screen when stdout is redirected
         private const int DefaultRedirectedDrawIntervalMilliseconds = 5000;
         // how long to should keep tests displayed after they have finished running
@@ -36,6 +38,7 @@ namespace NUnit.Commander
         private List<EventEntry> _activeTests;
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private Thread _updateThread;
+        private Thread _utilityThread;
         private bool _allowDrawActiveTests = false;
         private int _lastNumberOfTestsRunning = 0;
         private int _lastNumberOfTestsDrawn = 0;
@@ -53,10 +56,6 @@ namespace NUnit.Commander
         private int _totalTestsQueued = 0;
         private PerformanceLog _performanceLog = new PerformanceLog();
         private int _performanceIteration;
-
-        // performance monitoring
-        private PerformanceCounter _cpuCounter;
-        private PerformanceCounter _diskCounter;
 
         /// <summary>
         /// List of tests that are currently running
@@ -82,6 +81,11 @@ namespace NUnit.Commander
         /// Get the current run number
         /// </summary>
         public int RunNumber { get; }
+
+        /// <summary>
+        /// Get the run context
+        /// </summary>
+        public RunContext RunContext { get; }
 
         /// <summary>
         /// Get the Commander Run Id
@@ -111,7 +115,7 @@ namespace NUnit.Commander
         /// <summary>
         /// Set/Get the current color scheme
         /// </summary>
-        public Colors ColorScheme { get; set; }
+        public ColorManager ColorScheme { get; set; }
 
 
         public Commander(ApplicationConfiguration configuration)
@@ -122,19 +126,7 @@ namespace NUnit.Commander
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
             RunReports = new List<DataEvent>();
-            ColorScheme = new Colors(_configuration.ColorScheme);
-
-            // start performance counters
-            try
-            {
-                _cpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-                _diskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
-            }
-            catch (Exception)
-            {
-                // unable to use performance counters.
-                // possibly need to run C:\Windows\SysWOW64> lodctr /r
-            }
+            ColorScheme = new ColorManager(_configuration.ColorScheme);
 
             // start the display thread
             _updateThread = new Thread(new ThreadStart(UpdateThread));
@@ -142,15 +134,22 @@ namespace NUnit.Commander
             _updateThread.Name = "UpdateThread";
             _updateThread.Start();
 
+            // start the utility thread
+
+            _utilityThread = new Thread(new ThreadStart(UtilityThread));
+            _utilityThread.IsBackground = true;
+            _utilityThread.Name = "UtilityThread";
+            _utilityThread.Start();
             StartTime = DateTime.Now;
         }
 
-        public Commander(ApplicationConfiguration configuration, IExtendedConsole console, int runNumber) : this(configuration)
+        public Commander(ApplicationConfiguration configuration, IExtendedConsole console, int runNumber, RunContext runContext) : this(configuration)
         {
             _console = new ConsoleWrapper(console, configuration);
             _client = new IpcClient(configuration, console);
             _client.OnMessageReceived += IpcClient_OnMessageReceived;
             RunNumber = runNumber;
+            RunContext = runContext;
             _activeTestLifetimeMilliseconds = configuration.ActiveTestLifetimeMilliseconds > 0 ? configuration.ActiveTestLifetimeMilliseconds : DefaultActiveTestLifetimeMilliseconds;
             if (_console.IsOutputRedirected)
             {
@@ -169,6 +168,20 @@ namespace NUnit.Commander
                 e.EventEntry.Event.RunNumber = RunNumber;
 
                 _eventLog.Add(e.EventEntry);
+
+                // if we are logging to a file, and a test has failed write it immediately to the output
+                if(_console.IsOutputRedirected && e.EventEntry.Event.Event == EventNames.EndTest 
+                    && e.EventEntry.Event.TestStatus == TestStatus.Fail)
+                {
+                    _console.WriteLine($"{Environment.NewLine}Failed test: {e.EventEntry.Event.FullName} [{DateTime.Now}]");
+                    if (!string.IsNullOrEmpty(e.EventEntry.Event.ErrorMessage))
+                        _console.WriteLine($"  Test Error: {e.EventEntry.Event.ErrorMessage}");
+                    if (!string.IsNullOrEmpty(e.EventEntry.Event.StackTrace))
+                        _console.WriteLine($"  Stack Trace: {e.EventEntry.Event.StackTrace}");
+                    if (!string.IsNullOrEmpty(e.EventEntry.Event.TestOutput))
+                        _console.WriteLine($"  Test Output: {e.EventEntry.Event.TestOutput}");
+                }
+
                 if (!IsTestRunIdReceived(e.EventEntry.Event.TestRunId))
                     AddTestRunId(e.EventEntry.Event.TestRunId);
                 if (!IsFrameworkReceived(e.EventEntry.Event.Runtime))
@@ -191,28 +204,30 @@ namespace NUnit.Commander
                 {
                     // disconnect from the server, and wait for a new connection to appear
                     Debug.WriteLine($"Waiting for another server connection...");
+                    _console.WriteLine($"Waiting for another server connection...");
                     _client.Dispose();
                     // if the connection fails, write the report
-                    Connect(false, (x) => { 
+                    Connect(false, (x) => { }, (x) => { 
                         FinalizeTestRun(); 
                         x.Close(); });
+                    return;
                 }
-                else
-                {
-                    // NUnit does not require reconnections
-                    // clear all static entries
-                    // _console.ClearAtRange(0, yPos, 0, yPos + _lastNumberOfTestsRunning);
-                    FinalizeTestRun();
-                    Close();
-                }
+
+                // NUnit does not require reconnections
+                FinalizeTestRun();
+                Close();
             }
         }
 
-        public void Connect(bool showOutput, Action<ICommander> onFailedConnect)
+        public void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect)
         {
             var extensionName = "NUnit.Extension.TestMonitor";
             if (showOutput)
-                _console.WriteLine($"Connecting to {extensionName} (Timeout: {_configuration.ConnectTimeoutSeconds} seconds)...");
+            {
+                var timeoutStr = $" (Timeout: {(_configuration.ConnectTimeoutSeconds > 0 ? $"{_configuration.ConnectTimeoutSeconds} seconds" : "none")})";
+                Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                _console.WriteLine($"Connecting to {extensionName}{timeoutStr}...");
+            }
 
             _client.Connect(showOutput, (client) =>
             {
@@ -221,7 +236,11 @@ namespace NUnit.Commander
                 IsRunning = true;
                 if (showOutput)
                 {
+                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
                     _console.WriteLine($"Connected to {extensionName}, Run #{RunNumber}.");
+                    if (_console.IsOutputRedirected)
+                        _console.WriteLine($"Tests started at {DateTime.Now}");
+                    onSuccessConnect(this);
                 }
             }, (client) =>
             {
@@ -229,6 +248,7 @@ namespace NUnit.Commander
                 // failed connect
                 if (showOutput)
                 {
+                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
                     _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {extensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
                     _console.WriteLine($"Please ensure your test runner is launched and the {extensionName} extension is correctly configured.");
                     _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append($"https://github.com/replaysMike/{extensionName}", ColorScheme.Highlight).AppendLine(" for more details."));
@@ -257,16 +277,25 @@ namespace NUnit.Commander
             }
         }
 
+        private void UtilityThread()
+        {
+            while (!_closeEvent.WaitOne(DefaultUtilityIntervalMilliseconds))
+            {
+                LogPerformance();
+            }
+        }
+
         private void LogPerformance()
         {
-            Interlocked.Increment(ref _performanceIteration);
+            _performanceIteration++;
             if (_eventLog.Count > 0 && _performanceIteration > 30 && _performanceIteration % 10 == 0)
             {
-                if (_cpuCounter != null)
-                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, _cpuCounter.NextValue());
-                if (_diskCounter != null)
-                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, _diskCounter.NextValue());
+                if (RunContext?.PerformanceCounters?.CpuCounter != null)
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed,  RunContext.PerformanceCounters.CpuCounter.NextValue());
+                if (RunContext?.PerformanceCounters?.DiskCounter != null)
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
 
+                // we don't use a performance counter for memory, this is more accurate
                 var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
                 var totalMemoryBytes = PerformanceInfo.GetTotalMemoryInMiB() * 1024;
                 _performanceLog.AddEntry(PerformanceLog.PerformanceType.MemoryUsed, totalMemoryBytes - availableMemoryBytes);
@@ -330,8 +359,8 @@ namespace NUnit.Commander
                             .Append($"{totalPasses} ", ColorScheme.DarkSuccess)
                             .Append($"Fail=", ColorScheme.Default)
                             .Append($"{totalFails} ", ColorScheme.DarkError)
-                            .Append($"Ignored=", ColorScheme.Default)
-                            .Append($"{totalIgnored} ", ColorScheme.DarkDefault)
+                            .AppendIf(!_console.IsOutputRedirected, $"Ignored=", ColorScheme.Default)
+                            .AppendIf(!_console.IsOutputRedirected, $"{totalIgnored} ", ColorScheme.DarkDefault)
                             .Append($"Total=", ColorScheme.Default)
                             .Append($"{totalTestsProcessed} ", ColorScheme.DarkDefault)
                             .AppendIf(_totalTestsQueued > 0, $"of ", ColorScheme.Default)
@@ -365,13 +394,30 @@ namespace NUnit.Commander
                         _lastNumberOfLinesDrawn++;
                     }
 
+                    // figure out how many tests we can fit on screen
+                    var maxActiveTestsToDisplay = _configuration.MaxActiveTestsToDisplay;
+                    if (!_console.IsOutputRedirected)
+                        maxActiveTestsToDisplay = Console.WindowHeight - yPos - 2 - _configuration.MaxFailedTestsToDisplay - 5;
+
                     // **************************
                     // Draw Active Tests
                     // **************************
-                    var activeTestsToDisplay = _activeTests
-                        .OrderBy(x => x.Event.TestStatus)
-                        .ThenByDescending(x => x.Elapsed)
-                        .Take(_configuration.MaxActiveTestsToDisplay);
+                    IEnumerable<EventEntry> activeTestsToDisplay;
+                    if (_console.IsOutputRedirected)
+                    {
+                        // for log file output only show running tests
+                        activeTestsToDisplay = _activeTests
+                            .Where(x => x.Event.TestStatus == TestStatus.Running && !x.IsQueuedForRemoval)
+                            .OrderByDescending(x => x.Elapsed);
+                    }
+                    else
+                    {
+                        activeTestsToDisplay = _activeTests
+                            .OrderBy(x => x.Event.TestStatus)
+                            .ThenByDescending(x => x.Elapsed)
+                            .Take(maxActiveTestsToDisplay);
+                    }
+
                     foreach (var test in activeTestsToDisplay)
                     {
                         testNumber++;
@@ -396,16 +442,17 @@ namespace NUnit.Commander
                                 break;
                         }
 
-                        var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, MaxTestCaseArgumentLength);
+                        var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, ColorScheme.DarkDefault, ColorScheme.Default, ColorScheme.DarkDefault, MaxTestCaseArgumentLength);
                         // print out this test name and duration
                         _console.WriteAt(ColorTextBuilder.Create
                             // test number
                             .Append($"{testNumber}: ", ColorScheme.DarkDefault)
-                            .AppendIf(testNumber < 10, $" ")
-                            // test status
-                            .Append("[", ColorScheme.DarkDefault)
-                            .Append(testStatus, testColor)
-                            .Append("] ", ColorScheme.DarkDefault)
+                            // spaced in columns
+                            .AppendIf(testNumber < 10 && !_console.IsOutputRedirected, $" ")
+                            // test status if not logging to file
+                            .AppendIf(!_console.IsOutputRedirected, "[", ColorScheme.DarkDefault)
+                            .AppendIf(!_console.IsOutputRedirected, testStatus, testColor)
+                            .AppendIf(!_console.IsOutputRedirected, "] ", ColorScheme.DarkDefault)
                             // test name
                             .Append(prettyTestName)
                             // test duration
@@ -426,7 +473,10 @@ namespace NUnit.Commander
                     _lastNumberOfLinesDrawn += 1;
                     if (!_console.IsOutputRedirected && _configuration.MaxFailedTestsToDisplay > 0)
                     {
-                        var failedTests = _eventLog.Where(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail)
+                        var failedTests = _eventLog
+                            .Where(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail)
+                            .GroupBy(x => x.Event.TestName)
+                            .Select(x => x.FirstOrDefault())
                             .OrderByDescending(x => x.DateAdded)
                             .Take(_configuration.MaxFailedTestsToDisplay);
                         if (failedTests.Any())
@@ -435,17 +485,13 @@ namespace NUnit.Commander
                             foreach (var test in failedTests)
                             {
                                 _lastNumberOfLinesDrawn++;
-                                var label = $"";
                                 // if test shows up twice with same name, show the framework version as well
-                                if (failedTests.Count(x => x.Event.TestName == test.Event.TestName) > 1)
-                                    label = $"{test.Event.RuntimeVersion}\\";
                                 var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
                                 if (test.Event.EndTime != DateTime.MinValue)
                                     lifetime = test.Event.Duration;
-                                var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, MaxTestCaseArgumentLength);
+                                var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.FullName, ColorScheme.DarkDefault, ColorScheme.Default, ColorScheme.DarkDefault, MaxTestCaseArgumentLength);
                                 // print out this test name and duration
                                 _console.WriteAt(ColorTextBuilder.Create
-                                    .AppendIf(!string.IsNullOrEmpty(label), label, ColorScheme.DarkDefault)
                                     .Append(prettyTestName)
                                     .Append($" {lifetime.ToTotalElapsedTime()}", ColorScheme.Duration)
                                     .Append(" [", ColorScheme.Bright)
@@ -508,16 +554,9 @@ namespace NUnit.Commander
             }
         }
 
-        private void FinalizeTestRun()
+        public ReportContext GenerateReportContext()
         {
-            IsRunning = false;
-            EndTime = DateTime.Now;
-            if (!_console.IsOutputRedirected)
-            {
-                _console.ClearAtRange(0, BeginY, 0, BeginY + 1 + _lastNumberOfLinesDrawn);
-                _console.SetCursorPosition(0, BeginY);
-            }
-            ReportContext = new ReportContext
+            return new ReportContext
             {
                 CommanderRunId = CommanderRunId,
                 StartTime = StartTime,
@@ -536,6 +575,18 @@ namespace NUnit.Commander
                     MedianDiskTime = _performanceLog.GetMedian(PerformanceLog.PerformanceType.DiskTime),
                 }
             };
+        }
+
+        private void FinalizeTestRun()
+        {
+            _console.WriteLine($"Finalizing test run...");
+            IsRunning = false;
+            EndTime = DateTime.Now;
+            if (!_console.IsOutputRedirected)
+            {
+                _console.ClearAtRange(0, BeginY, 0, BeginY + 1 + _lastNumberOfLinesDrawn);
+                _console.SetCursorPosition(0, BeginY);
+            }
         }
 
         private void RemoveExpiredActiveTests()
@@ -622,22 +673,13 @@ namespace NUnit.Commander
                     _closeEvent?.Set();
                     if (_updateThread?.Join(5 * 1000) == false)
                         _updateThread.Abort();
+                    if (_utilityThread?.Join(5 * 1000) == false)
+                        _utilityThread.Abort();
                     _closeEvent?.Dispose();
                     _closeEvent = null;
                     _client = null;
                     _updateThread = null;
-                    _testRunIds?.Clear();
-                    _testRunIds = null;
-                    _frameworks?.Clear();
-                    _frameworks = null;
-                    _frameworkVersions?.Clear();
-                    _frameworkVersions = null;
-                    _eventLog?.Clear();
-                    _eventLog = null;
-                    _activeTests?.Clear();
-                    _activeTests = null;
-                    _cpuCounter?.Dispose();
-                    _diskCounter?.Dispose();
+                    _utilityThread = null;
                     _console?.Dispose();
                 }
                 finally

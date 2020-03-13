@@ -22,10 +22,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="big.flf" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="appsettings.json">
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <EmbeddedResource Include="big.flf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 
   <ItemGroup>

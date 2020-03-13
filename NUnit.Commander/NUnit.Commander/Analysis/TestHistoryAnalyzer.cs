@@ -22,7 +22,7 @@ namespace NUnit.Commander.Analysis
 
         public HistoryReport Analyze(IEnumerable<TestHistoryEntry> currentRun)
         {
-            var report = new HistoryReport(new Colors(_configuration.ColorScheme));
+            var report = new HistoryReport(new ColorManager(_configuration.ColorScheme));
 
             var data = _testHistoryDatabaseProvider.Database.Entries;
             var testsByName = data.GroupBy(x => x.FullName);

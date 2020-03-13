@@ -6,6 +6,7 @@
     public enum ColorSchemes
     {
         Default = 0,
-        Cmder
+        Cmder,
+        Monochrome
     }
 }

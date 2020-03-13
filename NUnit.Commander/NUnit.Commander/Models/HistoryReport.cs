@@ -8,7 +8,7 @@ namespace NUnit.Commander.Models
 {
     public class HistoryReport
     {
-        private Colors _colorScheme;
+        private ColorManager _colorScheme;
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
 
@@ -17,7 +17,7 @@ namespace NUnit.Commander.Models
         /// </summary>
         public int TotalDataPoints { get; set; }
 
-        public HistoryReport(Colors colorScheme)
+        public HistoryReport(ColorManager colorScheme)
         {
             _colorScheme = colorScheme;
         }
@@ -36,10 +36,8 @@ namespace NUnit.Commander.Models
                 str.AppendLine();
                 foreach (var test in UnstableTests)
                 {
-                    var lastDot = test.FullName.LastIndexOf(".");
-                    var testName = test.FullName.Substring(lastDot + 1, test.FullName.Length - lastDot - 1);
-                    str.Append($" \u2022 {test.FullName.Replace(testName, "")}")
-                        .Append($"{testName} ", _colorScheme.Bright)
+                    str.Append($" \u2022 ")
+                        .Append(DisplayUtil.GetPrettyTestName(test.FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault))
                         .Append("[", _colorScheme.Bright)
                         .Append(string.Format("{0:0.0}% failures", test.Percentage * 100.0), _colorScheme.Error)
                         .Append(", ")
@@ -66,10 +64,8 @@ namespace NUnit.Commander.Models
                         color = _colorScheme.DarkSuccess;
                         direction = "";
                     }
-                    var lastDot = test.FullName.LastIndexOf(".");
-                    var testName = test.FullName.Substring(lastDot + 1, test.FullName.Length - lastDot - 1);
-                    str.Append($" \u2022 {test.FullName.Replace(testName, "")}")
-                        .Append($"{testName} ", _colorScheme.Bright)
+                    str.Append($" \u2022 ")
+                        .Append(DisplayUtil.GetPrettyTestName(test.FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault))
                         .Append($"Diff", _colorScheme.Bright)
                         .Append("[", _colorScheme.Bright)
                         .Append($"{direction}{test.DurationChange.ToElapsedTime()}", color)

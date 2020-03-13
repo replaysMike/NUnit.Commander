@@ -7,7 +7,7 @@ namespace NUnit.Commander.Display
 {
     public class DefaultColorScheme : IColorScheme
     {
-        public Color? Background { get; set; } = Color.Black;
+        public Color? Background { get; set; }
         public Color Default { get; set; } = Color.Gray;
         public Color DarkDefault { get; set; } = Color.DarkSlateGray;
         public Color Bright { get; set; } = Color.White;

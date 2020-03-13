@@ -3,14 +3,12 @@ using NUnit.Commander.Configuration;
 using NUnit.Commander.Models;
 using ProtoBuf;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
-using System.Xml;
 using System.Xml.Serialization;
 
 namespace NUnit.Commander.IO
@@ -65,8 +63,12 @@ namespace NUnit.Commander.IO
             _client = new NamedPipeClientStream(".", "TestMonitorExtension", PipeDirection.InOut);
             try
             {
+                var timeoutSeconds = (int)TimeSpan.FromSeconds(_config.ConnectTimeoutSeconds).TotalMilliseconds;
                 IsWaitingForConnection = true;
-                _client.Connect((int)TimeSpan.FromSeconds(_config.ConnectTimeoutSeconds).TotalMilliseconds);
+                if (timeoutSeconds > 0)
+                    _client.Connect(timeoutSeconds);
+                else
+                    _client.Connect();
                 _client.ReadMode = PipeTransmissionMode.Byte;
             }
             catch (TimeoutException)

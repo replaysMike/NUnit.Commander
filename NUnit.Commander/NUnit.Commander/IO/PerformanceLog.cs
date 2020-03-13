@@ -26,12 +26,16 @@ namespace NUnit.Commander.IO
 
         public double GetMedian(PerformanceType type)
         {
-            return _log[type].Median(x => x.Value);
+            if (_log[type].Count > 0)
+                return _log[type].Median(x => x.Value);
+            return 0;
         }
 
         public double GetAverage(PerformanceType type)
         {
-            return _log[type].Average(x => x.Value);
+            if (_log[type].Count > 0)
+                return _log[type].Average(x => x.Value);
+            return 0;
         }
 
         public double GetPeak(PerformanceType type)

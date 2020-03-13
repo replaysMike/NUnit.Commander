@@ -14,23 +14,27 @@ namespace NUnit.Commander.IO
     /// </summary>
     public class ReportWriter
     {
-        private Colors _colorScheme;
+        private const int DefaultBorderWidth = 36;
+        private ColorManager _colorScheme;
         private IExtendedConsole _console;
         private ApplicationConfiguration _configuration;
         private RunContext _runContext;
         private const char _headerChar = '═';
         private const char _headerBorderChar = '║';
         private const char _lineChar = '`';
-        private readonly string _headerLine = new string(_headerChar, 36);
-        private readonly string _lineSeparator = new string(_lineChar, Console.WindowWidth / 2);
+        private readonly string _headerLine;
+        private readonly string _lineSeparator;
 
 
-        public ReportWriter(IExtendedConsole console, Colors colorScheme, ApplicationConfiguration configuration, RunContext runContext)
+        public ReportWriter(IExtendedConsole console, ColorManager colorScheme, ApplicationConfiguration configuration, RunContext runContext)
         {
             _console = console;
             _colorScheme = colorScheme;
             _configuration = configuration;
             _runContext = runContext;
+            // generate the header/lines art by width
+            _headerLine = new string(_headerChar, DefaultBorderWidth);
+            _lineSeparator = new string(_lineChar, !_console.IsOutputRedirected ? (Console.WindowWidth / 2) : DefaultBorderWidth);
         }
 
         /// <summary>
@@ -76,7 +80,7 @@ namespace NUnit.Commander.IO
                 var warnings = allReports.Sum(x => x.Warnings);
                 var asserts = allReports.Sum(x => x.Asserts);
                 var inconclusive = allReports.Sum(x => x.Inconclusive);
-                var errors = allReports.SelectMany(x => x.Report.TestReports.Select(t => !string.IsNullOrEmpty(t.ErrorMessage))).Count();
+                var errors = allReports.SelectMany(x => x.Report.TestReports.Where(t => t.TestStatus == TestStatus.Fail && !string.IsNullOrEmpty(t.ErrorMessage))).Count();
                 var skipped = allReports.Sum(x => x.Skipped);
                 var totalRuns = allReports.GroupBy(x => x.RunNumber).Count();
 
@@ -114,20 +118,23 @@ namespace NUnit.Commander.IO
                 passFail.Append($", Inconclusive: ", _colorScheme.DarkDefault);
                 passFail.AppendLine($"{inconclusive:N0}", _colorScheme.Default);
 
-                passFail.Append($"  Peak Cpu: ", _colorScheme.DarkDefault);
-                passFail.Append($"{(_runContext.Runs.Any() ? _runContext.Runs.Max(x => x.Key.Performance.PeakCpuUsed) : 0):N0}%", _colorScheme.Default);
-                passFail.Append($", Median: ", _colorScheme.DarkDefault);
-                passFail.AppendLine($"{(_runContext.Runs.Any() ? _runContext.Runs.Median(x => x.Key.Performance.MedianCpuUsed) : 0):N0}%", _colorScheme.Default);
+                if (_runContext.Runs?.Any() == true)
+                {
+                    passFail.Append($"  Peak Cpu: ", _colorScheme.DarkDefault);
+                    passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakCpuUsed):N0}%", _colorScheme.Default);
+                    passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFail.AppendLine($"{_runContext.Runs.Median(x => x.Key.Performance.MedianCpuUsed):N0}%", _colorScheme.Default);
 
-                passFail.Append($"  Peak Memory: ", _colorScheme.DarkDefault);
-                passFail.Append($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Max(x => x.Key.Performance.PeakMemoryUsed))}", _colorScheme.Default);
-                passFail.Append($", Median: ", _colorScheme.DarkDefault);
-                passFail.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Median(x => x.Key.Performance.MedianMemoryUsed))}", _colorScheme.Default);
+                    passFail.Append($"  Peak Memory: ", _colorScheme.DarkDefault);
+                    passFail.Append($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Max(x => x.Key.Performance.PeakMemoryUsed))}", _colorScheme.Default);
+                    passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFail.AppendLine($"{DisplayUtil.GetFriendlyBytes((long)_runContext.Runs.Median(x => x.Key.Performance.MedianMemoryUsed))}", _colorScheme.Default);
 
-                passFail.Append($"  Peak Disk Time: ", _colorScheme.DarkDefault);
-                passFail.Append($"{(_runContext.Runs.Any() ? _runContext.Runs.Max(x => x.Key.Performance.PeakDiskTime) : 0):N0}%", _colorScheme.Default);
-                passFail.Append($", Median: ", _colorScheme.DarkDefault);
-                passFail.AppendLine($"{(_runContext.Runs.Any() ? _runContext.Runs.Median(x => x.Key.Performance.MedianDiskTime) : 0):N0}%", _colorScheme.Default);
+                    passFail.Append($"  Peak Disk Time: ", _colorScheme.DarkDefault);
+                    passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakDiskTime):N0}%", _colorScheme.Default);
+                    passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFail.AppendLine($"{_runContext.Runs.Median(x => x.Key.Performance.MedianDiskTime):N0}%", _colorScheme.Default);
+                }
 
                 passFail.AppendLine(Environment.NewLine);
             }
@@ -241,7 +248,7 @@ namespace NUnit.Commander.IO
                 foreach (var test in slowestTests)
                 {
                     performance.Append($" \u2022 ");
-                    performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName));
+                    performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault));
                     performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", _colorScheme.Duration);
                 }
                 performance.AppendLine(Environment.NewLine);

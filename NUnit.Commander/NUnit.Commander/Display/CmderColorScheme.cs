@@ -2,21 +2,22 @@
 
 namespace NUnit.Commander.Display
 {
+    // Cmder Monokai theme
     public class CmderColorScheme : IColorScheme
     {
         public Color? Background { get; set; }
-        public Color Default { get; set; } = Color.Gray;
-        public Color DarkDefault { get; set; } = Color.DarkSlateGray;
+        public Color Default { get; set; } = Color.FromArgb(202, 202, 202);
+        public Color DarkDefault { get; set; } = Color.FromArgb(124, 124, 124);
         public Color Bright { get; set; } = Color.White;
-        public Color Error { get; set; } = Color.Red;
-        public Color DarkError { get; set; } = Color.DarkRed;
-        public Color Success { get; set; } = Color.Gray;
-        public Color DarkSuccess { get; set; } = Color.Green;
-        public Color Highlight { get; set; } = Color.White;
-        public Color DarkHighlight { get; set; } = Color.FromArgb(128, 128, 0);
-        public Color DarkHighlight2 { get; set; } = Color.FromArgb(64, 64, 0);
-        public Color DarkHighlight3 { get; set; } = Color.FromArgb(32, 32, 0);
-        public Color Duration { get; set; } = Color.Cyan;
-        public Color DarkDuration { get; set; } = Color.DarkCyan;
+        public Color Error { get; set; } = Color.FromArgb(243, 4, 75);
+        public Color DarkError { get; set; } = Color.FromArgb(167, 3, 52);
+        public Color Success { get; set; } = Color.FromArgb(141, 208, 6);
+        public Color DarkSuccess { get; set; } = Color.FromArgb(116, 170, 4);
+        public Color Highlight { get; set; } = Color.FromArgb(182, 182, 73);
+        public Color DarkHighlight { get; set; } = Color.FromArgb(204, 204, 129);
+        public Color DarkHighlight2 { get; set; } = Color.FromArgb(1, 84, 158);
+        public Color DarkHighlight3 { get; set; } = Color.FromArgb(88, 194, 229);
+        public Color Duration { get; set; } = Color.FromArgb(3, 131, 245);
+        public Color DarkDuration { get; set; } = Color.FromArgb(26, 131, 166);
     }
 }

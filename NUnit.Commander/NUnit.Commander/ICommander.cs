@@ -11,7 +11,9 @@ namespace NUnit.Commander
         /// Connect to the Ipc server for messages
         /// </summary>
         /// <param name="showOutput">True to show output relating to connection status/failure</param>
-        void Connect(bool showOutput, Action<ICommander> onFailedConnect);
+        /// <param name="onSuccessConnect">Called on connection success</param>
+        /// <param name="onFailedConnect">Called on connection failure</param>
+        void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect);
 
         /// <summary>
         /// List of tests that are currently running
@@ -34,6 +36,11 @@ namespace NUnit.Commander
         int RunNumber { get; }
 
         /// <summary>
+        /// Get the run context
+        /// </summary>
+        RunContext RunContext { get; }
+
+        /// <summary>
         /// Get the Commander Run Id
         /// </summary>
         Guid CommanderRunId { get; }
@@ -49,11 +56,6 @@ namespace NUnit.Commander
         DateTime EndTime { get; }
 
         /// <summary>
-        /// Get the final report context
-        /// </summary>
-        ReportContext ReportContext { get; }
-
-        /// <summary>
         /// True if commander is running
         /// </summary>
         bool IsRunning { get; }
@@ -67,5 +69,11 @@ namespace NUnit.Commander
         /// Close commander
         /// </summary>
         void Close();
+
+        /// <summary>
+        /// Generate a report context
+        /// </summary>
+        /// <returns></returns>
+        ReportContext GenerateReportContext();
     }
 }

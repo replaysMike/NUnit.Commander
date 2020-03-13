@@ -9,7 +9,7 @@ namespace NUnit.Commander.Display
     /// </summary>
     public static class DisplayUtil
     {
-        public static ColorTextBuilder GetPrettyTestName(string fullName, int maxTestCaseArgumentLength = 10)
+        public static ColorTextBuilder GetPrettyTestName(string fullName, Color? pathColor = null, Color? testNameColor = null, Color? argsColor = null, int maxTestCaseArgumentLength = 20)
         {
             var maxWidth = 160;
             if (!Console.IsOutputRedirected)
@@ -75,9 +75,9 @@ namespace NUnit.Commander.Display
                 }
 
                 return ColorTextBuilder.Create
-                        .AppendIf(testPath?.Length > 0, testPath, Color.DarkSlateGray)
-                        .Append(test)
-                        .AppendIf(!string.IsNullOrEmpty(testCaseArgs), testCaseArgs, Color.DarkSlateGray);
+                        .AppendIf(testPath?.Length > 0, testPath, pathColor ?? Color.DarkSlateGray)
+                        .Append(test, testNameColor ?? Color.Gray)
+                        .AppendIf(!string.IsNullOrEmpty(testCaseArgs), testCaseArgs, argsColor ?? Color.DarkSlateGray);
             }
             catch (Exception ex)
             {
