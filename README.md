@@ -2,7 +2,7 @@
 A wrapper for running NUnit tests using NUnit-Console or dotnet test
 
 ## Description
-NUnit.Commander provides real-time test status output for tests run via the [NUnit-Console](https://github.com/nunit/nunit-console) or `dotnet test`. It works in conjunction with [NUnit.Extensions.TestMonitor](https://github.com/replaysMike/NUnit.Extensions.TestMonitor) (required for Commander to function) which provides insight into your tests as they run. It is a crucial tool for projects with complicated test architecture.
+NUnit.Commander provides real-time test status output for tests run via the [NUnit-Console](https://github.com/nunit/nunit-console) or `dotnet test`. It works in conjunction with [NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor) (required for Commander to function) which provides insight into your tests as they run. It is a crucial tool for projects with complicated test architecture.
 
 ## Features
 
@@ -18,7 +18,7 @@ Download and install the [latest release](https://github.com/replaysMike/NUnit.C
 
 ## Requirements
 
-[NUnit.Extensions.TestMonitor](https://github.com/replaysMike/NUnit.Extensions.TestMonitor) must be installed along with your [NUnit-Console](https://github.com/nunit/nunit-console) test runner, or as a nuget package on your test project when using the `dotnet test` test runner. Please refer to installation instructions for [NUnit.Extensions.TestMonitor](https://github.com/replaysMike/NUnit.Extensions.TestMonitor)
+[NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor) must be installed along with your [NUnit-Console](https://github.com/nunit/nunit-console) test runner, or as a nuget package on your test project when using the `dotnet test` test runner. Please refer to installation instructions for [NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor)
 
 ## Screenshots
 
@@ -33,7 +33,7 @@ Summary report
 # Usage
 
 ## How it works
-The [NUnit.Extensions.TestMonitor](https://github.com/replaysMike/NUnit.Extensions.TestMonitor) extension is an NUnit engine extension which sends test events over IPC/Named pipes. Commander connects to the IPC/Named pipe server the extension creates and receives test events in real-time. Therefore, timeouts are required to give Commander a chance to connect to the extension when NUnit engine executes the tests and ensure we do not miss any events.
+The [NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor) extension is an NUnit engine extension which sends test events over IPC/Named pipes. Commander connects to the IPC/Named pipe server the extension creates and receives test events in real-time. Therefore, timeouts are required to give Commander a chance to connect to the extension when NUnit engine executes the tests and ensure we do not miss any events.
 
 ## Examples
 
