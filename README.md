@@ -20,13 +20,16 @@ Download and install the [latest release](https://github.com/replaysMike/NUnit.C
 
 [NUnit.Extensions.TestMonitor](https://github.com/replaysMike/NUnit.Extensions.TestMonitor) must be installed along with your [NUnit-Console](https://github.com/nunit/nunit-console) test runner, or as a nuget package on your test project when using the `dotnet test` test runner. Please refer to installation instructions for [NUnit.Extensions.TestMonitor](https://github.com/replaysMike/NUnit.Extensions.TestMonitor)
 
-## Screenshot
+## Screenshots
 
 See the [wiki](https://github.com/replaysMike/NUnit.Commander/wiki) for further examples.
 
 Example from Test Runner
 ![NUnit.Commander](https://github.com/replaysMike/NUnit.Commander/wiki/screenshots/NUnit.Commander.png)
 Real-time output of test status
+
+![NUnit.Commander](https://github.com/replaysMike/NUnit.Commander/wiki/screenshots/NUnit.Commander-summary.png)
+Summary report
 
 # Usage
 
