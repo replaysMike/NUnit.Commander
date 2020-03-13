@@ -24,7 +24,6 @@ Download and install the [latest release](https://github.com/replaysMike/NUnit.C
 
 See the [wiki](https://github.com/replaysMike/NUnit.Commander/wiki) for further examples.
 
-Example from Test Runner
 ![NUnit.Commander](https://github.com/replaysMike/NUnit.Commander/wiki/screenshots/NUnit.Commander.png)
 Real-time output of test status
 
