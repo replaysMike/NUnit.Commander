@@ -3,7 +3,7 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a79c138869504a359a064a98aa74908a)](https://www.codacy.com/app/replaysMike/NUnit.Commander?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=replaysMike/NUnit.Commander&amp;utm_campaign=Badge_Grade)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/a79c138869504a359a064a98aa74908a)](https://www.codacy.com/app/replaysMike/NUnit.Commander?utm_source=github.com&utm_medium=referral&utm_content=replaysMike/NUnit.Commander&utm_campaign=Badge_Coverage)
 
-A wrapper for running NUnit tests using NUnit-Console or dotnet test
+A wrapper for running NUnit tests using NUnit-Console or dotnet test with real-time updates and analysis
 
 ## Description
 NUnit.Commander provides real-time test status output for tests run via the [NUnit-Console](https://github.com/nunit/nunit-console) or `dotnet test`. It works in conjunction with [NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor) (required for Commander to function) which provides insight into your tests as they run. It is a crucial tool for projects with complicated test architecture.
