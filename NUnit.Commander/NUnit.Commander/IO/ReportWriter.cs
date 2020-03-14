@@ -25,7 +25,6 @@ namespace NUnit.Commander.IO
         private readonly string _headerLine;
         private readonly string _lineSeparator;
 
-
         public ReportWriter(IExtendedConsole console, ColorManager colorScheme, ApplicationConfiguration configuration, RunContext runContext)
         {
             _console = console;

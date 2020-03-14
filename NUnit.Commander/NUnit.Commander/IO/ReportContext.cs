@@ -37,7 +37,7 @@ namespace NUnit.Commander.IO
         /// <summary>
         /// Performance overview
         /// </summary>
-        public PerformanceOverview Performance { get; set; }
+        public PerformanceOverview Performance { get; set; } = new PerformanceOverview();
 
         public class PerformanceOverview
         {

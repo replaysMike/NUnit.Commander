@@ -35,8 +35,7 @@ namespace NUnit.Commander.Display
             ColorSchemeName = colorScheme;
             // load the color scheme
             LoadColorScheme();
-            if (!Console.IsOutputRedirected)
-                MapColorScheme();
+            MapColorScheme();
         }
 
         private void LoadColorScheme()
@@ -59,7 +58,8 @@ namespace NUnit.Commander.Display
         private void MapColorScheme()
         {
             var mapper = new ColorMapper();
-            System.Console.ResetColor();
+            if (!Console.IsOutputRedirected)
+                System.Console.ResetColor();
             System.Console.BackgroundColor = ConsoleColor.Black;
             System.Console.ForegroundColor = ConsoleColor.Gray;
 
@@ -87,8 +87,11 @@ namespace NUnit.Commander.Display
             // _colorMap.Add(System.ConsoleColor.DarkGreen, new MappedColor(DarkSuccess, nameof(Color.Magenta)));
 
             // map the colors
-            foreach (var map in _colorMap)
-                mapper.MapColor(map.Key, map.Value.Color);
+            if (!Console.IsOutputRedirected)
+            {
+                foreach (var map in _colorMap)
+                    mapper.MapColor(map.Key, map.Value.Color);
+            }
         }
 
         public System.ConsoleColor GetMappedConsoleColor(Color color)

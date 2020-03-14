@@ -9,9 +9,11 @@ namespace NUnit.Commander.Display
     /// </summary>
     public static class DisplayUtil
     {
+        public static int MaxWidth = 160;
+
         public static ColorTextBuilder GetPrettyTestName(string fullName, Color? pathColor = null, Color? testNameColor = null, Color? argsColor = null, int maxTestCaseArgumentLength = 20)
         {
-            var maxWidth = 160;
+            var maxWidth = MaxWidth;
             if (!Console.IsOutputRedirected)
                 maxWidth = Console.WindowWidth - 26;
             var test = fullName;

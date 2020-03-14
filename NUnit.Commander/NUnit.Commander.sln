@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NUnit.Commander", "NUnit.Co
 EndProject
 Project("{930C7802-8A8C-48F9-8165-68863BCCD9DD}") = "NUnit.Commander.Installer", "NUnit.Commander.Installer\NUnit.Commander.Installer.wixproj", "{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NUnit.Commander.Tests", "NUnit.Commander.Tests\NUnit.Commander.Tests.csproj", "{FAD9F675-DC8E-4A15-9662-65EF460FF646}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,6 +31,14 @@ Global
 		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Release|Any CPU.ActiveCfg = Release|x86
 		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Release|x86.ActiveCfg = Release|x86
 		{9EFFE0BA-F3C9-4129-B6AA-33A885FD84A7}.Release|x86.Build.0 = Release|x86
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Debug|x86.Build.0 = Debug|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Release|x86.ActiveCfg = Release|Any CPU
+		{FAD9F675-DC8E-4A15-9662-65EF460FF646}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
