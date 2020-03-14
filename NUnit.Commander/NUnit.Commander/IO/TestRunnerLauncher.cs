@@ -170,13 +170,11 @@ namespace NUnit.Commander.IO
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
             _streamErrorWriter.WriteLine(e.Data);
-            // Console.Error.WriteLine(e.Data);
         }
 
         private void Process_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
             _streamWriter.WriteLine(e.Data);
-            // Console.WriteLine(e.Data);
         }
 
         public void Dispose()

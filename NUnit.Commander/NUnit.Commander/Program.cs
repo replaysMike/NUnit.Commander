@@ -147,6 +147,9 @@ namespace NUnit.Commander
                         case DisplayMode.FullScreen:
                             commanderIsSuccess = RunFullScreen(options, config, colorScheme, runNumber, runContext);
                             break;
+                        default:
+                            Console.WriteLine($"Unknown DisplayMode '{config.DisplayMode}'");
+                            break;
                     }
 
                     if (launcher != null)
