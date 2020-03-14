@@ -61,6 +61,11 @@ namespace NUnit.Commander
         bool IsRunning { get; }
 
         /// <summary>
+        /// Get the overall status of the run
+        /// </summary>
+        TestStatus TestStatus { get; }
+
+        /// <summary>
         /// Wait for commander to close
         /// </summary>
         void WaitForClose();

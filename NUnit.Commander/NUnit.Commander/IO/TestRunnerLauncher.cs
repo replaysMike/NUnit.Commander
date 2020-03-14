@@ -92,11 +92,11 @@ namespace NUnit.Commander.IO
         {
             try
             {
-                _process.Kill(true);
+                _process?.Kill(true);
             }
             catch (Exception)
             {
-                // exceptions are ok
+                // exceptions are ok, process is already ended
             }
         }
 

@@ -49,28 +49,31 @@ namespace NUnit.Commander.IO
                         Console.BackgroundColor = Color.Black;
                     Console.Clear();
                 }
-            }
 
-            _inputThread = new Thread(new ThreadStart(InputThread));
-            _inputThread.IsBackground = true;
-            _inputThread.Start();
+                _inputThread = new Thread(new ThreadStart(InputThread));
+                _inputThread.IsBackground = true;
+                _inputThread.Start();
+            }
         }
 
         private void InputThread()
         {
             while (!_closeEvent.WaitOne(30))
             {
-                if (System.Console.KeyAvailable)
+                if (!Console.IsOutputRedirected)
                 {
-                    var key = System.Console.ReadKey(true);
-                    ControlKeyState keyState = 0;
-                    if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
-                        keyState |= ControlKeyState.LEFT_CTRL_PRESSED;
-                    if (key.Modifiers.HasFlag(ConsoleModifiers.Alt))
-                        keyState |= ControlKeyState.LEFT_ALT_PRESSED;
-                    if (key.Modifiers.HasFlag(ConsoleModifiers.Shift))
-                        keyState |= ControlKeyState.SHIFT_PRESSED;
-                    OnKeyPress?.Invoke(new KeyPressEventArgs(key.Key, keyState));
+                    if (System.Console.KeyAvailable)
+                    {
+                        var key = System.Console.ReadKey(true);
+                        ControlKeyState keyState = 0;
+                        if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                            keyState |= ControlKeyState.LEFT_CTRL_PRESSED;
+                        if (key.Modifiers.HasFlag(ConsoleModifiers.Alt))
+                            keyState |= ControlKeyState.LEFT_ALT_PRESSED;
+                        if (key.Modifiers.HasFlag(ConsoleModifiers.Shift))
+                            keyState |= ControlKeyState.SHIFT_PRESSED;
+                        OnKeyPress?.Invoke(new KeyPressEventArgs(key.Key, keyState));
+                    }
                 }
             }
         }
@@ -240,9 +243,9 @@ namespace NUnit.Commander.IO
         {
             if (isDisposing)
             {
-                _closeEvent.Set();
-                if (!_inputThread.Join(5 * 1000))
-                    _inputThread.Abort();
+                _closeEvent?.Set();
+                if (_inputThread?.Join(5 * 1000) == false)
+                    _inputThread?.Abort();
                 Console.Out.Flush();
                 Console.Error.Flush();
                 if (!IsOutputRedirected)

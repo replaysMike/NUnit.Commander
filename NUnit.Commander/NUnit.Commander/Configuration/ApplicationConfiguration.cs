@@ -40,9 +40,9 @@ namespace NUnit.Commander.Configuration
         public int SlowestTestsCount { get; set; } = 10;
 
         /// <summary>
-        /// The number of active tests to display on screen at a time
+        /// The number of active tests to display on screen at a time. 0=auto calculate
         /// </summary>
-        public int MaxActiveTestsToDisplay { get; set; } = 15;
+        public int MaxActiveTestsToDisplay { get; set; } = 0;
 
         /// <summary>
         /// The number of failed tests to display on screen at a time
@@ -73,6 +73,11 @@ namespace NUnit.Commander.Configuration
         /// Specify the color scheme
         /// </summary>
         public ColorSchemes ColorScheme { get; set; } = ColorSchemes.Default;
+
+        /// <summary>
+        /// Exit immediately on first test failure
+        /// </summary>
+        public bool ExitOnFirstTestFailure { get; set; } = false;
 
         /// <summary>
         /// History analysis configuration

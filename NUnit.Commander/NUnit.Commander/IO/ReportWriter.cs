@@ -41,8 +41,9 @@ namespace NUnit.Commander.IO
         /// </summary>
         /// <param name="allReports"></param>
         /// <param name="eventLog"></param>
-        public void WriteFinalReport()
+        public TestStatus WriteFinalReport()
         {
+            var overallTestStatus = TestStatus.Fail;
             if (!_console.IsOutputRedirected)
                 _console.Clear();
 
@@ -58,6 +59,8 @@ namespace NUnit.Commander.IO
             var isPassed = allReports
                 .SelectMany(x => x.Report.TestReports)
                 .Count(x => x.TestStatus == TestStatus.Fail) == 0;
+            if (isPassed)
+                overallTestStatus = TestStatus.Pass;
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.PassFail))
             {
                 var allSuccess = allReports.Sum(x => x.Failed) == 0 && allReports.Sum(x => x.Passed) > 0;
@@ -367,6 +370,8 @@ namespace NUnit.Commander.IO
                 _console.WriteLine(passFailByRun);
             if (passFail.Length > 0)
                 _console.WriteLine(passFail);
+
+            return overallTestStatus;
         }
 
         private void WriteHeader(ColorTextBuilder builder, string str, Color? color = null)

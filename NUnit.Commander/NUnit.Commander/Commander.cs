@@ -113,6 +113,11 @@ namespace NUnit.Commander
         public bool IsRunning { get; private set; }
 
         /// <summary>
+        /// Get the overall status of the run
+        /// </summary>
+        public TestStatus TestStatus { get; private set; } = TestStatus.Running;
+
+        /// <summary>
         /// Set/Get the current color scheme
         /// </summary>
         public ColorManager ColorScheme { get; set; }
@@ -169,19 +174,6 @@ namespace NUnit.Commander
 
                 _eventLog.Add(e.EventEntry);
 
-                // if we are logging to a file, and a test has failed write it immediately to the output
-                if (_console.IsOutputRedirected && e.EventEntry.Event.Event == EventNames.EndTest
-                    && e.EventEntry.Event.TestStatus == TestStatus.Fail)
-                {
-                    _console.WriteLine($"{Environment.NewLine}Failed test: {e.EventEntry.Event.FullName} [{DateTime.Now}]");
-                    if (!string.IsNullOrEmpty(e.EventEntry.Event.ErrorMessage))
-                        _console.WriteLine($"  Test Error: {e.EventEntry.Event.ErrorMessage}");
-                    if (!string.IsNullOrEmpty(e.EventEntry.Event.StackTrace))
-                        _console.WriteLine($"  Stack Trace: {e.EventEntry.Event.StackTrace}");
-                    if (!string.IsNullOrEmpty(e.EventEntry.Event.TestOutput))
-                        _console.WriteLine($"  Test Output: {e.EventEntry.Event.TestOutput}");
-                }
-
                 if (!IsTestRunIdReceived(e.EventEntry.Event.TestRunId))
                     AddTestRunId(e.EventEntry.Event.TestRunId);
                 if (!IsFrameworkReceived(e.EventEntry.Event.Runtime))
@@ -189,6 +181,27 @@ namespace NUnit.Commander
                 if (!IsFrameworkVersionReceived(e.EventEntry.Event.RuntimeVersion))
                     AddFrameworkVersion(e.EventEntry.Event.RuntimeVersion);
                 ProcessActiveTests(e.EventEntry);
+
+                if (e.EventEntry.Event.TestStatus == TestStatus.Fail && e.EventEntry.Event.Event == EventNames.EndTest)
+                {
+                    // if we are logging to a file, and a test has failed write it immediately to the output
+                    if (_console.IsOutputRedirected)
+                    {
+                        _console.WriteLine($"{Environment.NewLine}Failed test: {e.EventEntry.Event.FullName} [{DateTime.Now}]");
+                        if (!string.IsNullOrEmpty(e.EventEntry.Event.ErrorMessage))
+                            _console.WriteLine($"  Test Error: {e.EventEntry.Event.ErrorMessage}");
+                        if (!string.IsNullOrEmpty(e.EventEntry.Event.StackTrace))
+                            _console.WriteLine($"  Stack Trace: {e.EventEntry.Event.StackTrace}");
+                        if (!string.IsNullOrEmpty(e.EventEntry.Event.TestOutput))
+                            _console.WriteLine($"  Test Output: {e.EventEntry.Event.TestOutput}");
+                    }
+
+                    if (_configuration.ExitOnFirstTestFailure)
+                    {
+                        // close commander immediately on test failure
+                        Close();
+                    }
+                }
             }
             finally
             {
@@ -261,11 +274,18 @@ namespace NUnit.Commander
 
         public void WaitForClose()
         {
-            _closeEvent.WaitOne();
+            _closeEvent?.WaitOne();
+        }
+
+        public void WaitForClose(int millisecondsTimeout)
+        {
+            _closeEvent?.WaitOne(millisecondsTimeout);
         }
 
         public void Close()
         {
+            IsRunning = false;
+            EndTime = DateTime.Now;
             _closeEvent?.Set();
         }
 
@@ -398,7 +418,7 @@ namespace NUnit.Commander
 
                     // figure out how many tests we can fit on screen
                     var maxActiveTestsToDisplay = _configuration.MaxActiveTestsToDisplay;
-                    if (!_console.IsOutputRedirected)
+                    if (!_console.IsOutputRedirected && maxActiveTestsToDisplay == 0)
                         maxActiveTestsToDisplay = Console.WindowHeight - yPos - 2 - _configuration.MaxFailedTestsToDisplay - 5;
 
                     // **************************
@@ -586,9 +606,15 @@ namespace NUnit.Commander
 
         private void FinalizeTestRun()
         {
-            _console.WriteLine($"Finalizing test run...");
             IsRunning = false;
             EndTime = DateTime.Now;
+
+            _console.WriteLine($"Finalizing test run...");
+            var anyFailures = RunReports.SelectMany(x => x.Report.TestReports).Any(x => x.TestStatus == TestStatus.Fail);
+            if (anyFailures)
+                TestStatus = TestStatus.Fail;
+            else
+                TestStatus = TestStatus.Pass;
             if (!_console.IsOutputRedirected)
             {
                 _console.ClearAtRange(0, BeginY, 0, BeginY + 1 + _lastNumberOfLinesDrawn);

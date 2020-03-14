@@ -19,7 +19,7 @@ namespace NUnit.Commander
         [Option("timeout", Required = false, HelpText = "Specify the length of seconds to wait to connect")]
         public int? ConnectTimeoutSeconds { get; set; }
 
-        [Option("max-display", Required = false, HelpText = "Specify the number of active tests to display on screen at a time")]
+        [Option("max-display", Required = false, HelpText = "Specify the number of active tests to display on screen at a time. 0=auto calculate")]
         public int? MaxActiveTestsToDisplay { get; set; }
 
         [Option("max-failed-display", Required = false, HelpText = "Specify the number of failed tests to display on screen at a time")]
@@ -39,6 +39,9 @@ namespace NUnit.Commander
 
         [Option('c', "color-scheme", Required = false, HelpText = "Specify the color scheme")]
         public ColorSchemes? ColorScheme { get; set; }
+
+        [Option('e', "exit-on-failure", Required = false, HelpText = "Exit immediately on first test failure")]
+        public bool? ExitOnFirstTestFailure { get; set; }
 
         // test reliability analysis
 

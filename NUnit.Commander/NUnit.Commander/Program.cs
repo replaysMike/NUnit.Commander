@@ -21,8 +21,9 @@ namespace NUnit.Commander
         static Commander _commander;
         static TestRunnerLauncher _launcher;
 
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
+            var exitCode = ExitCode.TestsFailed;
             var configProvider = new ConfigurationProvider();
             var configuration = configProvider.LoadConfiguration();
             var config = configProvider.Get<ApplicationConfiguration>(configuration);
@@ -33,12 +34,24 @@ namespace NUnit.Commander
                 c.HelpWriter = Console.Error;
             });
             parser.ParseArguments<Options>(args)
-                .WithParsed<Options>(o => Start(o, config))
-                .WithNotParsed<Options>(errors => ArgsParsingError(errors));
+                .WithParsed<Options>(o =>
+                {
+                    var isTestPass = Start(o, config);
+                    if (isTestPass)
+                        exitCode = ExitCode.Success;
+                })
+                .WithNotParsed<Options>(errors =>
+                {
+                    exitCode = ArgsParsingError(errors);
+                });
+
+            return (int)exitCode;
         }
 
-        private static void Start(Options options, ApplicationConfiguration config)
+        private static bool Start(Options options, ApplicationConfiguration config)
         {
+            var isTestPass = false;
+
             // override any configuration options via commandline
             if (options.EnableLog.HasValue)
                 config.EnableLog = options.EnableLog.Value;
@@ -72,6 +85,8 @@ namespace NUnit.Commander
                 config.ShowTestRunnerOutput = options.ShowTestRunnerOutput.Value;
             if (options.ColorScheme.HasValue)
                 config.ColorScheme = options.ColorScheme.Value;
+            if (options.ExitOnFirstTestFailure.HasValue)
+                config.ExitOnFirstTestFailure = options.ExitOnFirstTestFailure.Value;
             if (!string.IsNullOrEmpty(options.LogPath))
                 config.LogPath = options.LogPath;
 
@@ -135,17 +150,16 @@ namespace NUnit.Commander
                     testRunnerSuccess = _launcher.StartTestRunner();
                 }
 
-                var commanderIsSuccess = false;
                 if (testRunnerSuccess)
                 {
                     // blocking
                     switch (config.DisplayMode)
                     {
                         case DisplayMode.LogFriendly:
-                            commanderIsSuccess = RunLogFriendly(options, config, colorScheme, runNumber, runContext);
+                            isTestPass = RunLogFriendly(options, config, colorScheme, runNumber, runContext);
                             break;
                         case DisplayMode.FullScreen:
-                            commanderIsSuccess = RunFullScreen(options, config, colorScheme, runNumber, runContext);
+                            isTestPass = RunFullScreen(options, config, colorScheme, runNumber, runContext);
                             break;
                         default:
                             Console.WriteLine($"Unknown DisplayMode '{config.DisplayMode}'");
@@ -154,10 +168,12 @@ namespace NUnit.Commander
 
                     if (_launcher != null)
                     {
+                        // kill the test runner if it's still running at this point
+                        _launcher.Kill();
                         //Console.Error.WriteLine($"Exit code: {launcher.ExitCode}");
                         //Console.Error.WriteLine($"OUTPUT: {launcher.ConsoleOutput}");
                         //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
-                        ParseConsoleRunnerOutput(commanderIsSuccess, options, config, colorScheme);
+                        ParseConsoleRunnerOutput(isTestPass, options, config, colorScheme);
                         _launcher.Dispose();
                         runContext?.PerformanceCounters?.CpuCounter?.Dispose();
                         runContext?.PerformanceCounters?.DiskCounter?.Dispose();
@@ -167,16 +183,21 @@ namespace NUnit.Commander
 
             if (!Console.IsOutputRedirected)
                 Console.ResetColor();
+
+            return isTestPass;
         }
 
         private static void Launcher_OnTestRunnerExit(object sender, EventArgs e)
         {
             var launcher = sender as TestRunnerLauncher;
+            // sleep a little bit and give commander a chance to tell is if it's running.
+            // sometimes the final report event is delayed a very little bit.
+            _commander.WaitForClose(3000);
+
             if (_commander.IsRunning)
             {
                 // unexpected exit
                 _commander?.Close();
-                System.Threading.Thread.Sleep(100);
 
                 if (!Console.IsOutputRedirected)
                 {
@@ -188,7 +209,7 @@ namespace NUnit.Commander
                 Console.Error.WriteLine($"Error: Test runner '{launcher.Options.TestRunner}' closed unexpectedly.");
                 Console.Error.WriteLine($"Commander will now exit.");
                 Console.ForegroundColor = Color.Gray;
-                Environment.Exit(-3);
+                Environment.Exit((int)ExitCode.TestRunnerExited);
             }
         }
 
@@ -255,24 +276,29 @@ namespace NUnit.Commander
             }
         }
 
-        private static void ArgsParsingError(IEnumerable<Error> errors)
+        private static ExitCode ArgsParsingError(IEnumerable<Error> errors)
         {
+            var exitCode = ExitCode.InvalidArguments;
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             foreach (var error in errors)
             {
                 switch (error.Tag)
                 {
                     case ErrorType.HelpRequestedError:
+                        exitCode = ExitCode.HelpRequested;
                         break;
                     case ErrorType.VersionRequestedError:
                         Console.Error.WriteLine($"Copyright \u00A9 {DateTime.Now.Year} Refactor Software Inc.");
                         Console.Error.WriteLine($"https://github.com/replaysMike/NUnit.Commander");
+                        exitCode = ExitCode.VersionRequested;
                         break;
                     default:
                         Console.Error.WriteLine($"[{error.Tag}] Error: {error.ToString()}");
+                        exitCode = ExitCode.InvalidArguments;
                         break;
                 }
             }
+            return exitCode;
         }
 
         private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, ColorManager colorScheme, int runNumber, RunContext runContext)
@@ -294,7 +320,6 @@ namespace NUnit.Commander
                         Console.WriteLine(header, colorScheme.Highlight);
                     }, (c) => c.Close());
                     _commander.WaitForClose();
-                    isSuccess = _commander.RunReports.Count > 0;
                     runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
 
                     // add the run data to the history
@@ -312,9 +337,12 @@ namespace NUnit.Commander
 
                         var runCount = runContext.Runs.Count;
                         var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
+                        if (testCount == 0)
+                            _commander?.CreateReportFromHistory();
                         Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
                         var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
-                        reportWriter.WriteFinalReport();
+                        if (reportWriter.WriteFinalReport() == TestStatus.Pass)
+                            isSuccess = true;
                     }
                 }
             }
@@ -366,7 +394,6 @@ namespace NUnit.Commander
                 {
                     _commander.Connect(true, (c) => { }, (c) => c.Close());
                     _commander.WaitForClose();
-                    isSuccess = _commander.RunReports.Count > 0;
                     runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
 
                     // add the run data to the history
@@ -384,9 +411,12 @@ namespace NUnit.Commander
 
                         var runCount = runContext.Runs.Count;
                         var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
+                        if (testCount == 0)
+                            _commander?.CreateReportFromHistory();
                         Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
                         var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
-                        reportWriter.WriteFinalReport();
+                        if (reportWriter.WriteFinalReport() == TestStatus.Pass)
+                            isSuccess = true;
                     }
                 }
             }
