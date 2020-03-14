@@ -15,7 +15,7 @@ namespace NUnit.Commander.IO
     public class TestHistoryDatabaseProvider : IDisposable
     {
         private const string Filename = "NUnitCommander_TestReliability.db";
-        private ApplicationConfiguration _configuration;
+        private readonly ApplicationConfiguration _configuration;
         private TestHistoryDatabase _db;
         private ReaderWriterLockSlim _lock = new ReaderWriterLockSlim();
         private bool _hasChanges;

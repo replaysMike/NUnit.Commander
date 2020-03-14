@@ -8,7 +8,7 @@ namespace NUnit.Commander.Models
 {
     public class HistoryReport
     {
-        private ColorManager _colorScheme;
+        private readonly ColorManager _colorScheme;
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
 

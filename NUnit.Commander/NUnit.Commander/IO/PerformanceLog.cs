@@ -9,7 +9,7 @@ namespace NUnit.Commander.IO
     {
         internal const int PeakSampleTimeSeconds = 15;
 
-        public Dictionary<PerformanceType, IList<PerformanceEntry>> _log = new Dictionary<PerformanceType, IList<PerformanceEntry>>();
+        private Dictionary<PerformanceType, IList<PerformanceEntry>> _log = new Dictionary<PerformanceType, IList<PerformanceEntry>>();
 
         public PerformanceLog()
         {

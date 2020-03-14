@@ -5,12 +5,17 @@ using System.Drawing;
 using System.Text;
 using Console = NUnit.Commander.Display.CommanderConsole;
 using ColorfulConsole = Colorful.Console;
+using System.Threading;
 
 namespace NUnit.Commander.IO
 {
     public class LogFriendlyConsole : IExtendedConsole
     {
-        private ColorManager _colorScheme;
+        public delegate void KeyPress(KeyPressEventArgs e);
+        public event KeyPress OnKeyPress;
+        private Thread _inputThread;
+        private ManualResetEvent _closeEvent = new ManualResetEvent(false);
+
         public ConsoleOptions Options { get; set; }
 
         /// <summary>
@@ -33,7 +38,6 @@ namespace NUnit.Commander.IO
         {
             Console.SetColorManager(colorScheme);
 
-            _colorScheme = colorScheme;
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             if (!IsOutputRedirected)
             {
@@ -44,6 +48,29 @@ namespace NUnit.Commander.IO
                     if (colorScheme.Background.HasValue)
                         Console.BackgroundColor = Color.Black;
                     Console.Clear();
+                }
+            }
+
+            _inputThread = new Thread(new ThreadStart(InputThread));
+            _inputThread.IsBackground = true;
+            _inputThread.Start();
+        }
+
+        private void InputThread()
+        {
+            while (!_closeEvent.WaitOne(30))
+            {
+                if (System.Console.KeyAvailable)
+                {
+                    var key = System.Console.ReadKey(true);
+                    ControlKeyState keyState = 0;
+                    if (key.Modifiers.HasFlag(ConsoleModifiers.Control))
+                        keyState |= ControlKeyState.LEFT_CTRL_PRESSED;
+                    if (key.Modifiers.HasFlag(ConsoleModifiers.Alt))
+                        keyState |= ControlKeyState.LEFT_ALT_PRESSED;
+                    if (key.Modifiers.HasFlag(ConsoleModifiers.Shift))
+                        keyState |= ControlKeyState.SHIFT_PRESSED;
+                    OnKeyPress?.Invoke(new KeyPressEventArgs(key.Key, keyState));
                 }
             }
         }
@@ -82,6 +109,7 @@ namespace NUnit.Commander.IO
 
         public void Close()
         {
+            // do nothing
         }
 
         public void Configure(Action<ExtendedConsoleConfiguration> config)
@@ -92,10 +120,12 @@ namespace NUnit.Commander.IO
 
         public void Start()
         {
+            throw new NotSupportedException();
         }
 
         public void WaitForClose()
         {
+            // do nothing
         }
 
         public void Write(string text) => Console.Write(text);
@@ -167,37 +197,37 @@ namespace NUnit.Commander.IO
 
         public void WriteRow(string rowName, Component component, ColumnLocation location)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void WriteRow(string rowName, Component component, ColumnLocation location, Color foreColor)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void WriteRow(string rowName, Component component, ColumnLocation location, Color foreColor, Color backColor)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void WriteRow(string rowName, string text, ColumnLocation location, Color foreColor)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void WriteRow(string rowName, string text, ColumnLocation location, Color foreColor, Color backColor)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void WriteRow(string rowName, string text, ColumnLocation location)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void WriteRow(string rowName, string text, ColumnLocation location, int offset)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
 
         public void Dispose()
@@ -210,6 +240,9 @@ namespace NUnit.Commander.IO
         {
             if (isDisposing)
             {
+                _closeEvent.Set();
+                if (!_inputThread.Join(5 * 1000))
+                    _inputThread.Abort();
                 Console.Out.Flush();
                 Console.Error.Flush();
                 if (!IsOutputRedirected)

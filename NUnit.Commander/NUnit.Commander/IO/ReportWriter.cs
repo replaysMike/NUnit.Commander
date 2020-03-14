@@ -15,13 +15,13 @@ namespace NUnit.Commander.IO
     public class ReportWriter
     {
         private const int DefaultBorderWidth = 36;
-        private ColorManager _colorScheme;
-        private IExtendedConsole _console;
-        private ApplicationConfiguration _configuration;
-        private RunContext _runContext;
         private const char _headerChar = '═';
         private const char _headerBorderChar = '║';
         private const char _lineChar = '`';
+        private readonly ColorManager _colorScheme;
+        private readonly IExtendedConsole _console;
+        private readonly ApplicationConfiguration _configuration;
+        private readonly RunContext _runContext;
         private readonly string _headerLine;
         private readonly string _lineSeparator;
 

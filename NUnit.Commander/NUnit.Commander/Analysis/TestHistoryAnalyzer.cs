@@ -11,8 +11,8 @@ namespace NUnit.Commander.Analysis
 {
     public class TestHistoryAnalyzer
     {
-        TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
-        ApplicationConfiguration _configuration;
+        private readonly TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
+        private readonly ApplicationConfiguration _configuration;
 
         public TestHistoryAnalyzer(ApplicationConfiguration configuration, TestHistoryDatabaseProvider testHistoryDatabaseProvider)
         {

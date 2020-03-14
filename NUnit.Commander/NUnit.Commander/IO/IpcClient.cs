@@ -35,18 +35,18 @@ namespace NUnit.Commander.IO
         public event MessageReceivedEventHandler OnMessageReceived;
 
 
-        private byte[] _messageBuffer = new byte[MaxMessageBufferSize];
-        private int _messageByteIndex = 0;
+        private readonly byte[] _messageBuffer = new byte[MaxMessageBufferSize];
 
-        private IExtendedConsole _console;
+        private readonly IExtendedConsole _console;
+        private readonly ManualResetEvent _dataReadEvent;
+        private readonly ManualResetEvent _closeEvent;
+        private readonly ApplicationConfiguration _config;
+        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private readonly XmlSerializer _xmlSerializer = new XmlSerializer(typeof(DataEvent));
+        private bool _isDisposed;
+        private int _messageByteIndex = 0;
         private NamedPipeClientStream _client;
         private Thread _readThread;
-        private ManualResetEvent _dataReadEvent;
-        private ManualResetEvent _closeEvent;
-        private ApplicationConfiguration _config;
-        private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        private XmlSerializer _xmlSerializer = new XmlSerializer(typeof(DataEvent));
-
 
         public bool IsWaitingForConnection { get; private set; }
 
@@ -103,124 +103,133 @@ namespace NUnit.Commander.IO
 
         private void ReadCallback(IAsyncResult ar)
         {
-            var receiveBuffer = ar.AsyncState as byte[];
-            var bytesRead = 0;
+            if (_isDisposed) return;
             try
             {
-                bytesRead = _client.EndRead(ar);
-                Debug.WriteLine($"{bytesRead} bytes read.");
-            }
-            catch (InvalidOperationException ex)
-            {
-                // server disconnected?
-                Debug.WriteLine($"ERROR|{nameof(ReadCallback)}|{ex.Message} {ex.StackTrace}");
-            }
-
-            if (bytesRead > 0)
-            {
-                _lock?.Wait();
+                var receiveBuffer = ar.AsyncState as byte[];
+                var bytesRead = 0;
                 try
                 {
-                    // copy data into the main message buffer for processing
-                    Array.Copy(receiveBuffer, 0, _messageBuffer, _messageByteIndex, bytesRead);
-                    _messageByteIndex += bytesRead;
+                    bytesRead = _client.EndRead(ar);
+                    Debug.WriteLine($"{bytesRead} bytes read.");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    // server disconnected?
+                    Debug.WriteLine($"ERROR|{nameof(ReadCallback)}|{ex.Message} {ex.StackTrace}");
+                }
 
-                    var dataToProcess = true;
-                    var loopCounter = 0;
-                    while (dataToProcess)
+                if (bytesRead > 0)
+                {
+                    _lock?.Wait();
+                    try
                     {
-                        loopCounter++;
-                        if (_messageByteIndex >= TotalHeaderLength)
-                        {
-                            // we have at least the header, read it and any additional data
-                            var startMessageHeader = BitConverter.ToUInt16(_messageBuffer, 0);
-                            var totalMessageLength = BitConverter.ToInt32(_messageBuffer, sizeof(UInt16));
-                            var endMessageHeader = BitConverter.ToUInt16(_messageBuffer, sizeof(UInt16) + sizeof(UInt32));
-                            if (startMessageHeader != StartMessageHeader)
-                                throw new InvalidOperationException($"ERROR|Message start header '{startMessageHeader}' was not the expected value of '{StartMessageHeader}'.");
-                            if (endMessageHeader != EndMessageHeader)
-                                throw new InvalidOperationException($"ERROR|Message end header '{endMessageHeader}' was not the expected value of '{EndMessageHeader}'.");
-                            // have we received all the data? (message size, plus it's header)
-                            if (_messageByteIndex >= totalMessageLength + TotalHeaderLength)
-                            {
-                                // all data received for message
-                                // read in the data
-                                var messageBytes = new byte[totalMessageLength - StringPreambleLength];
-                                Array.Copy(_messageBuffer, TotalHeaderLength + StringPreambleLength, messageBytes, 0, messageBytes.Length);
-                                DataEvent dataEvent = null;
-                                string eventStr = null;
-                                try
-                                {
-                                    switch (_config.EventFormatType)
-                                    {
-                                        case EventFormatTypes.Json:
-                                            eventStr = UseEncoding.GetString(messageBytes);
-                                            dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
-                                            break;
-                                        case EventFormatTypes.Xml:
-                                            eventStr = UseEncoding.GetString(messageBytes);
-                                            using (var stringReader = new StringReader(eventStr))
-                                            {
-                                                dataEvent = _xmlSerializer.Deserialize(stringReader) as DataEvent;
-                                            }
-                                            break;
-                                        case EventFormatTypes.Binary:
-                                            using (var stream = new MemoryStream(messageBytes))
-                                            {
-                                                dataEvent = Serializer.Deserialize<DataEvent>(stream);
-                                            }
-                                            break;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    // failed to deserialize json
-                                    throw new IpcClientException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
-                                }
-                                var e = new EventEntry(dataEvent);
-                                Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
+                        // copy data into the main message buffer for processing
+                        Array.Copy(receiveBuffer, 0, _messageBuffer, _messageByteIndex, bytesRead);
+                        _messageByteIndex += bytesRead;
 
-                                // if there is more data received past the initial message size, copy it to the beginning of the buffer
-                                var totalMessageDataLength = TotalHeaderLength + totalMessageLength;
-                                if (_messageByteIndex > totalMessageDataLength)
+                        var dataToProcess = true;
+                        var loopCounter = 0;
+                        while (dataToProcess)
+                        {
+                            loopCounter++;
+                            if (_messageByteIndex >= TotalHeaderLength)
+                            {
+                                // we have at least the header, read it and any additional data
+                                var startMessageHeader = BitConverter.ToUInt16(_messageBuffer, 0);
+                                var totalMessageLength = BitConverter.ToInt32(_messageBuffer, sizeof(UInt16));
+                                var endMessageHeader = BitConverter.ToUInt16(_messageBuffer, sizeof(UInt16) + sizeof(UInt32));
+                                if (startMessageHeader != StartMessageHeader)
+                                    throw new InvalidOperationException($"ERROR|Message start header '{startMessageHeader}' was not the expected value of '{StartMessageHeader}'.");
+                                if (endMessageHeader != EndMessageHeader)
+                                    throw new InvalidOperationException($"ERROR|Message end header '{endMessageHeader}' was not the expected value of '{EndMessageHeader}'.");
+                                // have we received all the data? (message size, plus it's header)
+                                if (_messageByteIndex >= totalMessageLength + TotalHeaderLength)
                                 {
-                                    var bufferOverflowBytes = new byte[_messageByteIndex - totalMessageDataLength];
-                                    // copy the overflow data
-                                    Array.Copy(_messageBuffer, totalMessageDataLength, bufferOverflowBytes, 0, bufferOverflowBytes.Length);
-                                    // move the overflow data to the start of the message buffer
-                                    Array.Copy(bufferOverflowBytes, 0, _messageBuffer, 0, bufferOverflowBytes.Length);
-                                    // reset the buffer position, ready for next message
-                                    _messageByteIndex = bufferOverflowBytes.Length;
+                                    // all data received for message
+                                    // read in the data
+                                    var messageBytes = new byte[totalMessageLength - StringPreambleLength];
+                                    Array.Copy(_messageBuffer, TotalHeaderLength + StringPreambleLength, messageBytes, 0, messageBytes.Length);
+                                    DataEvent dataEvent = null;
+                                    string eventStr = null;
+                                    try
+                                    {
+                                        switch (_config.EventFormatType)
+                                        {
+                                            default:
+                                            case EventFormatTypes.Json:
+                                                eventStr = UseEncoding.GetString(messageBytes);
+                                                dataEvent = JsonSerializer.Deserialize<DataEvent>(eventStr);
+                                                break;
+                                            case EventFormatTypes.Xml:
+                                                eventStr = UseEncoding.GetString(messageBytes);
+                                                using (var stringReader = new StringReader(eventStr))
+                                                {
+                                                    dataEvent = _xmlSerializer.Deserialize(stringReader) as DataEvent;
+                                                }
+                                                break;
+                                            case EventFormatTypes.Binary:
+                                                using (var stream = new MemoryStream(messageBytes))
+                                                {
+                                                    dataEvent = Serializer.Deserialize<DataEvent>(stream);
+                                                }
+                                                break;
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        // failed to deserialize json
+                                        throw new IpcClientException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
+                                    }
+                                    var e = new EventEntry(dataEvent);
+                                    Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
+
+                                    // if there is more data received past the initial message size, copy it to the beginning of the buffer
+                                    var totalMessageDataLength = TotalHeaderLength + totalMessageLength;
+                                    if (_messageByteIndex > totalMessageDataLength)
+                                    {
+                                        var bufferOverflowBytes = new byte[_messageByteIndex - totalMessageDataLength];
+                                        // copy the overflow data
+                                        Array.Copy(_messageBuffer, totalMessageDataLength, bufferOverflowBytes, 0, bufferOverflowBytes.Length);
+                                        // move the overflow data to the start of the message buffer
+                                        Array.Copy(bufferOverflowBytes, 0, _messageBuffer, 0, bufferOverflowBytes.Length);
+                                        // reset the buffer position, ready for next message
+                                        _messageByteIndex = bufferOverflowBytes.Length;
+                                    }
+                                    else
+                                    {
+                                        // reset the buffer position, ready for next message
+                                        _messageByteIndex = 0;
+                                    }
+
+                                    // let commander know we've received a new message
+                                    OnMessageReceived?.Invoke(this, new MessageEventArgs(e));
                                 }
                                 else
                                 {
-                                    // reset the buffer position, ready for next message
-                                    _messageByteIndex = 0;
+                                    // more data needed to process the message
+                                    dataToProcess = false;
                                 }
-
-                                // let commander know we've received a new message
-                                OnMessageReceived?.Invoke(this, new MessageEventArgs(e));
                             }
                             else
                             {
-                                // more data needed to process the message
+                                // more data needed to read the header
                                 dataToProcess = false;
                             }
                         }
-                        else
-                        {
-                            // more data needed to read the header
-                            dataToProcess = false;
-                        }
+                    }
+                    finally
+                    {
+                        _lock?.Release();
                     }
                 }
-                finally
-                {
-                    _lock?.Release();
-                }
+                // signal ready to read more data
+                _dataReadEvent.Reset();
             }
-            // signal ready to read more data
-            _dataReadEvent.Reset();
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"{nameof(ReadCallback)}|ERROR|{ex.GetBaseException().Message}|{ex.StackTrace}");
+            }
         }
 
         public void Dispose()
@@ -231,6 +240,7 @@ namespace NUnit.Commander.IO
 
         protected virtual void Dispose(bool isDisposing)
         {
+            _isDisposed = true;
             if (isDisposing)
             {
                 _closeEvent?.Set();
@@ -240,7 +250,6 @@ namespace NUnit.Commander.IO
                     if (_readThread?.Join(5 * 1000) == false)
                         _readThread.Abort();
                     _closeEvent?.Dispose();
-                    _closeEvent = null;
                     _readThread = null;
                     _console?.Dispose();
                 }
@@ -248,7 +257,6 @@ namespace NUnit.Commander.IO
                 {
                     _lock.Release();
                     _lock.Dispose();
-                    _lock = null;
                 }
             }
         }

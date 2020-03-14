@@ -11,7 +11,7 @@ namespace NUnit.Commander.Display
 {
     public class ColorManager : IColorScheme
     {
-        private IDictionary<ConsoleColor, MappedColor> _colorMap = new Dictionary<ConsoleColor, MappedColor>();
+        private readonly IDictionary<ConsoleColor, MappedColor> _colorMap = new Dictionary<ConsoleColor, MappedColor>();
         public ColorSchemes ColorSchemeName { get; }
         public IColorScheme ColorScheme { get; private set; }
 

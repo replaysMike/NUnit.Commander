@@ -19,6 +19,7 @@ namespace NUnit.Commander
     class Program
     {
         static Commander _commander;
+        static TestRunnerLauncher _launcher;
 
         static void Main(string[] args)
         {
@@ -77,7 +78,6 @@ namespace NUnit.Commander
             var colorScheme = new ColorManager(config.ColorScheme);
             Console.SetColorManager(colorScheme);
             var testRunnerSuccess = true;
-            TestRunnerLauncher launcher = null;
             var runNumber = 0;
             var runContext = new RunContext();
             runContext.TestHistoryDatabaseProvider = new TestHistoryDatabaseProvider(config);
@@ -130,9 +130,9 @@ namespace NUnit.Commander
                 if (options.TestRunner.HasValue)
                 {
                     // launch test runner in another process if asked
-                    launcher = new TestRunnerLauncher(options);
-                    launcher.OnTestRunnerExit += Launcher_OnTestRunnerExit;
-                    testRunnerSuccess = launcher.StartTestRunner();
+                    _launcher = new TestRunnerLauncher(options);
+                    _launcher.OnTestRunnerExit += Launcher_OnTestRunnerExit;
+                    testRunnerSuccess = _launcher.StartTestRunner();
                 }
 
                 var commanderIsSuccess = false;
@@ -152,13 +152,13 @@ namespace NUnit.Commander
                             break;
                     }
 
-                    if (launcher != null)
+                    if (_launcher != null)
                     {
                         //Console.Error.WriteLine($"Exit code: {launcher.ExitCode}");
                         //Console.Error.WriteLine($"OUTPUT: {launcher.ConsoleOutput}");
                         //Console.Error.WriteLine($"ERRORS: {launcher.ConsoleError}");
-                        ParseConsoleRunnerOutput(commanderIsSuccess, options, config, colorScheme, launcher);
-                        launcher.Dispose();
+                        ParseConsoleRunnerOutput(commanderIsSuccess, options, config, colorScheme);
+                        _launcher.Dispose();
                         runContext?.PerformanceCounters?.CpuCounter?.Dispose();
                         runContext?.PerformanceCounters?.DiskCounter?.Dispose();
                     }
@@ -192,12 +192,12 @@ namespace NUnit.Commander
             }
         }
 
-        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, ColorManager colorScheme, TestRunnerLauncher launcher)
+        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, ColorManager colorScheme)
         {
-            launcher.WaitForExit();
-            var output = launcher.ConsoleOutput;
-            var error = launcher.ConsoleError;
-            var exitCode = launcher.ExitCode;
+            _launcher.WaitForExit();
+            var output = _launcher.ConsoleOutput;
+            var error = _launcher.ConsoleError;
+            var exitCode = _launcher.ExitCode;
             switch (options.TestRunner)
             {
                 case TestRunner.NUnitConsole:
@@ -240,6 +240,9 @@ namespace NUnit.Commander
                         Console.ForegroundColor = colorScheme.DarkHighlight;
                     }
                     break;
+                default:
+                    Console.WriteLine($"Unknown TestRunner '{options.TestRunner}'", colorScheme.Error);
+                    break;
             }
 
             if (config.ShowTestRunnerOutput)
@@ -279,6 +282,7 @@ namespace NUnit.Commander
             if (options.Repeat > 1)
                 header = header + $", Run #{runNumber}";
             var console = new LogFriendlyConsole(false, colorScheme);
+            console.OnKeyPress += Console_OnKeyPress;
             try
             {
                 using (_commander = new Commander(configuration, console, runNumber, runContext))
@@ -420,7 +424,13 @@ namespace NUnit.Commander
 
         private static void Console_OnKeyPress(KeyPressEventArgs e)
         {
-
+            if (e.Key == ConsoleKey.Q || e.Key == ConsoleKey.Escape)
+            {
+                _launcher.OnTestRunnerExit -= Launcher_OnTestRunnerExit;
+                _commander?.CreateReportFromHistory();
+                _commander?.Close();
+                _launcher.Kill();
+            }
         }
     }
 }

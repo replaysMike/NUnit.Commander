@@ -54,6 +54,7 @@ namespace NUnit.Commander.IO
                 }
                 catch (Exception)
                 {
+                    // exceptions are ok
                 }
                 return exitCode;
             }
@@ -84,6 +85,18 @@ namespace NUnit.Commander.IO
             catch (COMException)
             {
                 // the process ended and handle was already released
+            }
+        }
+
+        public void Kill()
+        {
+            try
+            {
+                _process.Kill(true);
+            }
+            catch (Exception)
+            {
+                // exceptions are ok
             }
         }
 
@@ -197,7 +210,10 @@ namespace NUnit.Commander.IO
                 {
                     _process?.Dispose();
                 }
-                catch (Exception) { }
+                catch (Exception)
+                {
+                    // exceptions are ok
+                }
                 _jobTracker?.Dispose();
             }
         }

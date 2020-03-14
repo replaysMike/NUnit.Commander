@@ -1,6 +1,6 @@
 ﻿namespace NUnit.Commander.Extensions
 {
-    public class MathExtensions
+    public static class MathExtensions
     {
         public static long GCD(long a, long b)
         {

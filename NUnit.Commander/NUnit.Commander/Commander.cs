@@ -31,26 +31,26 @@ namespace NUnit.Commander
         private readonly string[] DotNetRuntimes = new[] { "dotnet", "testhost.x86", "testhost" };
         private readonly string[] NUnitRuntimes = new[] { "nunit-console" };
 
-        private IExtendedConsole _console;
+        private readonly IExtendedConsole _console;
+        private readonly int _activeTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds;
+        private readonly int _drawIntervalMilliseconds = DefaultDrawIntervalMilliseconds;
+        private readonly ICollection<Guid> _testRunIds = new List<Guid>();
+        private readonly ICollection<string> _frameworks = new List<string>();
+        private readonly ICollection<string> _frameworkVersions = new List<string>();
+        private readonly IList<EventEntry> _eventLog;
+        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        private readonly ApplicationConfiguration _configuration;
         private IpcClient _client;
         private ManualResetEvent _closeEvent;
-        private readonly IList<EventEntry> _eventLog;
         private List<EventEntry> _activeTests;
-        private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private Thread _updateThread;
         private Thread _utilityThread;
         private bool _allowDrawActiveTests = false;
         private int _lastNumberOfTestsRunning;
         private int _lastNumberOfTestsDrawn;
         private int _lastNumberOfLinesDrawn;
-        private ApplicationConfiguration _configuration;
         private DateTime _lastDrawTime;
-        private int _activeTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds;
-        private int _drawIntervalMilliseconds = DefaultDrawIntervalMilliseconds;
         private int _lastDrawChecksum;
-        private ICollection<Guid> _testRunIds = new List<Guid>();
-        private ICollection<string> _frameworks = new List<string>();
-        private ICollection<string> _frameworkVersions = new List<string>();
         private string _currentFramework;
         private string _currentFrameworkVersion;
         private int _totalTestsQueued;
@@ -170,7 +170,7 @@ namespace NUnit.Commander
                 _eventLog.Add(e.EventEntry);
 
                 // if we are logging to a file, and a test has failed write it immediately to the output
-                if(_console.IsOutputRedirected && e.EventEntry.Event.Event == EventNames.EndTest 
+                if (_console.IsOutputRedirected && e.EventEntry.Event.Event == EventNames.EndTest
                     && e.EventEntry.Event.TestStatus == TestStatus.Fail)
                 {
                     _console.WriteLine($"{Environment.NewLine}Failed test: {e.EventEntry.Event.FullName} [{DateTime.Now}]");
@@ -207,9 +207,11 @@ namespace NUnit.Commander
                     _console.WriteLine($"Waiting for another server connection...");
                     _client.Dispose();
                     // if the connection fails, write the report
-                    Connect(false, (x) => { }, (x) => { 
-                        FinalizeTestRun(); 
-                        x.Close(); });
+                    Connect(false, (x) => { }, (x) =>
+                    {
+                        FinalizeTestRun();
+                        x.Close();
+                    });
                     return;
                 }
 
@@ -291,7 +293,7 @@ namespace NUnit.Commander
             if (_eventLog.Count > 0 && _performanceIteration > 30 && _performanceIteration % 10 == 0)
             {
                 if (RunContext?.PerformanceCounters?.CpuCounter != null)
-                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed,  RunContext.PerformanceCounters.CpuCounter.NextValue());
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, RunContext.PerformanceCounters.CpuCounter.NextValue());
                 if (RunContext?.PerformanceCounters?.DiskCounter != null)
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
 
@@ -425,7 +427,7 @@ namespace NUnit.Commander
                         if (test.Event.EndTime != DateTime.MinValue)
                             lifetime = test.Event.Duration;
                         var testColor = ColorScheme.Highlight;
-                        var testStatus = "RUN ";
+                        var testStatus = "INVD";
                         switch (test.Event.TestStatus)
                         {
                             case TestStatus.Pass:
@@ -439,6 +441,11 @@ namespace NUnit.Commander
                             case TestStatus.Skipped:
                                 testStatus = "SKIP";
                                 testColor = ColorScheme.DarkDefault;
+                                break;
+                            case TestStatus.Running:
+                            default:
+                                testStatus = "RUN ";
+                                testColor = ColorScheme.Highlight;
                                 break;
                         }
 
@@ -641,6 +648,60 @@ namespace NUnit.Commander
                 case EventNames.Report:
                     RunReports.Add(e.Event);
                     break;
+                default:
+                    // unknown event type
+                    break;
+            }
+        }
+
+        public void CreateReportFromHistory()
+        {
+            _lock.Wait();
+            try
+            {
+                var completedTests = _eventLog.Where(x => x.Event.Event == EventNames.EndTest);
+                var report = new DataEvent(EventNames.Report);
+                report.TestCount = completedTests.Count();
+                report.Passed = completedTests.Where(x => x.Event.TestStatus == TestStatus.Pass).Count();
+                report.Failed = completedTests.Where(x => x.Event.TestStatus == TestStatus.Fail).Count();
+                report.Skipped = completedTests.Where(x => x.Event.TestStatus == TestStatus.Skipped).Count();
+                report.Warnings = completedTests.Sum(x => x.Event.Warnings);
+                report.Asserts = completedTests.Sum(x => x.Event.Asserts);
+                report.StartTime = StartTime;
+                report.EndTime = DateTime.Now;
+                report.Duration = report.EndTime.Subtract(StartTime);
+                report.Runtime = _currentFramework;
+                report.RuntimeVersion = _currentFrameworkVersion;
+                report.TestRunId = _testRunIds.Last();
+                report.TestStatus = TestStatus.Fail;
+                report.Report = new DataReport()
+                {
+                    TestReports = completedTests.Select(x => new TestCaseReport
+                    {
+                        Asserts = x.Event.Asserts,
+                        Duration = x.Event.Duration,
+                        EndTime = x.Event.EndTime,
+                        ErrorMessage = x.Event.ErrorMessage,
+                        FullName = x.Event.FullName,
+                        Id = x.Event.Id,
+                        IsSkipped = x.Event.IsSkipped,
+                        Runtime = x.Event.Runtime,
+                        RuntimeVersion = x.Event.RuntimeVersion,
+                        StackTrace = x.Event.StackTrace,
+                        StartTime = x.Event.StartTime,
+                        TestName = x.Event.TestName,
+                        TestOutput = x.Event.TestOutput,
+                        TestResult = x.Event.TestResult,
+                        TestStatus = x.Event.TestStatus,
+                        TestSuite = x.Event.TestSuite
+                    }).ToList(),
+                    TotalTests = completedTests.Count()
+                };
+                RunReports.Add(report);
+            }
+            finally
+            {
+                _lock.Release();
             }
         }
 
