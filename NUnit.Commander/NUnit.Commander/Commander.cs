@@ -1,7 +1,6 @@
 ﻿using AnyConsole;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.Display;
-using NUnit.Commander.Extensions;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
 using System;
@@ -15,47 +14,48 @@ namespace NUnit.Commander
     public class Commander : ICommander, IDisposable
     {
         // how often to should draw to the screen
-        private const int DefaultDrawIntervalMilliseconds = 66;
+        internal const int DefaultDrawIntervalMilliseconds = 66;
         // how often to run utility functions
-        private const int DefaultUtilityIntervalMilliseconds = 66;
+        internal const int DefaultUtilityIntervalMilliseconds = 66;
         // how often to should draw to the screen when stdout is redirected
-        private const int DefaultRedirectedDrawIntervalMilliseconds = 5000;
+        internal const int DefaultRedirectedDrawIntervalMilliseconds = 5000;
         // how long to should keep tests displayed after they have finished running
-        private const int DefaultActiveTestLifetimeMilliseconds = 2000;
+        internal const int DefaultActiveTestLifetimeMilliseconds = 2000;
         // how long to should keep tests displayed after they have finished running when stdout is redirected
-        private const int DefaultRedirectedActiveTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds - 500;
+        internal const int DefaultRedirectedActiveTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds - 500;
         // how much of the test case argument to display
-        private const int MaxTestCaseArgumentLength = 20;
+        internal const int MaxTestCaseArgumentLength = 20;
         // position to begin drawing at
-        private const int BeginY = 1;
+        internal const int BeginY = 1;
         private readonly string[] DotNetRuntimes = new[] { "dotnet", "testhost.x86", "testhost" };
         private readonly string[] NUnitRuntimes = new[] { "nunit-console" };
 
-        private readonly IExtendedConsole _console;
-        private readonly int _activeTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds;
-        private readonly int _drawIntervalMilliseconds = DefaultDrawIntervalMilliseconds;
+        internal readonly IExtendedConsole _console;
+        internal readonly int _activeTestLifetimeMilliseconds = DefaultActiveTestLifetimeMilliseconds;
+        internal readonly int _drawIntervalMilliseconds = DefaultDrawIntervalMilliseconds;
         private readonly ICollection<Guid> _testRunIds = new List<Guid>();
-        private readonly ICollection<string> _frameworks = new List<string>();
-        private readonly ICollection<string> _frameworkVersions = new List<string>();
-        private readonly IList<EventEntry> _eventLog;
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        private readonly ApplicationConfiguration _configuration;
-        private IpcClient _client;
+        internal readonly ICollection<string> _frameworks = new List<string>();
+        internal readonly ICollection<string> _frameworkVersions = new List<string>();
+        internal readonly List<EventEntry> _eventLog;
+        internal readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        internal readonly ApplicationConfiguration _configuration;
+        internal IpcClient _client;
         private ManualResetEvent _closeEvent;
-        private List<EventEntry> _activeTests;
+        internal List<EventEntry> _activeTests;
         private Thread _updateThread;
         private Thread _utilityThread;
-        private bool _allowDrawActiveTests = false;
-        private int _lastNumberOfTestsRunning;
-        private int _lastNumberOfTestsDrawn;
-        private int _lastNumberOfLinesDrawn;
-        private DateTime _lastDrawTime;
-        private int _lastDrawChecksum;
-        private string _currentFramework;
-        private string _currentFrameworkVersion;
-        private int _totalTestsQueued;
+        internal bool _allowDrawActiveTests = false;
+        internal int _lastNumberOfTestsRunning;
+        internal int _lastNumberOfTestsDrawn;
+        internal int _lastNumberOfLinesDrawn;
+        internal DateTime _lastDrawTime;
+        internal int _lastDrawChecksum;
+        internal string _currentFramework;
+        internal string _currentFrameworkVersion;
+        internal int _totalTestsQueued;
         private PerformanceLog _performanceLog = new PerformanceLog();
         private int _performanceIteration;
+        private ViewManager _viewManager;
 
         /// <summary>
         /// List of tests that are currently running
@@ -130,6 +130,7 @@ namespace NUnit.Commander
             _closeEvent = new ManualResetEvent(false);
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
+            _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
             ColorScheme = new ColorManager(_configuration.ColorScheme);
 
@@ -161,6 +162,36 @@ namespace NUnit.Commander
                 _activeTestLifetimeMilliseconds = configuration.RedirectedActiveTestLifetimeMilliseconds > 0 ? configuration.RedirectedActiveTestLifetimeMilliseconds : DefaultRedirectedActiveTestLifetimeMilliseconds;
                 _drawIntervalMilliseconds = configuration.RedirectedDrawIntervalMilliseconds > 0 ? configuration.RedirectedDrawIntervalMilliseconds : DefaultRedirectedDrawIntervalMilliseconds;
             }
+        }
+
+        public void PauseDisplay()
+        {
+            _viewManager?.PauseDisplay();
+        }
+
+        public void UnpauseDisplay()
+        {
+            _viewManager?.UnpauseDisplay();
+        }
+
+        public void TogglePauseDisplay()
+        {
+            _viewManager?.TogglePauseDisplay();
+        }
+
+        public void PreviousView()
+        {
+            _viewManager?.PreviousView();
+        }
+
+        public void NextView()
+        {
+            _viewManager?.NextView();
+        }
+
+        public void SetView(ViewPages view)
+        {
+            _viewManager?.SetView(view);
         }
 
         private void IpcClient_OnMessageReceived(object sender, MessageEventArgs e)
@@ -291,11 +322,13 @@ namespace NUnit.Commander
 
         private void UpdateThread()
         {
+            var iteration = 0L;
             while (!_closeEvent.WaitOne(_drawIntervalMilliseconds))
             {
                 RemoveExpiredActiveTests();
-                DisplayActiveTests();
+                _viewManager.Draw(iteration);
                 LogPerformance();
+                Interlocked.Increment(ref iteration);
             }
         }
 
@@ -321,224 +354,6 @@ namespace NUnit.Commander
                 var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
                 var totalMemoryBytes = PerformanceInfo.GetTotalMemoryInMiB() * 1024;
                 _performanceLog.AddEntry(PerformanceLog.PerformanceType.MemoryUsed, totalMemoryBytes - availableMemoryBytes);
-            }
-        }
-
-        private void DisplayActiveTests()
-        {
-            if (!_allowDrawActiveTests)
-                return;
-            _lock.Wait();
-            try
-            {
-                var yPos = BeginY;
-                var drawChecksum = 0;
-                var performDrawByTime = true;
-                var performDrawByDataChange = true;
-                var activeTestsCountChanged = _activeTests.Count != _lastNumberOfTestsRunning;
-                var windowWidth = 160;
-                if (!_console.IsOutputRedirected)
-                    windowWidth = Console.WindowWidth;
-
-                if (_console.IsOutputRedirected)
-                {
-                    // if any tests have changed state based on checksum, allow a redraw
-                    drawChecksum = ComputeActiveTestChecksum();
-                    performDrawByTime = DateTime.Now.Subtract(_lastDrawTime).TotalMilliseconds > _drawIntervalMilliseconds;
-                    performDrawByDataChange = drawChecksum != _lastDrawChecksum;
-                }
-                if ((performDrawByTime || performDrawByDataChange) && _activeTests.Any())
-                {
-                    _lastDrawChecksum = drawChecksum;
-                    if (_console.IsOutputRedirected)
-                        _console.WriteLine();
-                    else if (activeTestsCountChanged)
-                    {
-                        // number of tests changed
-                        var nextNumberOfTestsDrawn = Math.Min(_activeTests.Count, _configuration.MaxActiveTestsToDisplay);
-                        if (nextNumberOfTestsDrawn < _lastNumberOfTestsDrawn)
-                        {
-                            // clear the static display if we are displaying less tests than the previous draw
-                            if (!_console.IsOutputRedirected)
-                                _console.ClearAtRange(0, yPos + nextNumberOfTestsDrawn, 0, yPos + 1 + _lastNumberOfLinesDrawn);
-                        }
-                        _lastNumberOfTestsRunning = _activeTests.Count;
-                    }
-                    var testNumber = 0;
-                    var totalActive = _activeTests.Count(x => !x.IsQueuedForRemoval);
-                    var totalPasses = _eventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Pass);
-                    var totalFails = _eventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail);
-                    var totalIgnored = _eventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Skipped);
-                    var totalTestsProcessed = _eventLog.Count(x => x.Event.Event == EventNames.EndTest);
-
-                    _lastNumberOfLinesDrawn = 0;
-                    // write the summary of all test state
-                    _console.WriteAt(ColorTextBuilder.Create
-                            .Append("Tests state: ", ColorScheme.Bright)
-                            .Append($"Active=", ColorScheme.Default)
-                            .Append($"{totalActive} ", ColorScheme.Highlight)
-                            .Append($"Pass=", ColorScheme.Default)
-                            .Append($"{totalPasses} ", ColorScheme.DarkSuccess)
-                            .Append($"Fail=", ColorScheme.Default)
-                            .Append($"{totalFails} ", ColorScheme.DarkError)
-                            .AppendIf(!_console.IsOutputRedirected, $"Ignored=", ColorScheme.Default)
-                            .AppendIf(!_console.IsOutputRedirected, $"{totalIgnored} ", ColorScheme.DarkDefault)
-                            .Append($"Total=", ColorScheme.Default)
-                            .Append($"{totalTestsProcessed} ", ColorScheme.DarkDefault)
-                            .AppendIf(_totalTestsQueued > 0, $"of ", ColorScheme.Default)
-                            .AppendIf(_totalTestsQueued > 0, $"{_totalTestsQueued} ", ColorScheme.DarkDefault)
-                            .AppendIf(_totalTestsQueued > 0, $"[", ColorScheme.Bright)
-                            .AppendIf(_totalTestsQueued > 0, $"{((totalTestsProcessed / (double)_totalTestsQueued) * 100.0):F0}%", ColorScheme.DarkDuration)
-                            .AppendIf(_totalTestsQueued > 0, $"]", ColorScheme.Bright)
-                            .Append(_client.IsWaitingForConnection ? $"[waiting]" : "", ColorScheme.DarkDuration)
-                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
-                            0,
-                            yPos,
-                            DirectOutputMode.Static);
-                    _lastNumberOfLinesDrawn++;
-                    if (!_console.IsOutputRedirected)
-                    {
-                        _console.WriteAt(ColorTextBuilder.Create
-                            .Append("Runtime: ", ColorScheme.Bright)
-                            .Append($"{DateTime.Now.Subtract(StartTime).ToTotalElapsedTime()} ", ColorScheme.Duration)
-                            .Append((length) => new string(' ', Math.Max(0, windowWidth - length))),
-                            0,
-                            yPos + 1,
-                            DirectOutputMode.Static);
-                        _lastNumberOfLinesDrawn++;
-                    }
-                    if (!_console.IsOutputRedirected && !string.IsNullOrEmpty(_currentFrameworkVersion))
-                    {
-                        _console.WriteAt(ColorTextBuilder.Create
-                            .Append($"{_currentFrameworkVersion}", ColorScheme.DarkDuration)
-                            .AppendIf(!_console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
-                            0, yPos + _lastNumberOfLinesDrawn, DirectOutputMode.Static);
-                        _lastNumberOfLinesDrawn++;
-                    }
-
-                    // figure out how many tests we can fit on screen
-                    var maxActiveTestsToDisplay = _configuration.MaxActiveTestsToDisplay;
-                    if (!_console.IsOutputRedirected && maxActiveTestsToDisplay == 0)
-                        maxActiveTestsToDisplay = Console.WindowHeight - yPos - 2 - _configuration.MaxFailedTestsToDisplay - 5;
-
-                    // **************************
-                    // Draw Active Tests
-                    // **************************
-                    IEnumerable<EventEntry> activeTestsToDisplay;
-                    if (_console.IsOutputRedirected)
-                    {
-                        // for log file output only show running tests
-                        activeTestsToDisplay = _activeTests
-                            .Where(x => x.Event.TestStatus == TestStatus.Running && !x.IsQueuedForRemoval)
-                            .OrderByDescending(x => x.Elapsed);
-                    }
-                    else
-                    {
-                        activeTestsToDisplay = _activeTests
-                            .OrderBy(x => x.Event.TestStatus)
-                            .ThenByDescending(x => x.Elapsed)
-                            .Take(maxActiveTestsToDisplay);
-                    }
-
-                    foreach (var test in activeTestsToDisplay)
-                    {
-                        testNumber++;
-                        var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
-                        if (test.Event.EndTime != DateTime.MinValue)
-                            lifetime = test.Event.Duration;
-                        var testColor = ColorScheme.Highlight;
-                        var testStatus = "INVD";
-                        switch (test.Event.TestStatus)
-                        {
-                            case TestStatus.Pass:
-                                testStatus = "PASS";
-                                testColor = ColorScheme.Success;
-                                break;
-                            case TestStatus.Fail:
-                                testStatus = "FAIL";
-                                testColor = ColorScheme.Error;
-                                break;
-                            case TestStatus.Skipped:
-                                testStatus = "SKIP";
-                                testColor = ColorScheme.DarkDefault;
-                                break;
-                            case TestStatus.Running:
-                            default:
-                                testStatus = "RUN ";
-                                testColor = ColorScheme.Highlight;
-                                break;
-                        }
-
-                        var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, ColorScheme.DarkDefault, ColorScheme.Default, ColorScheme.DarkDefault, MaxTestCaseArgumentLength);
-                        // print out this test name and duration
-                        _console.WriteAt(ColorTextBuilder.Create
-                            // test number
-                            .Append($"{testNumber}: ", ColorScheme.DarkDefault)
-                            // spaced in columns
-                            .AppendIf(testNumber < 10 && !_console.IsOutputRedirected, $" ")
-                            // test status if not logging to file
-                            .AppendIf(!_console.IsOutputRedirected, "[", ColorScheme.DarkDefault)
-                            .AppendIf(!_console.IsOutputRedirected, testStatus, testColor)
-                            .AppendIf(!_console.IsOutputRedirected, "] ", ColorScheme.DarkDefault)
-                            // test name
-                            .Append(prettyTestName)
-                            // test duration
-                            .Append($" {lifetime.ToTotalElapsedTime()}", ColorScheme.Duration)
-                            // clear out the rest of the line
-                            .AppendIf((length) => !_console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
-                            .Truncate(windowWidth),
-                            0,
-                            yPos + _lastNumberOfLinesDrawn,
-                            DirectOutputMode.Static);
-                        _lastNumberOfLinesDrawn++;
-                    }
-                    _lastNumberOfTestsDrawn = testNumber;
-
-                    // **************************
-                    // Draw Test Failures
-                    // **************************
-                    _lastNumberOfLinesDrawn += 1;
-                    if (!_console.IsOutputRedirected && _configuration.MaxFailedTestsToDisplay > 0)
-                    {
-                        var failedTests = _eventLog
-                            .Where(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail)
-                            .GroupBy(x => x.Event.TestName)
-                            .Select(x => x.FirstOrDefault())
-                            .OrderByDescending(x => x.DateAdded)
-                            .Take(_configuration.MaxFailedTestsToDisplay);
-                        if (failedTests.Any())
-                        {
-                            _console.WriteAt(ColorTextBuilder.Create.AppendLine($"{_configuration.MaxFailedTestsToDisplay} Most Recent Failed Tests", ColorScheme.Error), 0, yPos + _lastNumberOfLinesDrawn, DirectOutputMode.Static);
-                            foreach (var test in failedTests)
-                            {
-                                _lastNumberOfLinesDrawn++;
-                                // if test shows up twice with same name, show the framework version as well
-                                var lifetime = DateTime.Now.Subtract(test.Event.StartTime);
-                                if (test.Event.EndTime != DateTime.MinValue)
-                                    lifetime = test.Event.Duration;
-                                var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.FullName, ColorScheme.DarkDefault, ColorScheme.Default, ColorScheme.DarkDefault, MaxTestCaseArgumentLength);
-                                // print out this test name and duration
-                                _console.WriteAt(ColorTextBuilder.Create
-                                    .Append(prettyTestName)
-                                    .Append($" {lifetime.ToTotalElapsedTime()}", ColorScheme.Duration)
-                                    .Append(" [", ColorScheme.Bright)
-                                    .Append("FAILED", ColorScheme.Error)
-                                    .Append("]", ColorScheme.Bright)
-                                    // clear out the rest of the line
-                                    .AppendIf((length) => !_console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
-                                    .Truncate(windowWidth),
-                                    0,
-                                    yPos + _lastNumberOfLinesDrawn,
-                                    DirectOutputMode.Static);
-                            }
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                _lock.Release();
-                _lastDrawTime = DateTime.Now;
             }
         }
 
@@ -680,9 +495,10 @@ namespace NUnit.Commander
             }
         }
 
-        public void CreateReportFromHistory()
+        public DataEvent CreateReportFromHistory(bool requiresLock = true)
         {
-            _lock.Wait();
+            if (requiresLock)
+                _lock.Wait();
             try
             {
                 var completedTests = _eventLog.Where(x => x.Event.Event == EventNames.EndTest);
@@ -698,7 +514,7 @@ namespace NUnit.Commander
                 report.Duration = report.EndTime.Subtract(StartTime);
                 report.Runtime = _currentFramework;
                 report.RuntimeVersion = _currentFrameworkVersion;
-                report.TestRunId = _testRunIds.Last();
+                report.TestRunId = _testRunIds.LastOrDefault();
                 report.TestStatus = TestStatus.Fail;
                 report.Report = new DataReport()
                 {
@@ -723,24 +539,13 @@ namespace NUnit.Commander
                     }).ToList(),
                     TotalTests = completedTests.Count()
                 };
-                RunReports.Add(report);
+                return report;
             }
             finally
             {
-                _lock.Release();
+                if (requiresLock)
+                    _lock.Release();
             }
-        }
-
-        /// <summary>
-        /// Compute a checksum to see if any tests have changed state
-        /// </summary>
-        /// <returns></returns>
-        private int ComputeActiveTestChecksum()
-        {
-            var hc = _activeTests.Count;
-            for (var i = 0; i < _activeTests.Count; ++i)
-                hc = unchecked(hc * 314159 + _activeTests[i].GetHashCode());
-            return hc;
         }
 
         public void Dispose()

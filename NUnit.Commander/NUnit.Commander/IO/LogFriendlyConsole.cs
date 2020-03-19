@@ -80,11 +80,14 @@ namespace NUnit.Commander.IO
 
         public void SetCursorPosition(int x, int y)
         {
-            Console.SetCursorPosition(x, y);
+            if (!IsOutputRedirected)
+                Console.SetCursorPosition(x, y);
         }
 
         public void Clear()
         {
+            if (!IsOutputRedirected)
+                Console.Clear();
         }
 
         public int ClearAt(int x, int y)
