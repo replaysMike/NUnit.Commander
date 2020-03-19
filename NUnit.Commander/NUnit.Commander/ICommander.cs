@@ -1,4 +1,5 @@
-﻿using NUnit.Commander.IO;
+﻿using NUnit.Commander.Display;
+using NUnit.Commander.IO;
 using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
@@ -80,5 +81,16 @@ namespace NUnit.Commander
         /// </summary>
         /// <returns></returns>
         ReportContext GenerateReportContext();
+
+        /// <summary>
+        /// Switch to the next view
+        /// </summary>
+        void NextView();
+
+        /// <summary>
+        /// Set a specific view
+        /// </summary>
+        /// <param name="view"></param>
+        void SetView(ViewPages view);
     }
 }

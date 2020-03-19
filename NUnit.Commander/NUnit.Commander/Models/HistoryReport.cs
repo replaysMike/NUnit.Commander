@@ -8,6 +8,7 @@ namespace NUnit.Commander.Models
 {
     public class HistoryReport
     {
+        private const string _bulletChar = "\u2022";
         private readonly ColorManager _colorScheme;
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
@@ -36,7 +37,7 @@ namespace NUnit.Commander.Models
                 str.AppendLine();
                 foreach (var test in UnstableTests)
                 {
-                    str.Append($" \u2022 ")
+                    str.Append($" {_bulletChar} ")
                         .Append(DisplayUtil.GetPrettyTestName(test.FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault))
                         .Append("[", _colorScheme.Bright)
                         .Append(string.Format("{0:0.0}% failures", test.Percentage * 100.0), _colorScheme.Error)
@@ -64,7 +65,7 @@ namespace NUnit.Commander.Models
                         color = _colorScheme.DarkSuccess;
                         direction = "";
                     }
-                    str.Append($" \u2022 ")
+                    str.Append($" {_bulletChar} ")
                         .Append(DisplayUtil.GetPrettyTestName(test.FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault))
                         .Append($"Diff", _colorScheme.Bright)
                         .Append("[", _colorScheme.Bright)

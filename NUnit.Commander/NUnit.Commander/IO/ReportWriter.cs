@@ -4,6 +4,7 @@ using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using NUnit.Commander.Models;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 
@@ -44,10 +45,11 @@ namespace NUnit.Commander.IO
         public TestStatus WriteFinalReport()
         {
             var overallTestStatus = TestStatus.Fail;
-            if (!_console.IsOutputRedirected)
-                _console.Clear();
 
-            var commanderIdMap = _runContext.Runs.ToDictionary(key => key.Key.CommanderRunId, value => value.Value.Select(y => y.TestRunId).ToList());
+            var uniqueRunIds = _runContext.Runs.Select(x => x.Key.CommanderRunId).Distinct();
+            var commanderIdMap = new Dictionary<Guid, ICollection<Guid>>();
+            foreach (var commanderRunId in uniqueRunIds)
+                commanderIdMap.Add(commanderRunId, _runContext.Runs.SelectMany(x => x.Value.Select(y => y.TestRunId)).Distinct().ToList());
             var allReports = _runContext.Runs.SelectMany(x => x.Value);
 
 
@@ -63,19 +65,14 @@ namespace NUnit.Commander.IO
                 overallTestStatus = TestStatus.Pass;
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.PassFail))
             {
+                var statusColor = _colorScheme.Error;
+                var successColor = _colorScheme.Default;
+                var failuresColor = _colorScheme.Default;
+                var errorsColor = _colorScheme.Default;
+                var warningsColor = _colorScheme.Default;
+
                 var allSuccess = allReports.Sum(x => x.Failed) == 0 && allReports.Sum(x => x.Passed) > 0;
                 var anyFailure = allReports.Sum(x => x.Failed) > 0;
-                var statusColor = _colorScheme.Error;
-                var successColor = _colorScheme.DarkSuccess;
-                var failuresColor = _colorScheme.DarkError;
-                if (allSuccess)
-                {
-                    successColor = _colorScheme.Success;
-                    statusColor = _colorScheme.Success;
-                }
-                if (allReports.Sum(x => x.Failed) > 0)
-                    failuresColor = _colorScheme.Error;
-
                 var testCount = allReports.Sum(x => x.TestCount);
                 var passed = allReports.Sum(x => x.Passed);
                 var failed = allReports.Sum(x => x.Failed);
@@ -85,6 +82,18 @@ namespace NUnit.Commander.IO
                 var errors = allReports.SelectMany(x => x.Report.TestReports.Where(t => t.TestStatus == TestStatus.Fail && !string.IsNullOrEmpty(t.ErrorMessage))).Count();
                 var skipped = allReports.Sum(x => x.Skipped);
                 var totalRuns = allReports.GroupBy(x => x.RunNumber).Count();
+
+                if (allSuccess)
+                {
+                    successColor = _colorScheme.Success;
+                    statusColor = _colorScheme.Success;
+                }
+                if (allReports.Sum(x => x.Failed) > 0)
+                    failuresColor = _colorScheme.Error;
+                if (errors > 0)
+                    errorsColor = _colorScheme.DarkError;
+                if (warnings > 0)
+                    warningsColor = _colorScheme.DarkHighlight;
 
                 WriteHeader(passFail, "Test Run Summary");
 
@@ -109,9 +118,9 @@ namespace NUnit.Commander.IO
                 passFail.AppendLine($"{failed:N0}", failuresColor);
 
                 passFail.Append($"  Errors: ", _colorScheme.DarkDefault);
-                passFail.Append($"{errors:N0}", _colorScheme.DarkError);
+                passFail.Append($"{errors:N0}", errorsColor);
                 passFail.Append($", Warnings: ", _colorScheme.DarkDefault);
-                passFail.Append($"{warnings:N0}", _colorScheme.DarkHighlight);
+                passFail.Append($"{warnings:N0}", warningsColor);
                 passFail.Append($", Ignored: ", _colorScheme.DarkDefault);
                 passFail.AppendLine($"{skipped}", _colorScheme.Default);
 
