@@ -11,8 +11,9 @@ using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Reflection;
-using Console = NUnit.Commander.Display.CommanderConsole;
+using System.Text;
 using ColorfulConsole = Colorful.Console;
+using Console = NUnit.Commander.Display.CommanderConsole;
 
 namespace NUnit.Commander
 {
@@ -20,9 +21,11 @@ namespace NUnit.Commander
     {
         static Commander _commander;
         static TestRunnerLauncher _launcher;
+        private const char _headerChar = '═';
 
         static int Main(string[] args)
         {
+            Console.OutputEncoding = Encoding.UTF8;
             var exitCode = ExitCode.TestsFailed;
             var configProvider = new ConfigurationProvider();
             var configuration = configProvider.LoadConfiguration();
@@ -122,6 +125,7 @@ namespace NUnit.Commander
                 var font = Colorful.FigletFont.Load(fontBytes);
                 ColorfulConsole.WriteAscii("NUnit Commander", font, Color.Yellow);
                 ColorfulConsole.WriteLine($"Version {Assembly.GetExecutingAssembly().GetName().Version}", Color.Yellow);
+                Console.WriteLine(new string(_headerChar, Console.WindowWidth - 5));
             }
 
             // initialize the performance counters before launching the test runner
