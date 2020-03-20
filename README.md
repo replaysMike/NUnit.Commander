@@ -18,7 +18,9 @@ NUnit.Commander provides real-time test status output for tests run via the [NUn
 * Full final report
 * Multiple test run support for repeated running
 * Test Analysis - report on changes in test duration, test stability
-* Centralized log generation of each test in real-time
+* Tabbed console interface for viewing real-time test errors and summaries while running
+* Generate log reports of test durations, results
+* Generate log report summaries
 
 # Installation
 
