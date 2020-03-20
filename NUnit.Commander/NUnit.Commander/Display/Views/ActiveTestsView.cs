@@ -259,7 +259,7 @@ namespace NUnit.Commander.Display.Views
                                 .Append(" [", context.ColorScheme.Bright)
                                 .Append("FAILED", context.ColorScheme.Error)
                                 .Append("] ", context.ColorScheme.Bright)
-                                .Append($"{test.DateAdded.ToString("hh:mm:ss.fff tt")}", context.ColorScheme.DarkDuration)
+                                .Append($"{test.DateAdded.ToString(Constants.TimeFormat)}", context.ColorScheme.DarkDuration)
                                 // clear out the rest of the line
                                 .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
                                 .Truncate(windowWidth),

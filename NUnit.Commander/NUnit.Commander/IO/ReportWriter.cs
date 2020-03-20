@@ -6,7 +6,9 @@ using NUnit.Commander.Models;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace NUnit.Commander.IO
 {
@@ -25,13 +27,15 @@ namespace NUnit.Commander.IO
         private readonly RunContext _runContext;
         private readonly string _headerLine;
         private readonly string _lineSeparator;
+        private readonly bool _allowFileOperations;
 
-        public ReportWriter(IExtendedConsole console, ColorManager colorScheme, ApplicationConfiguration configuration, RunContext runContext)
+        public ReportWriter(IExtendedConsole console, ColorManager colorScheme, ApplicationConfiguration configuration, RunContext runContext, bool allowFileOperations)
         {
             _console = console;
             _colorScheme = colorScheme;
             _configuration = configuration;
             _runContext = runContext;
+            _allowFileOperations = allowFileOperations;
             // generate the header/lines art by width
             _headerLine = new string(_headerChar, DefaultBorderWidth);
             _lineSeparator = new string(_lineChar, !_console.IsOutputRedirected ? (Console.WindowWidth / 2) : DefaultBorderWidth);
@@ -51,7 +55,6 @@ namespace NUnit.Commander.IO
             foreach (var commanderRunId in uniqueRunIds)
                 commanderIdMap.Add(commanderRunId, _runContext.Runs.SelectMany(x => x.Value.Select(y => y.TestRunId)).Distinct().ToList());
             var allReports = _runContext.Runs.SelectMany(x => x.Value);
-
 
             // ***********************
             // Total Run Summary
@@ -157,7 +160,7 @@ namespace NUnit.Commander.IO
             if (_runContext.Runs.Count > 1)
             {
                 var runNumber = 0;
-                foreach(var run in _runContext.Runs)
+                foreach (var run in _runContext.Runs)
                 {
                     runNumber++;
 
@@ -173,7 +176,7 @@ namespace NUnit.Commander.IO
                     }
                     if (allReports.Sum(x => x.Failed) > 0)
                         failuresColor = _colorScheme.DarkError;
-                    
+
                     var testCount = run.Value.Sum(x => x.TestCount);
                     var passed = run.Value.Sum(x => x.Passed);
                     var failed = run.Value.Sum(x => x.Failed);
@@ -232,6 +235,11 @@ namespace NUnit.Commander.IO
                     passFailByRun.Append($"{run.Key.Performance.PeakDiskTime:N0}%", _colorScheme.Default);
                     passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
                     passFailByRun.AppendLine($"{run.Key.Performance.MedianDiskTime:N0}%", _colorScheme.Default);
+
+                    passFailByRun.Append($"  Peak Concurrency: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{run.Key.Performance.PeakConcurrency:N0}%", _colorScheme.Default);
+                    passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianConcurrency:N0}%", _colorScheme.Default);
 
                     passFailByRun.Append($"  Run Id: ", _colorScheme.Default);
                     passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), _colorScheme.DarkDefault);
@@ -329,30 +337,33 @@ namespace NUnit.Commander.IO
             // ***********************
             // Total Run Overview
             // ***********************
-            _console.WriteLine();
-            _console.WriteLine(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3)
+            var overview = new ColorTextBuilder();
+            overview.AppendLine();
+            overview.Append(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3)
                 .AppendLine($"{_headerBorderChar}  NUnit.Commander Test Report", _colorScheme.Highlight));
             var testRunIds = allReports.GroupBy(x => x.TestRunId).Select(x => x.Key);
             if (testRunIds?.Any() == true)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Test Run Id(s): {string.Join(", ", testRunIds)}"));
+                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Test Run Id(s): {string.Join(", ", testRunIds)}"));
             var frameworks = _runContext.Runs.SelectMany(x => x.Key.Frameworks).Distinct();
             if (frameworks.Any() == true)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework(s): {string.Join(", ", frameworks)}"));
+                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework(s): {string.Join(", ", frameworks)}"));
             var frameworkRuntimes = _runContext.Runs.SelectMany(x => x.Key.FrameworkRuntimes).Distinct();
             if (frameworkRuntimes.Any() == true)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
+                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
             var startTime = _runContext.Runs.Select(x => x.Key.StartTime).OrderBy(x => x).FirstOrDefault();
             var endTime = _runContext.Runs.Select(x => x.Key.EndTime).OrderByDescending(x => x).FirstOrDefault();
-            _console.Write(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).Append($"  Test Start: {startTime}"));
-            _console.Write($"  Test End: {endTime}");
-            _console.WriteLine($"  Total Duration: {endTime.Subtract(startTime)}");
-            _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Settings:"));
-            _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    Runtime={totalDuration}"));
+            overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).Append($"  Test Start: {startTime}"));
+            overview.Append($"  Test End: {endTime}");
+            overview.AppendLine($"  Total Duration: {endTime.Subtract(startTime)}");
+            overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Settings:"));
+            overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    Runtime={totalDuration}"));
             if (_console.IsOutputRedirected)
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Enabled"));
+                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Enabled"));
             else
-                _console.WriteLine(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Disabled"));
-            _console.WriteLine(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3));
+                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Disabled"));
+            overview.Append(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3));
+
+            _console.WriteLine(overview);
 
             // ***********************
             // PASSED / FAILED ascii art
@@ -366,19 +377,47 @@ namespace NUnit.Commander.IO
                 _console.WriteLine(performance);
             if (testOutput.Length > 0)
                 _console.WriteLine(testOutput);
+            var testAnalysisOutput = new ColorTextBuilder();
             if (showTestAnalysis)
             {
-                var testAnalysisOutput = new ColorTextBuilder();
                 WriteHeader(testAnalysisOutput, "Historical Analysis Report");
                 _console.WriteLine(testAnalysisOutput);
                 // write the analysis report
-                if(_runContext.HistoryReport != null)
+                if (_runContext.HistoryReport != null)
                     _console.WriteLine(_runContext.HistoryReport.BuildReport());
             }
             if (passFailByRun.Length > 0)
                 _console.WriteLine(passFailByRun);
             if (passFail.Length > 0)
                 _console.WriteLine(passFail);
+
+            if (_configuration.EnableReportLog && _allowFileOperations)
+            {
+                var builder = new StringBuilder();
+                builder.AppendLine(overview.ToString());
+                builder.AppendLine(performance.ToString());
+                builder.AppendLine(testOutput.ToString());
+                builder.AppendLine(testAnalysisOutput.ToString());
+                builder.AppendLine(passFailByRun);
+                builder.AppendLine(passFail);
+                File.WriteAllText(Path.Combine(_configuration.LogPath, $"{uniqueRunIds.FirstOrDefault()}-report.log"), builder.ToString());
+            }
+
+            if (_configuration.EnableTestLog && _allowFileOperations)
+            {
+                // write out test logs for each run
+                foreach(var run in _runContext.Runs)
+                {
+                    var builder = new StringBuilder();
+                    builder.AppendLine($"FullName,Duration,TestStatus,StartTime,EndTime,RuntimeVersion");
+                    foreach(var test in run.Value.SelectMany(x => x.Report.TestReports).Where(x => x.TestStatus != TestStatus.Skipped).OrderBy(x => x.StartTime))
+                    {
+                        builder.AppendLine($"\"{test.FullName.Replace("\"", "\\\"")}\",\"{test.Duration.ToElapsedTime()}\",\"{test.TestStatus}\",\"{test.StartTime.ToString(Constants.TimeFormat)}\",\"{test.EndTime.ToString(Constants.TimeFormat)}\",\"{test.RuntimeVersion}\"");
+                    }
+
+                    File.WriteAllText(Path.Combine(_configuration.LogPath, $"{run.Key.CommanderRunId}-tests.log"), builder.ToString());
+                }
+            }
 
             return overallTestStatus;
         }

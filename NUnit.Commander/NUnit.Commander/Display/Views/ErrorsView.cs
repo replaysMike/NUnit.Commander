@@ -129,7 +129,7 @@ namespace NUnit.Commander.Display.Views
                                 // clear out the rest of the line
                                 .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
                                 .Truncate(windowWidth));
-                            testOutput.Append(ColorTextBuilder.Create.Append("  Failed at: ", context.ColorScheme.Default).AppendLine($"{errorTime.ToString("hh:mm:ss.fff tt")}", context.ColorScheme.DarkDuration));
+                            testOutput.Append(ColorTextBuilder.Create.Append("  Failed at: ", context.ColorScheme.Default).AppendLine($"{errorTime.ToString(Constants.TimeFormat)}", context.ColorScheme.DarkDuration));
 
                             // print out errors
                             if (!string.IsNullOrEmpty(test.Event.ErrorMessage))

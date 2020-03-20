@@ -7,8 +7,14 @@ namespace NUnit.Commander
 {
     public class Options
     {
-        [Option('l', "log", Required = false, SetName = "Basic", HelpText = "Enable test logging")]
+        [Option('l', "log", Required = false, SetName = "Basic", HelpText = "Enable logging of all output")]
         public bool? EnableLog { get; set; }
+
+        [Option("test-log", Required = false, SetName = "Basic", HelpText = "Enable a logging summary of every test")]
+        public bool? EnableTestLog { get; set; }
+
+        [Option("report-log", Required = false, SetName = "Basic", HelpText = "Enable logging of the final report only")]
+        public bool? EnableReportLog { get; set; }
 
         [Option("logs-path", Required = false, HelpText = "Specify the path to store logs")]
         public string LogPath { get; set; }

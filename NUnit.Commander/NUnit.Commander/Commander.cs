@@ -349,6 +349,7 @@ namespace NUnit.Commander
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, RunContext.PerformanceCounters.CpuCounter.NextValue());
                 if (RunContext?.PerformanceCounters?.DiskCounter != null)
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
+                _performanceLog.AddEntry(PerformanceLog.PerformanceType.Concurrency, _activeTests.Count(x => !x.IsQueuedForRemoval));
 
                 // we don't use a performance counter for memory, this is more accurate
                 var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
@@ -415,6 +416,8 @@ namespace NUnit.Commander
                     MedianMemoryUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.MemoryUsed),
                     PeakDiskTime = _performanceLog.GetPeak(PerformanceLog.PerformanceType.DiskTime),
                     MedianDiskTime = _performanceLog.GetMedian(PerformanceLog.PerformanceType.DiskTime),
+                    PeakConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.Concurrency),
+                    MedianConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.Concurrency),
                 }
             };
         }

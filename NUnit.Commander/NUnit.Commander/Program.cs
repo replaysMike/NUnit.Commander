@@ -58,6 +58,10 @@ namespace NUnit.Commander
             // override any configuration options via commandline
             if (options.EnableLog.HasValue)
                 config.EnableLog = options.EnableLog.Value;
+            if (options.EnableTestLog.HasValue)
+                config.EnableTestLog = options.EnableTestLog.Value;
+            if (options.EnableReportLog.HasValue)
+                config.EnableReportLog = options.EnableReportLog.Value;
             if (options.EnableTestReliabilityAnalysis.HasValue)
                 config.HistoryAnalysisConfiguration.Enabled = options.EnableTestReliabilityAnalysis.Value;
             if (options.MaxTestReliabilityRuns.HasValue)
@@ -344,7 +348,7 @@ namespace NUnit.Commander
                             _commander.RunReports.Add(report);
                         }
                         Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
-                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
+                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext, true);
                         console.Clear();
                         if (reportWriter.WriteFinalReport() == TestStatus.Pass)
                             isSuccess = true;
@@ -422,7 +426,7 @@ namespace NUnit.Commander
                             _commander.RunReports.Add(report);
                         }
                         Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
-                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext);
+                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext, true);
                         console.Clear();
                         if (reportWriter.WriteFinalReport() == TestStatus.Pass)
                             isSuccess = true;

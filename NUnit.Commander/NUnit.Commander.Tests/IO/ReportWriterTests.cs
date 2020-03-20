@@ -33,7 +33,7 @@ namespace NUnit.Commander.Tests.IO
 
         private ReportWriter CreateReportWriter()
         {
-            return new ReportWriter(mockExtendedConsole.Object, mockColorManager.Object, mockApplicationConfiguration.Object, mockRunContext.Object);
+            return new ReportWriter(mockExtendedConsole.Object, mockColorManager.Object, mockApplicationConfiguration.Object, mockRunContext.Object, false);
         }
 
         [Test]

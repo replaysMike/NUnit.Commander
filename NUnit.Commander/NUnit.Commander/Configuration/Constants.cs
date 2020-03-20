@@ -11,5 +11,6 @@ namespace NUnit.Commander.Configuration
         public const string WebsiteUrl = "https://github.com/replaysMike/NUnit.Commander";
         public const string KeyboardHelp = "[Q] to quit run, [P] to pause display, [Tab] to change views";
         public const string SimpleSeparator = "============================";
+        public const string TimeFormat = "hh:mm:ss.fff tt";
     }
 }

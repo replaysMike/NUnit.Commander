@@ -98,7 +98,7 @@ namespace NUnit.Commander.Display.Views
                     var report = context.Commander.CreateReportFromHistory(false);
                     runContext.Runs.Add(context.Commander.GenerateReportContext(), new List<DataEvent> { report });
 
-                    var reportWriter = new ReportWriter(context.Console, context.ColorScheme, context.Configuration, runContext);
+                    var reportWriter = new ReportWriter(context.Console, context.ColorScheme, context.Configuration, runContext, false);
                     reportWriter.WriteFinalReport();
                     context.Console.SetCursorPosition(0, 0);
                 }

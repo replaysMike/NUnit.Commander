@@ -20,6 +20,16 @@ namespace NUnit.Commander.Configuration
         public bool EnableLog { get; set; } = false;
 
         /// <summary>
+        /// True to log a summary of every test
+        /// </summary>
+        public bool EnableTestLog { get; set; } = false;
+
+        /// <summary>
+        /// True to log the final report
+        /// </summary>
+        public bool EnableReportLog { get; set; } = false;
+
+        /// <summary>
         /// The event format type NUnit.Extension.TestMonitor is configured to send
         /// </summary>
         public EventFormatTypes EventFormatType { get; set; } = EventFormatTypes.Json;
