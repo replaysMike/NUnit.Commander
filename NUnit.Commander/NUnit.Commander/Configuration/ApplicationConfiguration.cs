@@ -45,6 +45,11 @@ namespace NUnit.Commander.Configuration
         public string LogPath { get; set; }
 
         /// <summary>
+        /// Path to store any historical run data
+        /// </summary>
+        public string HistoryPath { get; set; }
+
+        /// <summary>
         /// Specify the number of slowest tests to display in report
         /// </summary>
         public int SlowestTestsCount { get; set; } = 10;

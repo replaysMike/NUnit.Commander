@@ -391,31 +391,36 @@ namespace NUnit.Commander.IO
             if (passFail.Length > 0)
                 _console.WriteLine(passFail);
 
-            if (_configuration.EnableReportLog && _allowFileOperations)
+            if (_allowFileOperations)
             {
-                var builder = new StringBuilder();
-                builder.AppendLine(overview.ToString());
-                builder.AppendLine(performance.ToString());
-                builder.AppendLine(testOutput.ToString());
-                builder.AppendLine(testAnalysisOutput.ToString());
-                builder.AppendLine(passFailByRun);
-                builder.AppendLine(passFail);
-                File.WriteAllText(Path.Combine(_configuration.LogPath, $"{uniqueRunIds.FirstOrDefault()}-report.log"), builder.ToString());
-            }
+                EnsurePathIsCreated(_configuration.LogPath);
 
-            if (_configuration.EnableTestLog && _allowFileOperations)
-            {
-                // write out test logs for each run
-                foreach(var run in _runContext.Runs)
+                if (_configuration.EnableReportLog)
                 {
                     var builder = new StringBuilder();
-                    builder.AppendLine($"FullName,Duration,TestStatus,StartTime,EndTime,RuntimeVersion");
-                    foreach(var test in run.Value.SelectMany(x => x.Report.TestReports).Where(x => x.TestStatus != TestStatus.Skipped).OrderBy(x => x.StartTime))
-                    {
-                        builder.AppendLine($"\"{test.FullName.Replace("\"", "\\\"")}\",\"{test.Duration.ToElapsedTime()}\",\"{test.TestStatus}\",\"{test.StartTime.ToString(Constants.TimeFormat)}\",\"{test.EndTime.ToString(Constants.TimeFormat)}\",\"{test.RuntimeVersion}\"");
-                    }
+                    builder.AppendLine(overview.ToString());
+                    builder.AppendLine(performance.ToString());
+                    builder.AppendLine(testOutput.ToString());
+                    builder.AppendLine(testAnalysisOutput.ToString());
+                    builder.AppendLine(passFailByRun);
+                    builder.AppendLine(passFail);
+                    File.WriteAllText(Path.Combine(_configuration.LogPath, $"{uniqueRunIds.FirstOrDefault()}-report.log"), builder.ToString());
+                }
 
-                    File.WriteAllText(Path.Combine(_configuration.LogPath, $"{run.Key.CommanderRunId}-tests.log"), builder.ToString());
+                if (_configuration.EnableTestLog)
+                {
+                    // write out test logs for each run
+                    foreach (var run in _runContext.Runs)
+                    {
+                        var builder = new StringBuilder();
+                        builder.AppendLine($"FullName,Duration,TestStatus,StartTime,EndTime,RuntimeVersion");
+                        foreach (var test in run.Value.SelectMany(x => x.Report.TestReports).Where(x => x.TestStatus != TestStatus.Skipped).OrderBy(x => x.StartTime))
+                        {
+                            builder.AppendLine($"\"{test.FullName.Replace("\"", "\\\"")}\",\"{test.Duration.ToElapsedTime()}\",\"{test.TestStatus}\",\"{test.StartTime.ToString(Constants.TimeFormat)}\",\"{test.EndTime.ToString(Constants.TimeFormat)}\",\"{test.RuntimeVersion}\"");
+                        }
+
+                        File.WriteAllText(Path.Combine(_configuration.LogPath, $"{run.Key.CommanderRunId}-tests.log"), builder.ToString());
+                    }
                 }
             }
 
@@ -427,6 +432,20 @@ namespace NUnit.Commander.IO
             builder.AppendLine($"╔{new string(_headerChar, str.Length + 4)}╗", color ?? _colorScheme.Highlight);
             builder.AppendLine($"{_headerBorderChar}  {str}  {_headerBorderChar}", color ?? _colorScheme.Highlight);
             builder.AppendLine($"╚{new string(_headerChar, str.Length + 4)}╝", color ?? _colorScheme.Highlight);
+        }
+
+        private bool EnsurePathIsCreated(string path)
+        {
+            try
+            {
+                Directory.CreateDirectory(path);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _console.WriteLine($"Error: Could not create logging path at {path}. {ex.GetBaseException().Message}");
+            }
+            return false;
         }
     }
 }

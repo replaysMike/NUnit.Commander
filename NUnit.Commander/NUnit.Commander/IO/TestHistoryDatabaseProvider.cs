@@ -73,7 +73,7 @@ namespace NUnit.Commander.IO
 
         public void LoadDatabase()
         {
-            var path = Path.Combine(_configuration.LogPath, Filename);
+            var path = Path.Combine(_configuration.HistoryPath, Filename);
             if (File.Exists(path))
             {
                 var bytes = File.ReadAllBytes(path);
@@ -94,7 +94,7 @@ namespace NUnit.Commander.IO
         {
             if (_hasChanges)
             {
-                var path = Path.Combine(_configuration.LogPath, Filename);
+                var path = Path.Combine(_configuration.HistoryPath, Filename);
                 Directory.CreateDirectory(Path.GetDirectoryName(path));
                 using var stream = new FileStream(path, FileMode.Create);
                 _lock.EnterReadLock();
@@ -117,7 +117,7 @@ namespace NUnit.Commander.IO
         /// </summary>
         public void DeleteAll()
         {
-            var path = Path.Combine(_configuration.LogPath, Filename);
+            var path = Path.Combine(_configuration.HistoryPath, Filename);
             File.Delete(path);
         }
 

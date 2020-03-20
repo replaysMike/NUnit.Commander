@@ -96,6 +96,8 @@ namespace NUnit.Commander
                 config.ExitOnFirstTestFailure = options.ExitOnFirstTestFailure.Value;
             if (!string.IsNullOrEmpty(options.LogPath))
                 config.LogPath = options.LogPath;
+            if (!string.IsNullOrEmpty(options.HistoryPath))
+                config.HistoryPath = options.HistoryPath;
 
             var colorScheme = new ColorManager(config.ColorScheme);
             Console.SetColorManager(colorScheme);

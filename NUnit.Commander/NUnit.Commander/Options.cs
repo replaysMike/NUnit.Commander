@@ -18,6 +18,9 @@ namespace NUnit.Commander
 
         [Option("logs-path", Required = false, HelpText = "Specify the path to store logs")]
         public string LogPath { get; set; }
+        
+        [Option("history-path", Required = false, HelpText = "Specify the path to store any historical run data")]
+        public string HistoryPath { get; set; }
 
         [Option('d', "display-mode", Required = false, HelpText = "Specify the display mode: LogFriendly,FullScreen")]
         public DisplayMode? DisplayMode { get; set; }
