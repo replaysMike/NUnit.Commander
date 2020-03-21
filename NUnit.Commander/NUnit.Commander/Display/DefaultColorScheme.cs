@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Text;
+﻿using System.Drawing;
 
 namespace NUnit.Commander.Display
 {
     public class DefaultColorScheme : IColorScheme
     {
         public Color? Background { get; set; }
+        public Color RaisedBackground { get; set; } = Color.FromArgb(16, 16, 16);
         public Color Default { get; set; } = Color.Gray;
         public Color DarkDefault { get; set; } = Color.DarkSlateGray;
         public Color Bright { get; set; } = Color.White;

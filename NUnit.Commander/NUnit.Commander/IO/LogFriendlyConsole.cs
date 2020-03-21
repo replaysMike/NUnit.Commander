@@ -95,7 +95,7 @@ namespace NUnit.Commander.IO
             if (!IsOutputRedirected)
             {
                 Console.SetCursorPosition(x, y);
-                Console.Write(new string(' ', Console.WindowWidth - x));
+                Console.Write(DisplayUtil.Pad(Console.WindowWidth - x));
             }
             return 0;
         }
@@ -107,7 +107,7 @@ namespace NUnit.Commander.IO
                 for (var y = startY; y < endY; y++)
                 {
                     Console.SetCursorPosition(startX, y);
-                    Console.Write(new string(' ', Console.WindowWidth - startX - endX));
+                    Console.Write(DisplayUtil.Pad(Console.WindowWidth - startX - endX));
                 }
             }
             return 0;
@@ -247,8 +247,15 @@ namespace NUnit.Commander.IO
             if (isDisposing)
             {
                 _closeEvent?.Set();
-                if (_inputThread?.Join(5 * 1000) == false)
-                    _inputThread?.Abort();
+                try
+                {
+                    if (_inputThread?.Join(5 * 1000) == false)
+                        _inputThread?.Abort();
+                }
+                catch (Exception)
+                {
+                    // threadabort not supportedd
+                }
                 Console.Out.Flush();
                 Console.Error.Flush();
                 if (!IsOutputRedirected)

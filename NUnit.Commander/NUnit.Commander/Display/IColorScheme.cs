@@ -8,6 +8,7 @@ namespace NUnit.Commander.Display
     public interface IColorScheme
     {
         Color? Background { get; }
+        Color RaisedBackground { get; }
         Color Default { get; }
         Color DarkDefault { get; }
         Color Bright { get; }

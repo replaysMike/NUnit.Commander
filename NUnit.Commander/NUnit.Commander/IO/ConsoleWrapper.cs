@@ -207,7 +207,8 @@ namespace NUnit.Commander.IO
 
                 if (_config.EnableLog)
                 {
-                    using var fileStream = new FileStream(Path.Combine(_config.LogPath, $"{_testRunId}.log"), FileMode.OpenOrCreate, FileAccess.Write);
+                    var logFilename = Path.Combine(_config.LogPath, $"{_testRunId}.log");
+                    using var fileStream = new FileStream(logFilename, FileMode.OpenOrCreate, FileAccess.Write);
                     _stream.Seek(0, SeekOrigin.Begin);
                     _stream.CopyTo(fileStream);
                 }

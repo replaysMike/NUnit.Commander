@@ -6,6 +6,7 @@ namespace NUnit.Commander.Display
     public class CmderColorScheme : IColorScheme
     {
         public Color? Background { get; set; }
+        public Color RaisedBackground { get; set; } = Color.FromArgb(16, 16, 16);
         public Color Default { get; set; } = Color.FromArgb(202, 202, 202);
         public Color DarkDefault { get; set; } = Color.FromArgb(124, 124, 124);
         public Color Bright { get; set; } = Color.White;

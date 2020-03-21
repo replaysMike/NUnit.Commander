@@ -4,8 +4,12 @@
     {
         None = 0,
         StartRun,
+        StartAssembly,
+        EndAssembly,
         StartSuite,
         EndSuite,
+        StartTestFixture,
+        EndTestFixture,
         StartTest,
         EndTest,
         Report

@@ -42,6 +42,7 @@ namespace NUnit.Commander
         internal IpcClient _client;
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
+        internal List<EventEntry> _activeTestFixtures;
         private Thread _updateThread;
         private Thread _utilityThread;
         internal bool _allowDrawActiveTests = false;
@@ -56,6 +57,7 @@ namespace NUnit.Commander
         private PerformanceLog _performanceLog = new PerformanceLog();
         private int _performanceIteration;
         private ViewManager _viewManager;
+        private bool _isDisposed;
 
         /// <summary>
         /// List of tests that are currently running
@@ -113,6 +115,16 @@ namespace NUnit.Commander
         public bool IsRunning { get; private set; }
 
         /// <summary>
+        /// True if commander is connected to the NUnit.Extension.TestMonitor
+        /// </summary>
+        public bool IsConnected { get; private set; }
+
+        /// <summary>
+        /// True if commander is disposed
+        /// </summary>
+        public bool IsDisposed => _isDisposed;
+
+        /// <summary>
         /// Get the overall status of the run
         /// </summary>
         public TestStatus TestStatus { get; private set; } = TestStatus.Running;
@@ -126,10 +138,12 @@ namespace NUnit.Commander
         public Commander(ApplicationConfiguration configuration)
         {
             _configuration = configuration;
+            IsRunning = true;
             GenerateReportType = configuration.GenerateReportType;
             _closeEvent = new ManualResetEvent(false);
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
+            _activeTestFixtures = new List<EventEntry>();
             _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
             ColorScheme = new ColorManager(_configuration.ColorScheme);
@@ -218,7 +232,7 @@ namespace NUnit.Commander
                     // if we are logging to a file, and a test has failed write it immediately to the output
                     if (_console.IsOutputRedirected)
                     {
-                        _console.WriteLine($"{Environment.NewLine}Failed test: {e.EventEntry.Event.FullName} [{DateTime.Now}]");
+                        _console.WriteLine($"{Environment.NewLine}Failed test: {e.EventEntry.Event.FullName} {UTF8Constants.LeftBracket}{DateTime.Now}{UTF8Constants.RightBracket}");
                         if (!string.IsNullOrEmpty(e.EventEntry.Event.ErrorMessage))
                             _console.WriteLine($"  Test Error: {e.EventEntry.Event.ErrorMessage}");
                         if (!string.IsNullOrEmpty(e.EventEntry.Event.StackTrace))
@@ -279,7 +293,7 @@ namespace NUnit.Commander
             {
                 // successful connect
                 _allowDrawActiveTests = true;
-                IsRunning = true;
+                IsConnected = true;
                 if (showOutput)
                 {
                     Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
@@ -290,7 +304,7 @@ namespace NUnit.Commander
                 }
             }, (client) =>
             {
-                IsRunning = false;
+                IsConnected = false;
                 // failed connect
                 if (showOutput)
                 {
@@ -349,7 +363,21 @@ namespace NUnit.Commander
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, RunContext.PerformanceCounters.CpuCounter.NextValue());
                 if (RunContext?.PerformanceCounters?.DiskCounter != null)
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
-                _performanceLog.AddEntry(PerformanceLog.PerformanceType.Concurrency, _activeTests.Count(x => !x.IsQueuedForRemoval));
+
+                var activeTestCount = 0;
+                var activeTestFixtureCount = 0;
+                _lock.Wait();
+                try
+                {
+                    activeTestCount = _activeTests.Count(x => !x.IsQueuedForRemoval);
+                    activeTestFixtureCount = _activeTestFixtures.Count(x => !x.IsQueuedForRemoval);
+                }
+                finally
+                {
+                    _lock.Release();
+                }
+                _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestConcurrency, activeTestCount);
+                _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestFixtureConcurrency, activeTestFixtureCount);
 
                 // we don't use a performance counter for memory, this is more accurate
                 var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
@@ -416,8 +444,10 @@ namespace NUnit.Commander
                     MedianMemoryUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.MemoryUsed),
                     PeakDiskTime = _performanceLog.GetPeak(PerformanceLog.PerformanceType.DiskTime),
                     MedianDiskTime = _performanceLog.GetMedian(PerformanceLog.PerformanceType.DiskTime),
-                    PeakConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.Concurrency),
-                    MedianConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.Concurrency),
+                    PeakTestConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestConcurrency),
+                    MedianTestConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestConcurrency),
+                    PeakTestFixtureConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestFixtureConcurrency),
+                    MedianTestFixtureConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestFixtureConcurrency),
                 }
             };
         }
@@ -457,6 +487,27 @@ namespace NUnit.Commander
             }
         }
 
+        private void UpdateEventEntry(EventEntry existingEvent, EventEntry newEvent)
+        {
+            // update an existing event with data from a new event
+            if (existingEvent != null)
+            {
+                // update the active test information
+                if (newEvent.Event.IsSkipped)
+                    // remove skipped tests immediately
+                    existingEvent.RemovalTime = DateTime.Now;
+                else
+                    existingEvent.RemovalTime = DateTime.Now.AddMilliseconds(_activeTestLifetimeMilliseconds);
+                existingEvent.Event.Duration = newEvent.Event.Duration;
+                existingEvent.Event.EndTime = newEvent.Event.EndTime;
+                existingEvent.Event.TestResult = newEvent.Event.TestResult;
+                existingEvent.Event.TestStatus = newEvent.Event.TestStatus;
+                existingEvent.Event.IsSkipped = newEvent.Event.IsSkipped;
+                existingEvent.Event.ErrorMessage = newEvent.Event.ErrorMessage;
+                existingEvent.Event.StackTrace = newEvent.Event.StackTrace;
+            }
+        }
+
         private void ProcessActiveTests(EventEntry e)
         {
             // Debug.WriteLine($"EVENT: {e.Event.Event}");
@@ -465,29 +516,28 @@ namespace NUnit.Commander
                 case EventNames.StartRun:
                     _totalTestsQueued += e.Event.TestCount;
                     break;
+                case EventNames.StartAssembly:
+                    break;
+                case EventNames.EndAssembly:
+                    break;
+                case EventNames.StartSuite:
+                    break;
+                case EventNames.EndSuite:
+                    break;
+                case EventNames.StartTestFixture:
+                    _activeTestFixtures.Add(new EventEntry(e));
+                    break;
+                case EventNames.EndTestFixture:
+                    var matchingActiveTestFixture = _activeTestFixtures.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartTestFixture);
+                    UpdateEventEntry(matchingActiveTestFixture, e);
+                    break;
                 case EventNames.StartTest:
                     // clone the event object
                     _activeTests.Add(new EventEntry(e));
                     break;
                 case EventNames.EndTest:
                     var matchingActiveTest = _activeTests.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartTest);
-                    if (matchingActiveTest != null)
-                    {
-                        // update the active test information
-                        if (e.Event.IsSkipped)
-                            // remove skipped tests immediately
-                            matchingActiveTest.RemovalTime = DateTime.Now;
-                        else
-                            matchingActiveTest.RemovalTime = DateTime.Now.AddMilliseconds(_activeTestLifetimeMilliseconds);
-                        matchingActiveTest.Event.Duration = e.Event.Duration;
-                        matchingActiveTest.Event.EndTime = e.Event.EndTime;
-                        matchingActiveTest.Event.TestResult = e.Event.TestResult;
-                        matchingActiveTest.Event.TestStatus = e.Event.TestStatus;
-                        matchingActiveTest.Event.IsSkipped = e.Event.IsSkipped;
-                        matchingActiveTest.Event.ErrorMessage = e.Event.ErrorMessage;
-                        matchingActiveTest.Event.StackTrace = e.Event.StackTrace;
-                        // Debug.WriteLine($"Set removal time to {matchingActiveTest.RemovalTime.Subtract(DateTime.Now)} for test {matchingActiveTest.Event.TestName}");
-                    }
+                    UpdateEventEntry(matchingActiveTest, e);
                     break;
                 case EventNames.Report:
                     RunReports.Add(e.Event);
@@ -559,6 +609,8 @@ namespace NUnit.Commander
 
         protected virtual void Dispose(bool isDisposing)
         {
+            _isDisposed = true;
+            IsRunning = false;
             if (isDisposing)
             {
                 _lock.Wait();
@@ -566,10 +618,24 @@ namespace NUnit.Commander
                 {
                     _client?.Dispose();
                     _closeEvent?.Set();
-                    if (_updateThread?.Join(5 * 1000) == false)
-                        _updateThread.Abort();
-                    if (_utilityThread?.Join(5 * 1000) == false)
-                        _utilityThread.Abort();
+                    try
+                    {
+                        if (_updateThread?.Join(5 * 1000) == false)
+                            _updateThread.Abort();
+                    }
+                    catch (Exception)
+                    {
+                        // threadabort not supported
+                    }
+                    try
+                    {
+                        if (_utilityThread?.Join(5 * 1000) == false)
+                            _utilityThread.Abort();
+                    }
+                    catch (Exception)
+                    {
+                        // threadabort not supported
+                    }
                     _closeEvent?.Dispose();
                     _closeEvent = null;
                     _client = null;

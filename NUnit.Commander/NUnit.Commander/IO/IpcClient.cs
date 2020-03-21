@@ -247,8 +247,15 @@ namespace NUnit.Commander.IO
                 _lock.Wait();
                 try
                 {
-                    if (_readThread?.Join(5 * 1000) == false)
-                        _readThread.Abort();
+                    try
+                    {
+                        if (_readThread?.Join(5 * 1000) == false)
+                            _readThread.Abort();
+                    }
+                    catch (Exception)
+                    {
+                        // threadabort not supported
+                    }
                     _closeEvent?.Dispose();
                     _readThread = null;
                     _console?.Dispose();

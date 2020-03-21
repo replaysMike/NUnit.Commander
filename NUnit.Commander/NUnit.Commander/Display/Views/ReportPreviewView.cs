@@ -10,7 +10,6 @@ namespace NUnit.Commander.Display.Views
 {
     public class ReportPreviewView : IView
     {
-        private const char _lineChar = '`';
         private const int DefaultDrawFps = 2;
         private const int DefaultTickWait = (int)(1000.0 / 66) * DefaultDrawFps;
         private long _startTicks = 0;
@@ -82,11 +81,11 @@ namespace NUnit.Commander.Display.Views
                         .Append($"{totalTestsProcessed} ", context.ColorScheme.DarkDefault)
                         .AppendIf(context.TotalTestsQueued > 0, $"of ", context.ColorScheme.Default)
                         .AppendIf(context.TotalTestsQueued > 0, $"{context.TotalTestsQueued} ", context.ColorScheme.DarkDefault)
-                        .AppendIf(context.TotalTestsQueued > 0, $"[", context.ColorScheme.Bright)
+                        .AppendIf(context.TotalTestsQueued > 0, $"{UTF8Constants.LeftBracket}", context.ColorScheme.Bright)
                         .AppendIf(context.TotalTestsQueued > 0, $"{((totalTestsProcessed / (double)context.TotalTestsQueued) * 100.0):F0}%", context.ColorScheme.DarkDuration)
-                        .AppendIf(context.TotalTestsQueued > 0, $"]", context.ColorScheme.Bright)
-                        .Append(context.Client.IsWaitingForConnection ? $"[waiting]" : "", context.ColorScheme.DarkDuration)
-                        .AppendIf(!context.Console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
+                        .AppendIf(context.TotalTestsQueued > 0, $"{UTF8Constants.RightBracket}", context.ColorScheme.Bright)
+                        .Append(context.Client.IsWaitingForConnection ? $"{UTF8Constants.LeftBracket}waiting{UTF8Constants.RightBracket}" : "", context.ColorScheme.DarkDuration)
+                        .AppendIf(!context.Console.IsOutputRedirected, (length) => DisplayUtil.Pad(windowWidth - length)),
                         0,
                         yPos + 1,
                         DirectOutputMode.Static);

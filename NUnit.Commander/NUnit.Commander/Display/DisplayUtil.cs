@@ -113,5 +113,10 @@ namespace NUnit.Commander.Display
                 adjustedSize,
                 SizeSuffixes[mag]);
         }
+
+        public static string Pad(int count, char c = ' ')
+        {
+            return new string(c, (int)Math.Max(0, count));
+        }
     }
 }

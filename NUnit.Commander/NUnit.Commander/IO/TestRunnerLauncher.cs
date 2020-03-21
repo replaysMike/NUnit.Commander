@@ -18,7 +18,8 @@ namespace NUnit.Commander.IO
 
         public event EventHandler OnTestRunnerExit;
         public Options Options => _options;
-
+        public TestRunner TestRunnerName => _options.TestRunner.Value;
+        public bool HasErrors => !string.IsNullOrEmpty(ConsoleError.Replace(Environment.NewLine, string.Empty).Replace("\t", string.Empty).Trim());
 
         public string ConsoleOutput
         {

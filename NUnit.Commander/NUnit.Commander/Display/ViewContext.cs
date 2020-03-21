@@ -24,6 +24,7 @@ namespace NUnit.Commander.Display
         public SemaphoreSlim Lock => Commander._lock;
         public int BeginY => Commander.BeginY;
         public List<EventEntry> ActiveTests => Commander._activeTests;
+        public List<EventEntry> ActiveTestFixtures => Commander._activeTestFixtures;
         public List<EventEntry> EventLog => Commander._eventLog;
         public DateTime LastDrawTime
         {

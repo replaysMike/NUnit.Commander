@@ -5,6 +5,7 @@ namespace NUnit.Commander.Display
     public class MonochromeColorScheme : IColorScheme
     {
         public Color? Background { get; set; } = Color.Black;
+        public Color RaisedBackground { get; set; } = Color.FromArgb(16, 32, 16);
         public Color Default { get; set; } = Color.Lime;
         public Color DarkDefault { get; set; } = Color.Lime;
         public Color Bright { get; set; } = Color.Lime;

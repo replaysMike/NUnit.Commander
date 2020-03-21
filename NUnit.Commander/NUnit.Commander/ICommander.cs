@@ -62,6 +62,16 @@ namespace NUnit.Commander
         bool IsRunning { get; }
 
         /// <summary>
+        /// True if commander is connected to the NUnit.Extension.TestMonitor
+        /// </summary>
+        bool IsConnected { get; }
+
+        /// <summary>
+        /// True if commander is disposed
+        /// </summary>
+        bool IsDisposed { get; }
+
+        /// <summary>
         /// Get the overall status of the run
         /// </summary>
         TestStatus TestStatus { get; }

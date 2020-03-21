@@ -17,10 +17,7 @@ namespace NUnit.Commander.IO
     /// </summary>
     public class ReportWriter
     {
-        private const int DefaultBorderWidth = 36;
-        private const char _headerChar = '═';
-        private const char _headerBorderChar = '║';
-        private const char _lineChar = '`';
+        private const int DefaultBorderWidth = 50;
         private readonly ColorManager _colorScheme;
         private readonly IExtendedConsole _console;
         private readonly ApplicationConfiguration _configuration;
@@ -37,8 +34,8 @@ namespace NUnit.Commander.IO
             _runContext = runContext;
             _allowFileOperations = allowFileOperations;
             // generate the header/lines art by width
-            _headerLine = new string(_headerChar, DefaultBorderWidth);
-            _lineSeparator = new string(_lineChar, !_console.IsOutputRedirected ? (Console.WindowWidth / 2) : DefaultBorderWidth);
+            _headerLine = new string(UTF8Constants.BoxHorizontal, DefaultBorderWidth);
+            _lineSeparator = new string(UTF8Constants.HorizontalLine, !_console.IsOutputRedirected ? (Console.WindowWidth - 1) : DefaultBorderWidth);
         }
 
         /// <summary>
@@ -98,7 +95,7 @@ namespace NUnit.Commander.IO
                 if (warnings > 0)
                     warningsColor = _colorScheme.DarkHighlight;
 
-                WriteHeader(passFail, "Test Run Summary");
+                WriteSquareBox(passFail, "Test Run Summary");
 
                 passFail.Append($"  Overall result: ", _colorScheme.Default);
                 passFail.AppendLine(isPassed ? "Passed" : "Failed", statusColor);
@@ -187,7 +184,7 @@ namespace NUnit.Commander.IO
                     var skipped = run.Value.Sum(x => x.Skipped);
                     var totalRuns = run.Value.GroupBy(x => x.RunNumber).Count();
 
-                    WriteHeader(passFailByRun, $"Test Run #{runNumber} Summary", _colorScheme.DarkHighlight);
+                    WriteRoundBox(passFailByRun, $"Test Run #{runNumber} Summary", _colorScheme.DarkHighlight);
 
                     passFailByRun.Append($"  Overall result: ", _colorScheme.Default);
                     passFailByRun.AppendLine(isPassed ? "Passed" : "Failed", statusColor);
@@ -236,10 +233,15 @@ namespace NUnit.Commander.IO
                     passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
                     passFailByRun.AppendLine($"{run.Key.Performance.MedianDiskTime:N0}%", _colorScheme.Default);
 
-                    passFailByRun.Append($"  Peak Concurrency: ", _colorScheme.DarkDefault);
-                    passFailByRun.Append($"{run.Key.Performance.PeakConcurrency:N0}%", _colorScheme.Default);
+                    passFailByRun.Append($"  Peak Test Concurrency: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{run.Key.Performance.PeakTestConcurrency:N0}%", _colorScheme.Default);
                     passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
-                    passFailByRun.AppendLine($"{run.Key.Performance.MedianConcurrency:N0}%", _colorScheme.Default);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianTestConcurrency:N0}%", _colorScheme.Default);
+
+                    passFailByRun.Append($"  Peak Test Fixture Concurrency: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{run.Key.Performance.PeakTestFixtureConcurrency:N0}%", _colorScheme.Default);
+                    passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianTestFixtureConcurrency:N0}%", _colorScheme.Default);
 
                     passFailByRun.Append($"  Run Id: ", _colorScheme.Default);
                     passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), _colorScheme.DarkDefault);
@@ -254,7 +256,7 @@ namespace NUnit.Commander.IO
             var performance = new ColorTextBuilder();
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.Performance))
             {
-                WriteHeader(performance, $"Top {_configuration.SlowestTestsCount} slowest tests");
+                WriteRoundBox(performance, $"Top {_configuration.SlowestTestsCount} slowest tests");
                 var allTestsByName = _runContext.Runs
                     .SelectMany(x => x.Key.EventEntries)
                     .GroupBy(x => x.Event.TestName);
@@ -266,7 +268,7 @@ namespace NUnit.Commander.IO
                     .Take(_configuration.SlowestTestsCount);
                 foreach (var test in slowestTests)
                 {
-                    performance.Append($" \u2022 ");
+                    performance.Append($" {UTF8Constants.Bullet} ");
                     performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault));
                     performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", _colorScheme.Duration);
                 }
@@ -285,49 +287,72 @@ namespace NUnit.Commander.IO
             {
                 if (!isPassed)
                 {
-                    WriteHeader(testOutput, "FAILED TESTS", _colorScheme.Error);
+                    WriteRoundBox(testOutput, "FAILED TESTS", _colorScheme.Error);
                 }
 
                 var testIndex = 0;
                 var failedTestCases = allReports
                     .GroupBy(x => x.RunNumber)
                     .SelectMany(x => x.ToDictionary(y => y.RunNumber, value => value.Report.TestReports.Where(x => x.TestStatus == TestStatus.Fail)));
+                var lineSeparatorColor = _colorScheme.RaisedBackground;
                 foreach (var testGroup in failedTestCases)
                 {
                     var runNumber = testGroup.Key;
                     foreach (var test in testGroup.Value)
                     {
                         testIndex++;
-                        var testIndexStr = $"#{runNumber}-{testIndex}) ";
-                        testOutput.Append(testIndexStr, _colorScheme.DarkError);
-                        testOutput.AppendLine($"{test.TestName}", _colorScheme.Error);
-                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}", _colorScheme.DarkDefault);
-                        testOutput.AppendLine($"{new string(' ', testIndexStr.Length)}{test.RuntimeVersion}", _colorScheme.DarkDuration);
+                        
+                        // write the failed test header
+                        var testIndexStr = $"#{testIndex}) ";
+                        if (failedTestCases.Count() > 1)
+                            testIndexStr = $"#{runNumber}-{testIndex}) ";
+
+                        testOutput.Append(testIndexStr, _colorScheme.DarkError, _colorScheme.RaisedBackground);
+                        testOutput.Append(test.TestName, _colorScheme.Error, _colorScheme.RaisedBackground);
+                        if (!_console.IsOutputRedirected)
+                            testOutput.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - testIndexStr.Length - test.TestName.Length)}", _colorScheme.Error, _colorScheme.RaisedBackground);
+                        else
+                            testOutput.AppendLine();
+                        var fullName = $"{DisplayUtil.Pad(testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}";
+                        testOutput.Append(fullName, _colorScheme.DarkDuration, _colorScheme.RaisedBackground);
+                        if (!_console.IsOutputRedirected)
+                            testOutput.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - fullName.Length)}", _colorScheme.Error, _colorScheme.RaisedBackground);
+                        else
+                            testOutput.AppendLine();
+
+                        var runtimeVersion = $"{DisplayUtil.Pad(testIndexStr.Length)}{test.RuntimeVersion}";
+                        testOutput.Append($"{runtimeVersion}", _colorScheme.DarkDefault, _colorScheme.Background ?? Color.Black);
+                        if (!_console.IsOutputRedirected)
+                            testOutput.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - runtimeVersion.Length)}", _colorScheme.Error, _colorScheme.Background ?? Color.Black);
+                        else
+                            testOutput.AppendLine();
+
                         testOutput.AppendLine();
 
-                        testOutput.Append($"  Duration: ", _colorScheme.DarkDefault);
+                        testOutput.Append($"  Duration ", _colorScheme.DarkDefault);
                         testOutput.AppendLine($"{test.Duration.ToElapsedTime()}", _colorScheme.Duration);
 
                         if (showErrors && !string.IsNullOrEmpty(test.ErrorMessage))
                         {
-                            testOutput.AppendLine($"  Error Output: ", _colorScheme.Bright);
-                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
-                            testOutput.AppendLine($"{test.ErrorMessage}", _colorScheme.DarkError);
-                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine($"  Error Output ", _colorScheme.Bright);
+                            testOutput.AppendLine(_lineSeparator, lineSeparatorColor);
+                            testOutput.AppendLine($"{test.ErrorMessage}", _colorScheme.DarkDefault);
+                            testOutput.AppendLine(_lineSeparator, lineSeparatorColor);
                         }
                         if (showStackTraces && !string.IsNullOrEmpty(test.StackTrace))
                         {
                             testOutput.AppendLine($"  Stack Trace:", _colorScheme.Bright);
-                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
-                            testOutput.AppendLine($"{test.StackTrace}", _colorScheme.DarkError);
-                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine(_lineSeparator, lineSeparatorColor);
+                            testOutput.Append(StackTracePrettify.Format(test.StackTrace, _colorScheme));
+                            testOutput.AppendLine();
+                            testOutput.AppendLine(_lineSeparator, lineSeparatorColor);
                         }
                         if (showTestOutput && !string.IsNullOrEmpty(test.TestOutput))
                         {
                             testOutput.AppendLine($"  Test Output: ", _colorScheme.Bright);
-                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine(_lineSeparator, lineSeparatorColor);
                             testOutput.AppendLine($"{test.TestOutput}", _colorScheme.Default);
-                            testOutput.AppendLine(_lineSeparator, _colorScheme.DarkDefault);
+                            testOutput.AppendLine(_lineSeparator, lineSeparatorColor);
                         }
                         testOutput.AppendLine(Environment.NewLine);
                     }
@@ -339,29 +364,29 @@ namespace NUnit.Commander.IO
             // ***********************
             var overview = new ColorTextBuilder();
             overview.AppendLine();
-            overview.Append(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3)
-                .AppendLine($"{_headerBorderChar}  NUnit.Commander Test Report", _colorScheme.Highlight));
+            overview.Append(ColorTextBuilder.Create.Append($"╔{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight2).AppendLine($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight3)
+                .AppendLine($"{UTF8Constants.BoxVertical}  NUnit.Commander Test Report", _colorScheme.Highlight));
             var testRunIds = allReports.GroupBy(x => x.TestRunId).Select(x => x.Key);
             if (testRunIds?.Any() == true)
-                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Test Run Id(s): {string.Join(", ", testRunIds)}"));
+                overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"  Test Run Id(s): {string.Join(", ", testRunIds)}"));
             var frameworks = _runContext.Runs.SelectMany(x => x.Key.Frameworks).Distinct();
             if (frameworks.Any() == true)
-                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework(s): {string.Join(", ", frameworks)}"));
+                overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"  Framework(s): {string.Join(", ", frameworks)}"));
             var frameworkRuntimes = _runContext.Runs.SelectMany(x => x.Key.FrameworkRuntimes).Distinct();
             if (frameworkRuntimes.Any() == true)
-                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
+                overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
             var startTime = _runContext.Runs.Select(x => x.Key.StartTime).OrderBy(x => x).FirstOrDefault();
             var endTime = _runContext.Runs.Select(x => x.Key.EndTime).OrderByDescending(x => x).FirstOrDefault();
-            overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).Append($"  Test Start: {startTime}"));
+            overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).Append($"  Test Start: {startTime}"));
             overview.Append($"  Test End: {endTime}");
             overview.AppendLine($"  Total Duration: {endTime.Subtract(startTime)}");
-            overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"  Settings:"));
-            overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    Runtime={totalDuration}"));
+            overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"  Settings:"));
+            overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"    Runtime={totalDuration}"));
             if (_console.IsOutputRedirected)
-                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Enabled"));
+                overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"    LogMode=Enabled"));
             else
-                overview.Append(ColorTextBuilder.Create.Append($"{_headerBorderChar}", _colorScheme.Highlight).AppendLine($"    LogMode=Disabled"));
-            overview.Append(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{_headerChar}", _colorScheme.DarkHighlight).Append($"{_headerChar}", _colorScheme.DarkHighlight2).AppendLine($"{_headerChar}", _colorScheme.DarkHighlight3));
+                overview.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"    LogMode=Disabled"));
+            overview.Append(ColorTextBuilder.Create.Append($"╚{_headerLine}{_headerLine}", _colorScheme.Highlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight2).AppendLine($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight3));
 
             _console.WriteLine(overview);
 
@@ -380,7 +405,7 @@ namespace NUnit.Commander.IO
             var testAnalysisOutput = new ColorTextBuilder();
             if (showTestAnalysis)
             {
-                WriteHeader(testAnalysisOutput, "Historical Analysis Report");
+                WriteRoundBox(testAnalysisOutput, "Historical Analysis Report");
                 _console.WriteLine(testAnalysisOutput);
                 // write the analysis report
                 if (_runContext.HistoryReport != null)
@@ -404,7 +429,9 @@ namespace NUnit.Commander.IO
                     builder.AppendLine(testAnalysisOutput.ToString());
                     builder.AppendLine(passFailByRun);
                     builder.AppendLine(passFail);
-                    File.WriteAllText(Path.Combine(_configuration.LogPath, $"{uniqueRunIds.FirstOrDefault()}-report.log"), builder.ToString());
+                    var reportFilename = Path.Combine(_configuration.LogPath, $"{uniqueRunIds.FirstOrDefault()}-report.log");
+                    File.WriteAllText(reportFilename, builder.ToString());
+                    _console.Write(ColorTextBuilder.Create.AppendLine($"Wrote summary report to {reportFilename}", _colorScheme.DarkDefault));
                 }
 
                 if (_configuration.EnableTestLog)
@@ -416,10 +443,14 @@ namespace NUnit.Commander.IO
                         builder.AppendLine($"FullName,Duration,TestStatus,StartTime,EndTime,RuntimeVersion");
                         foreach (var test in run.Value.SelectMany(x => x.Report.TestReports).Where(x => x.TestStatus != TestStatus.Skipped).OrderBy(x => x.StartTime))
                         {
-                            builder.AppendLine($"\"{test.FullName.Replace("\"", "\\\"")}\",\"{test.Duration.ToElapsedTime()}\",\"{test.TestStatus}\",\"{test.StartTime.ToString(Constants.TimeFormat)}\",\"{test.EndTime.ToString(Constants.TimeFormat)}\",\"{test.RuntimeVersion}\"");
+                            // encode quotes in the test name with double quotes
+                            var testName = test.FullName.Replace("\"", "\"\"");
+                            builder.AppendLine($"\"{testName}\",\"{test.Duration.TotalMilliseconds:N2}ms\",\"{test.TestStatus}\",\"{test.StartTime.ToString(Constants.TimeFormat)}\",\"{test.EndTime.ToString(Constants.TimeFormat)}\",\"{test.RuntimeVersion}\"");
                         }
 
-                        File.WriteAllText(Path.Combine(_configuration.LogPath, $"{run.Key.CommanderRunId}-tests.log"), builder.ToString());
+                        var reportFilename = Path.Combine(_configuration.LogPath, $"{run.Key.CommanderRunId}-tests.log");
+                        File.WriteAllText(reportFilename, builder.ToString());
+                        _console.Write(ColorTextBuilder.Create.AppendLine($"Wrote tests report to {reportFilename}", _colorScheme.DarkDefault));
                     }
                 }
             }
@@ -427,11 +458,18 @@ namespace NUnit.Commander.IO
             return overallTestStatus;
         }
 
-        private void WriteHeader(ColorTextBuilder builder, string str, Color? color = null)
+        private void WriteSquareBox(ColorTextBuilder builder, string str, Color? color = null)
         {
-            builder.AppendLine($"╔{new string(_headerChar, str.Length + 4)}╗", color ?? _colorScheme.Highlight);
-            builder.AppendLine($"{_headerBorderChar}  {str}  {_headerBorderChar}", color ?? _colorScheme.Highlight);
-            builder.AppendLine($"╚{new string(_headerChar, str.Length + 4)}╝", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"{UTF8Constants.BoxTopLeft}{DisplayUtil.Pad(str.Length + 4, UTF8Constants.BoxHorizontal)}{UTF8Constants.BoxTopRight}", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"{UTF8Constants.BoxVertical}  {str}  {UTF8Constants.BoxVertical}", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"{UTF8Constants.BoxBottomLeft}{DisplayUtil.Pad(str.Length + 4, UTF8Constants.BoxHorizontal)}{UTF8Constants.BoxBottomRight}", color ?? _colorScheme.Highlight);
+        }
+
+        private void WriteRoundBox(ColorTextBuilder builder, string str, Color? color = null)
+        {
+            builder.AppendLine($"{UTF8Constants.RoundBoxTopLeft}{DisplayUtil.Pad(str.Length + 4, UTF8Constants.RoundBoxHorizontal)}{UTF8Constants.RoundBoxTopRight}", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"{UTF8Constants.RoundBoxVertical}  {str}  {UTF8Constants.RoundBoxVertical}", color ?? _colorScheme.Highlight);
+            builder.AppendLine($"{UTF8Constants.RoundBoxBottomLeft}{DisplayUtil.Pad(str.Length + 4, UTF8Constants.RoundBoxHorizontal)}{UTF8Constants.RoundBoxBottomRight}", color ?? _colorScheme.Highlight);
         }
 
         private bool EnsurePathIsCreated(string path)

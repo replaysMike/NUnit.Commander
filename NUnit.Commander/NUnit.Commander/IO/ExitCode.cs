@@ -26,5 +26,9 @@
         /// Invalid arguments supplied
         /// </summary>
         InvalidArguments = -3,
+        /// <summary>
+        /// Unhandled exception
+        /// </summary>
+        UnhandledException = -4,
     }
 }

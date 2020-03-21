@@ -1,11 +1,9 @@
 ﻿//using Colorful;
 using NUnit.Commander.Configuration;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using ColorfulConsole = Colorful.Console;
 
 namespace NUnit.Commander.Display
 {
@@ -16,6 +14,7 @@ namespace NUnit.Commander.Display
         public IColorScheme ColorScheme { get; private set; }
 
         public Color? Background => ColorScheme.Background;
+        public Color RaisedBackground => ColorScheme.RaisedBackground;
         public Color Default => ColorScheme.Default;
         public Color DarkDefault => ColorScheme.DarkDefault;
         public Color Bright => ColorScheme.Bright;
@@ -36,6 +35,41 @@ namespace NUnit.Commander.Display
             // load the color scheme
             LoadColorScheme();
             MapColorScheme();
+        }
+
+        public Color GetColor(string name)
+        {
+            switch (name)
+            {
+                case "Default":
+                    return Default;
+                case "RaisedBackground":
+                    return RaisedBackground;
+                case "DarkDefault":
+                    return DarkDefault;
+                case "Bright":
+                    return Bright;
+                case "Error":
+                    return Error;
+                case "DarkError":
+                    return DarkError;
+                case "Success":
+                    return Success;
+                case "DarkSuccess":
+                    return DarkSuccess;
+                case "Highlight":
+                    return Highlight;
+                case "DarkHighlight":
+                    return DarkHighlight;
+                case "DarkHighlight2":
+                    return DarkHighlight2;
+                case "Duration":
+                    return Duration;
+                case "DarkDuration":
+                    return DarkDuration;
+                default:
+                    return Default;
+            }
         }
 
         private void LoadColorScheme()
@@ -81,9 +115,9 @@ namespace NUnit.Commander.Display
             _colorMap.Add(System.ConsoleColor.Yellow, new MappedColor(Highlight, nameof(Highlight)));
             _colorMap.Add(System.ConsoleColor.DarkBlue, new MappedColor(DarkHighlight2, nameof(DarkHighlight2)));
             _colorMap.Add(System.ConsoleColor.Cyan, new MappedColor(DarkHighlight3, nameof(DarkHighlight3)));
+            _colorMap.Add(System.ConsoleColor.Magenta, new MappedColor(RaisedBackground, nameof(RaisedBackground)));
 
             // unused colors
-            _colorMap.Add(System.ConsoleColor.Magenta, new MappedColor(Color.Magenta, nameof(Color.Magenta)));
             // _colorMap.Add(System.ConsoleColor.DarkGreen, new MappedColor(DarkSuccess, nameof(Color.Magenta)));
 
             // map the colors

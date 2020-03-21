@@ -1,4 +1,5 @@
 ﻿using AnyConsole;
+using NUnit.Commander.Configuration;
 using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using System;
@@ -27,7 +28,7 @@ namespace NUnit.Commander.Models
         {
             var str = new ColorTextBuilder();
 
-            str.Append("  Total Runs Analyzed: [", _colorScheme.Bright).Append($"{TotalDataPoints}", _colorScheme.Highlight).AppendLine("]", _colorScheme.Bright);
+            str.Append($"  Total Runs Analyzed: {UTF8Constants.LeftBracket}", _colorScheme.Bright).Append($"{TotalDataPoints}", _colorScheme.Highlight).AppendLine($"{UTF8Constants.RightBracket}", _colorScheme.Bright);
             str.AppendLine();
             str.Append("  Unstable Tests:", _colorScheme.Bright);
             if (UnstableTests.Count == 0)
@@ -39,11 +40,11 @@ namespace NUnit.Commander.Models
                 {
                     str.Append($" {_bulletChar} ")
                         .Append(DisplayUtil.GetPrettyTestName(test.FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault))
-                        .Append("[", _colorScheme.Bright)
+                        .Append($"{UTF8Constants.LeftBracket}", _colorScheme.Bright)
                         .Append(string.Format("{0:0.0}% failures", test.Percentage * 100.0), _colorScheme.Error)
                         .Append(", ")
                         .Append(test.Ratio, _colorScheme.Error)
-                        .AppendLine("]", _colorScheme.Bright);
+                        .AppendLine($"{UTF8Constants.RightBracket}", _colorScheme.Bright);
                 }
             }
 
@@ -68,17 +69,17 @@ namespace NUnit.Commander.Models
                     str.Append($" {_bulletChar} ")
                         .Append(DisplayUtil.GetPrettyTestName(test.FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault))
                         .Append($"Diff", _colorScheme.Bright)
-                        .Append("[", _colorScheme.Bright)
+                        .Append($"{UTF8Constants.LeftBracket}", _colorScheme.Bright)
                         .Append($"{direction}{test.DurationChange.ToElapsedTime()}", color)
-                        .Append("]", _colorScheme.Bright)
+                        .Append($"{UTF8Constants.RightBracket}", _colorScheme.Bright)
                         .Append($" Time", _colorScheme.Bright)
-                        .Append("[", _colorScheme.Bright)
+                        .Append($"{UTF8Constants.LeftBracket}", _colorScheme.Bright)
                         .Append($"{test.Duration.ToElapsedTime()}", _colorScheme.Duration)
-                        .Append("]", _colorScheme.Bright)
+                        .Append($"{UTF8Constants.RightBracket}", _colorScheme.Bright)
                         .Append($" Median", _colorScheme.Bright)
-                        .Append("[", _colorScheme.Bright)
+                        .Append($"{UTF8Constants.LeftBracket}", _colorScheme.Bright)
                         .Append($"{test.Average.ToElapsedTime()}", _colorScheme.Duration)
-                        .AppendLine("]", _colorScheme.Bright);
+                        .AppendLine($"{UTF8Constants.RightBracket}", _colorScheme.Bright);
                 }
             }
             str.AppendLine();

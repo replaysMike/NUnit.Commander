@@ -21,34 +21,51 @@ namespace NUnit.Commander
     {
         static Commander _commander;
         static TestRunnerLauncher _launcher;
-        private const char _headerChar = '═';
 
         static int Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
-            var exitCode = ExitCode.TestsFailed;
-            var configProvider = new ConfigurationProvider();
-            var configuration = configProvider.LoadConfiguration();
-            var config = configProvider.Get<ApplicationConfiguration>(configuration);
 
-            var parser = new Parser(c =>
+            try
             {
-                c.CaseSensitive = false;
-                c.HelpWriter = Console.Error;
-            });
-            parser.ParseArguments<Options>(args)
-                .WithParsed<Options>(o =>
-                {
-                    var isTestPass = Start(o, config);
-                    if (isTestPass)
-                        exitCode = ExitCode.Success;
-                })
-                .WithNotParsed<Options>(errors =>
-                {
-                    exitCode = ArgsParsingError(errors);
-                });
+                var exitCode = ExitCode.TestsFailed;
+                var configProvider = new ConfigurationProvider();
+                var configuration = configProvider.LoadConfiguration();
+                var config = configProvider.Get<ApplicationConfiguration>(configuration);
 
-            return (int)exitCode;
+                var parser = new Parser(c =>
+                {
+                    c.CaseSensitive = false;
+                    c.HelpWriter = Console.Error;
+                });
+                parser.ParseArguments<Options>(args)
+                    .WithParsed<Options>(o =>
+                    {
+                        var isTestPass = Start(o, config);
+                        if (isTestPass)
+                            exitCode = ExitCode.Success;
+                    })
+                    .WithNotParsed<Options>(errors =>
+                    {
+                        exitCode = ArgsParsingError(errors);
+                    });
+
+                return (int)exitCode;
+            }
+            catch (Exception ex)
+            {
+                if (!Console.IsOutputRedirected)
+                {
+                    Console.CursorVisible = true;
+                    Console.ResetColor();
+                    Console.ForegroundColor = Color.Gray;
+                }
+
+                Console.Error.WriteLine($"Unhandled exception: {ex.GetBaseException().Message}");
+                Console.Error.WriteLine($"Stack trace: {ex.StackTrace}");
+            }
+
+            return (int)ExitCode.UnhandledException;
         }
 
         private static bool Start(Options options, ApplicationConfiguration config)
@@ -111,7 +128,10 @@ namespace NUnit.Commander
             {
                 colorScheme.PrintColorsToConsole();
                 if (!Console.IsOutputRedirected)
+                {
                     Console.CursorVisible = true;
+                    Console.ForegroundColor = Color.Gray;
+                }
                 Environment.Exit(0);
             }
             if (options.ClearHistory)
@@ -119,7 +139,10 @@ namespace NUnit.Commander
                 runContext.TestHistoryDatabaseProvider.DeleteAll();
                 runContext.TestHistoryDatabaseProvider.Dispose();
                 if (!Console.IsOutputRedirected)
+                {
                     Console.CursorVisible = true;
+                    Console.ForegroundColor = Color.Gray;
+                }
                 Environment.Exit(0);
             }
 
@@ -129,9 +152,9 @@ namespace NUnit.Commander
                 Console.Clear();
                 var fontBytes = ResourceLoader.Load("big.flf");
                 var font = Colorful.FigletFont.Load(fontBytes);
-                ColorfulConsole.WriteAscii("NUnit Commander", font, Color.Yellow);
-                ColorfulConsole.WriteLine($"Version {Assembly.GetExecutingAssembly().GetName().Version}", Color.Yellow);
-                Console.WriteLine(new string(_headerChar, Console.WindowWidth - 5));
+                ColorfulConsole.WriteAscii("NUnit Commander", font, colorScheme.Highlight);
+                ColorfulConsole.WriteLine($"Version {Assembly.GetExecutingAssembly().GetName().Version}", colorScheme.DarkHighlight);
+                ColorfulConsole.WriteLine(new string(UTF8Constants.BoxHorizontal, Console.WindowWidth - 5), colorScheme.DarkHighlight);
             }
 
             // initialize the performance counters before launching the test runner
@@ -144,7 +167,7 @@ namespace NUnit.Commander
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error initializing performance counters... {ex.Message}", colorScheme.Default);
+                Console.WriteLine($"Error initializing performance counters... {ex.Message}", colorScheme.Error);
                 // unable to use performance counters.
                 // possibly need to run C:\Windows\SysWOW64> lodctr /r
             }
@@ -192,7 +215,11 @@ namespace NUnit.Commander
             }
 
             if (!Console.IsOutputRedirected)
+            {
                 Console.ResetColor();
+                Console.CursorVisible = true;
+                Console.ForegroundColor = Color.Gray;
+            }
 
             return isTestPass;
         }
@@ -204,21 +231,32 @@ namespace NUnit.Commander
             // sometimes the final report event is delayed a very little bit.
             _commander.WaitForClose(3000);
 
-            if (_commander.IsRunning)
+            if (_launcher.HasErrors)
             {
                 // unexpected exit
                 _commander?.Close();
 
+                Console.ForegroundColor = Color.Red;
+                Console.Error.WriteLine($"Error: Test runner '{launcher.Options.TestRunner}' closed unexpectedly with exit code ({launcher.ExitCode}).");
+                Console.Error.WriteLine($"Commander will now exit.");
+                Console.ForegroundColor = Color.Gray;
+                if (!string.IsNullOrEmpty(launcher.ConsoleError?.Trim()))
+                {
+                    Console.ForegroundColor = Color.White;
+                    Console.Error.WriteLine($"{launcher.TestRunnerName} error output: {launcher.ConsoleError}");
+                }
+                if (!string.IsNullOrEmpty(launcher.ConsoleOutput?.Trim()))
+                {
+                    Console.ForegroundColor = Color.White;
+                    Console.Error.WriteLine($"{launcher.TestRunnerName} output: {launcher.ConsoleOutput}");
+                }
+
                 if (!Console.IsOutputRedirected)
                 {
                     Console.ResetColor();
-                    Console.Clear();
+                    Console.ForegroundColor = Color.Gray;
                     Console.CursorVisible = true;
                 }
-                Console.ForegroundColor = Color.Red;
-                Console.Error.WriteLine($"Error: Test runner '{launcher.Options.TestRunner}' closed unexpectedly.");
-                Console.Error.WriteLine($"Commander will now exit.");
-                Console.ForegroundColor = Color.Gray;
                 Environment.Exit((int)ExitCode.TestRunnerExited);
             }
         }

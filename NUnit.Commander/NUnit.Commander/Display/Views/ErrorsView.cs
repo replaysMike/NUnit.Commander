@@ -9,8 +9,6 @@ namespace NUnit.Commander.Display.Views
 {
     public class ErrorsView : IView
     {
-        private const string _bulletChar = "\u2022";
-        private const char _lineChar = '`';
         private const int DefaultDrawFps = 2;
         private const int DefaultTickWait = (int)(1000.0 / 66) * DefaultDrawFps;
         private long _startTicks = 0;
@@ -56,7 +54,7 @@ namespace NUnit.Commander.Display.Views
                 if (_performFullDraw)
                     ClearScreen(context);
 
-                var lineSeparator = new string(_lineChar, Console.WindowWidth / 2);
+                var lineSeparator = DisplayUtil.Pad(Console.WindowWidth - 1, UTF8Constants.HorizontalLine);
                 var yPos = 0;
                 // figure out how many tests we can fit on screen
                 var maxActiveTestsToDisplay = Console.WindowHeight - yPos - 2;
@@ -84,11 +82,11 @@ namespace NUnit.Commander.Display.Views
                         .Append($"{totalTestsProcessed} ", context.ColorScheme.DarkDefault)
                         .AppendIf(context.TotalTestsQueued > 0, $"of ", context.ColorScheme.Default)
                         .AppendIf(context.TotalTestsQueued > 0, $"{context.TotalTestsQueued} ", context.ColorScheme.DarkDefault)
-                        .AppendIf(context.TotalTestsQueued > 0, $"[", context.ColorScheme.Bright)
+                        .AppendIf(context.TotalTestsQueued > 0, $"{UTF8Constants.LeftBracket}", context.ColorScheme.Bright)
                         .AppendIf(context.TotalTestsQueued > 0, $"{((totalTestsProcessed / (double)context.TotalTestsQueued) * 100.0):F0}%", context.ColorScheme.DarkDuration)
-                        .AppendIf(context.TotalTestsQueued > 0, $"]", context.ColorScheme.Bright)
-                        .Append(context.Client.IsWaitingForConnection ? $"[waiting]" : "", context.ColorScheme.DarkDuration)
-                        .AppendIf(!context.Console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
+                        .AppendIf(context.TotalTestsQueued > 0, $"{UTF8Constants.RightBracket}", context.ColorScheme.Bright)
+                        .Append(context.Client.IsWaitingForConnection ? $"{UTF8Constants.LeftBracket}waiting{UTF8Constants.RightBracket}" : "", context.ColorScheme.DarkDuration)
+                        .AppendIf(!context.Console.IsOutputRedirected, (length) => DisplayUtil.Pad(windowWidth - length)),
                         0,
                         yPos + 1,
                         DirectOutputMode.Static);
@@ -120,14 +118,14 @@ namespace NUnit.Commander.Display.Views
                             var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.FullName, context.ColorScheme.DarkDefault, context.ColorScheme.Default, context.ColorScheme.DarkDefault, context.MaxTestCaseArgumentLength);
                             // print out this test name and duration
                             testOutput.Append(ColorTextBuilder.Create
-                                .Append($" {_bulletChar} ")
+                                .Append($" {UTF8Constants.Bullet} ")
                                 .Append(prettyTestName)
                                 .Append($" {duration.ToTotalElapsedTime()}", context.ColorScheme.Duration)
-                                .Append(" [", context.ColorScheme.Bright)
+                                .Append($" {UTF8Constants.LeftBracket}", context.ColorScheme.Bright)
                                 .Append("FAILED", context.ColorScheme.Error)
-                                .Append("]", context.ColorScheme.Bright)
+                                .Append($"{UTF8Constants.RightBracket}", context.ColorScheme.Bright)
                                 // clear out the rest of the line
-                                .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
+                                .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => DisplayUtil.Pad(windowWidth - length))
                                 .Truncate(windowWidth));
                             testOutput.Append(ColorTextBuilder.Create.Append("  Failed at: ", context.ColorScheme.Default).AppendLine($"{errorTime.ToString(Constants.TimeFormat)}", context.ColorScheme.DarkDuration));
 
@@ -143,7 +141,8 @@ namespace NUnit.Commander.Display.Views
                             {
                                 testOutput.AppendLine($"  Stack Trace:", context.ColorScheme.Bright);
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
-                                testOutput.AppendLine($"{test.Event.StackTrace}", context.ColorScheme.DarkError);
+                                testOutput.Append(StackTracePrettify.Format(test.Event.StackTrace, context.ColorScheme));
+                                testOutput.AppendLine();
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
                             }
                             if (!string.IsNullOrEmpty(test.Event.TestOutput))

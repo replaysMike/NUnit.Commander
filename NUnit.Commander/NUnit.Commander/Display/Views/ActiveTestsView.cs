@@ -11,7 +11,6 @@ namespace NUnit.Commander.Display.Views
 {
     public class ActiveTestsView : IView
     {
-        private const string _bulletChar = "\u2022";
         private long _startTicks = 0;
         private string _version;
         private int _bottomPadding = 1;
@@ -102,7 +101,8 @@ namespace NUnit.Commander.Display.Views
                     context.LastNumberOfTestsRunning = context.ActiveTests.Count;
                 }
                 var testNumber = 0;
-                var totalActive = context.ActiveTests.Count(x => !x.IsQueuedForRemoval);
+                var totalActiveTests = context.ActiveTests.Count(x => !x.IsQueuedForRemoval);
+                var totalActiveTestFixtures = context.ActiveTestFixtures.Count(x => !x.IsQueuedForRemoval);
                 var totalPasses = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Pass);
                 var totalFails = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail);
                 var totalIgnored = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Skipped);
@@ -112,8 +112,10 @@ namespace NUnit.Commander.Display.Views
                 // write the summary of all test state
                 context.Console.WriteAt(ColorTextBuilder.Create
                         .Append("Tests state: ", context.ColorScheme.Bright)
-                        .Append($"Active=", context.ColorScheme.Default)
-                        .Append($"{totalActive} ", context.ColorScheme.Highlight)
+                        .Append($"ActiveTests=", context.ColorScheme.Default)
+                        .Append($"{totalActiveTests} ", context.ColorScheme.Highlight)
+                        .Append($"ActiveFixtures=", context.ColorScheme.Default)
+                        .Append($"{totalActiveTestFixtures} ", context.ColorScheme.Highlight)
                         .Append($"Pass=", context.ColorScheme.Default)
                         .AppendIf(totalPasses > 0, $"{totalPasses} ", context.ColorScheme.Success)
                         .AppendIf(totalPasses == 0, $"{totalPasses} ", context.ColorScheme.Default)
@@ -126,11 +128,11 @@ namespace NUnit.Commander.Display.Views
                         .Append($"{totalTestsProcessed} ", context.ColorScheme.DarkDefault)
                         .AppendIf(context.TotalTestsQueued > 0, $"of ", context.ColorScheme.Default)
                         .AppendIf(context.TotalTestsQueued > 0, $"{context.TotalTestsQueued} ", context.ColorScheme.DarkDefault)
-                        .AppendIf(context.TotalTestsQueued > 0, $"[", context.ColorScheme.Bright)
+                        .AppendIf(context.TotalTestsQueued > 0, $"{UTF8Constants.LeftBracket}", context.ColorScheme.Bright)
                         .AppendIf(context.TotalTestsQueued > 0, $"{((totalTestsProcessed / (double)context.TotalTestsQueued) * 100.0):F0}%", context.ColorScheme.DarkDuration)
-                        .AppendIf(context.TotalTestsQueued > 0, $"]", context.ColorScheme.Bright)
-                        .Append(context.Client.IsWaitingForConnection ? $"[waiting]" : "", context.ColorScheme.DarkDuration)
-                        .AppendIf(!context.Console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
+                        .AppendIf(context.TotalTestsQueued > 0, $"{UTF8Constants.RightBracket}", context.ColorScheme.Bright)
+                        .Append(context.Client.IsWaitingForConnection ? $"{UTF8Constants.LeftBracket}waiting{UTF8Constants.RightBracket}" : "", context.ColorScheme.DarkDuration)
+                        .AppendIf(!context.Console.IsOutputRedirected, (length) => DisplayUtil.Pad(windowWidth - length)),
                         0,
                         yPos,
                         DirectOutputMode.Static);
@@ -140,7 +142,7 @@ namespace NUnit.Commander.Display.Views
                     context.Console.WriteAt(ColorTextBuilder.Create
                         .Append("Runtime: ", context.ColorScheme.Bright)
                         .Append($"{DateTime.Now.Subtract(context.StartTime).ToTotalElapsedTime()} ", context.ColorScheme.Duration)
-                        .Append((length) => new string(' ', Math.Max(0, windowWidth - length))),
+                        .Append((length) => DisplayUtil.Pad(windowWidth - length)),
                         0,
                         yPos + 1,
                         DirectOutputMode.Static);
@@ -150,7 +152,7 @@ namespace NUnit.Commander.Display.Views
                 {
                     context.Console.WriteAt(ColorTextBuilder.Create
                         .Append($"{context.CurrentFrameworkVersion}", context.ColorScheme.DarkDuration)
-                        .AppendIf(!context.Console.IsOutputRedirected, (length) => new string(' ', Math.Max(0, windowWidth - length))),
+                        .AppendIf(!context.Console.IsOutputRedirected, (length) => DisplayUtil.Pad(windowWidth - length)),
                         0, yPos + context.LastNumberOfLinesDrawn, DirectOutputMode.Static);
                     context.LastNumberOfLinesDrawn++;
                 }
@@ -211,15 +213,15 @@ namespace NUnit.Commander.Display.Views
                         // spaced in columns
                         .AppendIf(testNumber < 10 && !context.Console.IsOutputRedirected, $" ")
                         // test status if not logging to file
-                        .AppendIf(!context.Console.IsOutputRedirected, "[", context.ColorScheme.DarkDefault)
+                        .AppendIf(!context.Console.IsOutputRedirected, $"{UTF8Constants.LeftBracket}", context.ColorScheme.DarkDefault)
                         .AppendIf(!context.Console.IsOutputRedirected, testStatus, testColor)
-                        .AppendIf(!context.Console.IsOutputRedirected, "] ", context.ColorScheme.DarkDefault)
+                        .AppendIf(!context.Console.IsOutputRedirected, $"{UTF8Constants.RightBracket} ", context.ColorScheme.DarkDefault)
                         // test name
                         .Append(prettyTestName)
                         // test duration
                         .Append($" {lifetime.ToTotalElapsedTime()}", context.ColorScheme.Duration)
                         // clear out the rest of the line
-                        .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
+                        .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => DisplayUtil.Pad(windowWidth - length))
                         .Truncate(windowWidth),
                         0,
                         yPos + context.LastNumberOfLinesDrawn,
@@ -242,7 +244,7 @@ namespace NUnit.Commander.Display.Views
                     if (failedTests.Any())
                     {
                         var totalFailedTests = failedTests.Count();
-                        context.Console.WriteAt(ColorTextBuilder.Create.AppendLine($"{context.Configuration.MaxFailedTestsToDisplay} Most Recent Failed Tests", context.ColorScheme.Error), 0, windowHeight - totalFailedTests - _bottomPadding - 1, DirectOutputMode.Static);
+                        context.Console.WriteAt(ColorTextBuilder.Create.AppendLine($"Most Recent Failed Tests", context.ColorScheme.Error), 0, windowHeight - totalFailedTests - _bottomPadding - 1, DirectOutputMode.Static);
                         var failedTestNumber = 0;
                         foreach (var test in failedTests)
                         {
@@ -253,15 +255,15 @@ namespace NUnit.Commander.Display.Views
                             var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.FullName, context.ColorScheme.DarkDefault, context.ColorScheme.Default, context.ColorScheme.DarkDefault, context.MaxTestCaseArgumentLength);
                             // print out this test name and duration
                             context.Console.WriteAt(ColorTextBuilder.Create
-                                .Append($" {_bulletChar} ")
+                                .Append($" {UTF8Constants.Bullet} ")
                                 .Append(prettyTestName)
                                 .Append($" {duration.ToTotalElapsedTime()}", context.ColorScheme.Duration)
-                                .Append(" [", context.ColorScheme.Bright)
+                                .Append($" {UTF8Constants.LeftBracket}", context.ColorScheme.Bright)
                                 .Append("FAILED", context.ColorScheme.Error)
-                                .Append("] ", context.ColorScheme.Bright)
+                                .Append($"{UTF8Constants.RightBracket} ", context.ColorScheme.Bright)
                                 .Append($"{test.DateAdded.ToString(Constants.TimeFormat)}", context.ColorScheme.DarkDuration)
                                 // clear out the rest of the line
-                                .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => new string(' ', Math.Max(0, windowWidth - length)))
+                                .AppendIf((length) => !context.Console.IsOutputRedirected && length < windowWidth, (length) => DisplayUtil.Pad(windowWidth - length))
                                 .Truncate(windowWidth),
                                 0,
                                 windowHeight - totalFailedTests + failedTestNumber - _bottomPadding - 1,
