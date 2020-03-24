@@ -26,6 +26,11 @@ namespace NUnit.Commander.IO
             _log[type].Add(new PerformanceEntry(value));
         }
 
+        public IList<PerformanceEntry> GetAll(PerformanceType type)
+        {
+            return _log[type];
+        }
+
         public double GetMedian(PerformanceType type)
         {
             if (_log[type].Count > 0)

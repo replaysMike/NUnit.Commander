@@ -6,6 +6,7 @@ using System.Text;
 using Console = NUnit.Commander.Display.CommanderConsole;
 using ColorfulConsole = Colorful.Console;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace NUnit.Commander.IO
 {
@@ -34,11 +35,28 @@ namespace NUnit.Commander.IO
             set { Console.OutputEncoding = value; }
         }
 
+        public int WindowLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowHeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowWidth { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int CursorLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int CursorTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string Title { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public Color ForegroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public Color BackgroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public bool CursorVisible { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string FontName { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public short FontXSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public short FontYSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int FontWeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+
         public LogFriendlyConsole(bool clearConsole, ColorManager colorScheme)
         {
             Console.SetColorManager(colorScheme);
 
             Console.OutputEncoding = System.Text.Encoding.UTF8;
+            ColorfulConsole.OutputEncoding = System.Text.Encoding.UTF8;
+
             if (!IsOutputRedirected)
             {
                 Console.CursorVisible = false;
@@ -234,6 +252,16 @@ namespace NUnit.Commander.IO
         public void WriteRow(string rowName, string text, ColumnLocation location, int offset)
         {
             throw new NotSupportedException();
+        }
+
+        public bool CheckIfCharInFont(char character, Font font)
+        {
+            return ConsoleUtil.CheckIfCharInFont(character, font);
+        }
+
+        public ICollection<ExtendedConsole.FontRange> GetFontUnicodeRanges(Font font)
+        {
+            return ConsoleUtil.GetUnicodeRangesForFont(font);
         }
 
         public void Dispose()

@@ -1,6 +1,4 @@
-﻿using NUnit.Commander.Models;
-
-namespace NUnit.Commander.Configuration
+﻿namespace NUnit.Commander.Configuration
 {
     public class ApplicationConfiguration
     {

@@ -161,6 +161,9 @@ namespace NUnit.Commander
             // this is because it can be slow, we don't want to delay connecting to the test runner
             try
             {
+                Console.WriteLine($"Console font: {Console.GetCurrentFont()}");
+                Console.WriteLine($"Unicode test: \u2022 ╭╮╰╯═══\u2801\u2802\u2804\u2840\u28FF");
+                
                 Console.WriteLine($"Initializing performance counters...", colorScheme.Default);
                 runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
                 runContext.PerformanceCounters.DiskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
@@ -359,39 +362,49 @@ namespace NUnit.Commander
             {
                 using (_commander = new Commander(configuration, console, runNumber, runContext))
                 {
+                    var isConnectSuccessful = false;
                     _commander.Connect(true, (c) =>
                     {
+                        // connect success
+                        isConnectSuccessful = true;
                         if (!Console.IsOutputRedirected)
                             Console.Clear();
-                    }, (c) => c.Close());
+                    }, (c) => {
+                        // connect failure
+                        c.Close();
+                    });
                     _commander.WaitForClose();
-                    runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
 
-                    // add the run data to the history
-                    var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
-
-                    if (runNumber >= options.Repeat)
+                    if (isConnectSuccessful)
                     {
-                        // write the final report to the output
-                        if (configuration.HistoryAnalysisConfiguration.Enabled)
-                        {
-                            Console.WriteLine("Analyzing...", colorScheme.Default);
-                            var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
-                            runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
-                        }
+                        runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
 
-                        var runCount = runContext.Runs.Count;
-                        var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
-                        if (testCount == 0)
+                        // add the run data to the history
+                        var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
+
+                        if (runNumber >= options.Repeat)
                         {
-                            var report = _commander?.CreateReportFromHistory();
-                            _commander.RunReports.Add(report);
+                            // write the final report to the output
+                            if (configuration.HistoryAnalysisConfiguration.Enabled)
+                            {
+                                Console.WriteLine("Analyzing...", colorScheme.Default);
+                                var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                                runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
+                            }
+
+                            var runCount = runContext.Runs.Count;
+                            var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
+                            if (testCount == 0)
+                            {
+                                var report = _commander?.CreateReportFromHistory();
+                                _commander.RunReports.Add(report);
+                            }
+                            Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
+                            var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext, true);
+                            console.Clear();
+                            if (reportWriter.WriteFinalReport() == TestStatus.Pass)
+                                isSuccess = true;
                         }
-                        Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
-                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext, true);
-                        console.Clear();
-                        if (reportWriter.WriteFinalReport() == TestStatus.Pass)
-                            isSuccess = true;
                     }
                 }
             }
@@ -441,35 +454,49 @@ namespace NUnit.Commander
             {
                 using (_commander = new Commander(configuration, console, runNumber, runContext))
                 {
-                    _commander.Connect(true, (c) => { }, (c) => c.Close());
-                    _commander.WaitForClose();
-                    runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
-
-                    // add the run data to the history
-                    var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
-
-                    if (runNumber >= options.Repeat)
+                    var isConnectSuccessful = false;
+                    _commander.Connect(true, (c) =>
                     {
-                        // write the final report to the output
-                        if (configuration.HistoryAnalysisConfiguration.Enabled)
-                        {
-                            Console.WriteLine("Analyzing...", colorScheme.Default);
-                            var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
-                            runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
-                        }
+                        // connect success
+                        isConnectSuccessful = true;
+                        if (!Console.IsOutputRedirected)
+                            Console.Clear();
+                    }, (c) => {
+                        // connect failure
+                        c.Close();
+                    });
 
-                        var runCount = runContext.Runs.Count;
-                        var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
-                        if (testCount == 0)
+                    _commander.WaitForClose();
+                    if (isConnectSuccessful)
+                    {
+                        runContext.Runs.Add(_commander.GenerateReportContext(), _commander.RunReports);
+
+                        // add the run data to the history
+                        var currentRunHistory = AddCurrentRunToHistory(configuration, runContext);
+
+                        if (runNumber >= options.Repeat)
                         {
-                            var report = _commander?.CreateReportFromHistory();
-                            _commander.RunReports.Add(report);
+                            // write the final report to the output
+                            if (configuration.HistoryAnalysisConfiguration.Enabled)
+                            {
+                                Console.WriteLine("Analyzing...", colorScheme.Default);
+                                var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                                runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
+                            }
+
+                            var runCount = runContext.Runs.Count;
+                            var testCount = runContext.Runs.SelectMany(x => x.Value).Sum(x => x.TestCount);
+                            if (testCount == 0)
+                            {
+                                var report = _commander?.CreateReportFromHistory();
+                                _commander.RunReports.Add(report);
+                            }
+                            Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
+                            var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext, true);
+                            console.Clear();
+                            if (reportWriter.WriteFinalReport() == TestStatus.Pass)
+                                isSuccess = true;
                         }
-                        Console.WriteLine($"Generating report for {runCount} run(s), {testCount} tests...", colorScheme.Default);
-                        var reportWriter = new ReportWriter(console, colorScheme, configuration, runContext, true);
-                        console.Clear();
-                        if (reportWriter.WriteFinalReport() == TestStatus.Pass)
-                            isSuccess = true;
                     }
                 }
             }

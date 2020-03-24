@@ -21,16 +21,16 @@ namespace NUnit.Commander.Configuration
         public int MinTestHistoryToAnalyze { get; set; } = 5;
 
         /// <summary>
-        /// The minimum percentage (0.001-1.0) of failed tests allowed. Default: 0.05 (5%)
+        /// The minimum percentage (0.001-1.0) of failed tests allowed. Default: 0.1 (10%)
         /// </summary>
         [Range(0.001, 1.0)]
-        public double MinTestReliabilityThreshold { get; set; } = 0.05;
+        public double MinTestReliabilityThreshold { get; set; } = 0.1;
 
         /// <summary>
-        /// The maximum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.4 (40%)
+        /// The maximum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.6 (60%)
         /// </summary>
         [Range(0.001, 1.0)]
-        public double MaxTestDurationChange { get; set; } = 0.4;
+        public double MaxTestDurationChange { get; set; } = 0.6;
 
         /// <summary>
         /// Tests that complete less than this time will not have duration analysis checked

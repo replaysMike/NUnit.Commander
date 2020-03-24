@@ -35,6 +35,10 @@ namespace NUnit.Commander.IO
         /// </summary>
         public DateTime EndTime { get; set; }
         /// <summary>
+        /// Performance log
+        /// </summary>
+        public PerformanceLog PerformanceLog { get; set; }
+        /// <summary>
         /// Performance overview
         /// </summary>
         public PerformanceOverview Performance { get; set; } = new PerformanceOverview();

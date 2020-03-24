@@ -63,13 +63,13 @@ namespace NUnit.Commander
         [Option("min-runs", Required = false, SetName = "Analysis", HelpText = "The minimum number of history entries to analyze")]
         public int? MinTestHistoryToAnalyze { get; set; }
 
-        [Option("ratio", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of failed tests allowed. Default: 0.05 (5%)")]
+        [Option("ratio", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of failed tests allowed. Default: 0.1 (10%)")]
         public double? MinTestReliabilityThreshold { get; set; }
 
-        [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.4 (40%)")]
+        [Option("duration-change", Required = false, SetName = "Analysis", HelpText = "The minimum percentage (0.001-1.0) of a tests duration can change before triggering failure. Default: 0.6 (60%)")]
         public double? MaxTestDurationChange { get; set; }
 
-        [Option("min-duration", Required = false, SetName = "Analysis", HelpText = "Tests that complete less than this time will not have duration analysis checked. Default: 1000")]
+        [Option("min-duration", Required = false, SetName = "Analysis", HelpText = "Tests that complete less than this time will not have duration analysis checked. Default: 2000")]
         public int? MinTestMillisecondsForDurationAnalysis { get; set; }
 
         // command-line only options

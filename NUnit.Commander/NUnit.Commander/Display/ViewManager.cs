@@ -58,7 +58,7 @@ namespace NUnit.Commander.Display
             var currentView = (int)View;
             _views[(ViewPages)currentView].Deactivate();
             currentView--;
-            if (currentView -1 < 0)
+            if (currentView < 0)
                 currentView = maxViews - 1;
             SetView((ViewPages)currentView);
         }

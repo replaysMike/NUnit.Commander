@@ -32,5 +32,8 @@ namespace NUnit.Commander.Configuration
 
         public const char LeftBracket = '[';
         public const char RightBracket = ']';
+
+        // use brail UTF-8 dots to show a 4x2 running animation
+        public static readonly char[] RunningAnim = new char[] { '\u2801', '\u2802', '\u2804', '\u2840', '\u2880', '\u2820', '\u2810', '\u2808', '\u28FF' };
     }
 }

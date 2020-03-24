@@ -13,6 +13,11 @@ namespace NUnit.Commander.Display
 
         public static ColorTextBuilder GetPrettyTestName(string fullName, Color? pathColor = null, Color? testNameColor = null, Color? argsColor = null, int maxTestCaseArgumentLength = 20)
         {
+            return GetPrettyTestName(fullName, string.Empty, pathColor, testNameColor, argsColor, maxTestCaseArgumentLength);
+        }
+
+        public static ColorTextBuilder GetPrettyTestName(string fullName, string testFixtureName, Color? pathColor = null, Color? testNameColor = null, Color? argsColor = null, int maxTestCaseArgumentLength = 20)
+        {
             var maxWidth = MaxWidth;
             if (!Console.IsOutputRedirected)
                 maxWidth = Console.WindowWidth - 26;
@@ -45,30 +50,39 @@ namespace NUnit.Commander.Display
                     }
                 }
                 // truncate total size
-                if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                if (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
                 {
                     // path truncates first
-                    if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    if (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
                     {
-                        var maxLength = Math.Max(0, testPath.Length - (testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        var maxLength = Math.Max(0, testPath.Length - (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
                         if (maxLength > 0)
                             testPath = testPath.Substring(0, maxLength) + "...";
                         else
                             testPath = string.Empty;
                     }
                     // test args truncates second
-                    if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    if (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
                     {
-                        var maxLength = Math.Max(0, testCaseArgs.Length - (testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        var maxLength = Math.Max(0, testCaseArgs.Length - (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
                         if (maxLength > 0)
                             testCaseArgs = testCaseArgs.Substring(0, maxLength) + "...";
                         else
                             testCaseArgs = string.Empty;
                     }
-                    // test name truncates last
-                    if (testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    // test fixture truncates third
+                    if (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
                     {
-                        var maxLength = Math.Max(0, test.Length - (testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        var maxLength = Math.Max(0, testFixtureName.Length - (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
+                        if (maxLength > 0)
+                            testFixtureName = testFixtureName.Substring(0, maxLength) + "...";
+                        else
+                            testFixtureName = string.Empty;
+                    }
+                    // test name truncates last
+                    if (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length > maxWidth)
+                    {
+                        var maxLength = Math.Max(0, test.Length - (testFixtureName.Length + testPath.Length + test.Length + testCaseArgs.Length - maxWidth) - 3);
                         if (maxLength > 0)
                             test = test.Substring(0, maxLength) + "...";
                         else
@@ -77,6 +91,7 @@ namespace NUnit.Commander.Display
                 }
 
                 return ColorTextBuilder.Create
+                        .AppendIf(testFixtureName?.Length > 0, $"{testFixtureName}/", pathColor ?? Color.DarkSlateGray)
                         .AppendIf(testPath?.Length > 0, testPath, pathColor ?? Color.DarkSlateGray)
                         .Append(test, testNameColor ?? Color.Gray)
                         .AppendIf(!string.IsNullOrEmpty(testCaseArgs), testCaseArgs, argsColor ?? Color.DarkSlateGray);

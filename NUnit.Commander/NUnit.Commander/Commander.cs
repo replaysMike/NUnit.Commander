@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace NUnit.Commander
 {
@@ -43,6 +44,7 @@ namespace NUnit.Commander
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
         internal List<EventEntry> _activeTestFixtures;
+        internal List<EventEntry> _activeTestSuites;
         private Thread _updateThread;
         private Thread _utilityThread;
         internal bool _allowDrawActiveTests = false;
@@ -144,21 +146,23 @@ namespace NUnit.Commander
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
             _activeTestFixtures = new List<EventEntry>();
+            _activeTestSuites = new List<EventEntry>();
             _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
             ColorScheme = new ColorManager(_configuration.ColorScheme);
 
             // start the display thread
-            _updateThread = new Thread(new ThreadStart(UpdateThread));
-            _updateThread.IsBackground = true;
-            _updateThread.Name = "UpdateThread";
+            _updateThread = new Thread(new ThreadStart(DisplayThread));
+            _updateThread.IsBackground = false;
+            _updateThread.Priority = ThreadPriority.AboveNormal;
+            _updateThread.Name = nameof(DisplayThread);
             _updateThread.Start();
 
             // start the utility thread
 
             _utilityThread = new Thread(new ThreadStart(UtilityThread));
             _utilityThread.IsBackground = true;
-            _utilityThread.Name = "UtilityThread";
+            _utilityThread.Name = nameof(UtilityThread);
             _utilityThread.Start();
             StartTime = DateTime.Now;
         }
@@ -166,8 +170,6 @@ namespace NUnit.Commander
         public Commander(ApplicationConfiguration configuration, IExtendedConsole console, int runNumber, RunContext runContext) : this(configuration)
         {
             _console = new ConsoleWrapper(console, configuration);
-            _client = new IpcClient(configuration, console);
-            _client.OnMessageReceived += IpcClient_OnMessageReceived;
             RunNumber = runNumber;
             RunContext = runContext;
             _activeTestLifetimeMilliseconds = configuration.ActiveTestLifetimeMilliseconds > 0 ? configuration.ActiveTestLifetimeMilliseconds : DefaultActiveTestLifetimeMilliseconds;
@@ -255,7 +257,7 @@ namespace NUnit.Commander
 
             if (e.EventEntry.Event.Event == EventNames.Report)
             {
-                _allowDrawActiveTests = false;
+                _allowDrawActiveTests = true;
                 // when we receive a report, we need to reconnect to the IpcServer as DotNetTest behaves differently than
                 // NUnit in this manner. It will run tests in new processes, so we need to reconnect and see if more tests are running.
                 if (DotNetRuntimes.Contains(e.EventEntry.Event.TestRunner))
@@ -263,19 +265,26 @@ namespace NUnit.Commander
                     // disconnect from the server, and wait for a new connection to appear
                     Debug.WriteLine($"Waiting for another server connection...");
                     _console.WriteLine($"Waiting for another server connection...");
-                    _client.Dispose();
-                    // if the connection fails, write the report
-                    Connect(false, (x) => { }, (x) =>
-                    {
-                        FinalizeTestRun();
-                        x.Close();
-                    });
-                    return;
-                }
 
-                // NUnit does not require reconnections
-                FinalizeTestRun();
-                Close();
+                    // launch another connection request, but in a non-blocking task as we are currently in an i/o lock
+                    // could alternatively create a connection queue
+                    Task.Run(() => {
+                        _client.OnMessageReceived -= IpcClient_OnMessageReceived;
+                        _client.Dispose();
+                        Connect(false, (x) => { }, (x) =>
+                        {
+                            // if connection fails, quit
+                            FinalizeTestRun();
+                            x.Close();
+                        });
+                    });
+                }
+                else
+                {
+                    // NUnit does not require reconnections
+                    FinalizeTestRun();
+                    Close();
+                }
             }
         }
 
@@ -288,6 +297,9 @@ namespace NUnit.Commander
                 Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
                 _console.WriteLine($"Connecting to {extensionName}{timeoutStr}...");
             }
+
+            _client = new IpcClient(_configuration, _console);
+            _client.OnMessageReceived += IpcClient_OnMessageReceived;
 
             _client.Connect(showOutput, (client) =>
             {
@@ -334,7 +346,7 @@ namespace NUnit.Commander
             _closeEvent?.Set();
         }
 
-        private void UpdateThread()
+        private void DisplayThread()
         {
             var iteration = 0L;
             while (!_closeEvent.WaitOne(_drawIntervalMilliseconds))
@@ -436,6 +448,7 @@ namespace NUnit.Commander
                 Frameworks = _frameworks,
                 TestRunIds = _testRunIds,
                 EventEntries = _eventLog,
+                PerformanceLog = _performanceLog,
                 Performance = new ReportContext.PerformanceOverview
                 {
                     PeakCpuUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.CpuUsed),
@@ -521,8 +534,11 @@ namespace NUnit.Commander
                 case EventNames.EndAssembly:
                     break;
                 case EventNames.StartSuite:
+                    _activeTestSuites.Add(new EventEntry(e));
                     break;
                 case EventNames.EndSuite:
+                    var matchingActiveTestSuite = _activeTestSuites.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartSuite);
+                    UpdateEventEntry(matchingActiveTestSuite, e);
                     break;
                 case EventNames.StartTestFixture:
                     _activeTestFixtures.Add(new EventEntry(e));
@@ -613,7 +629,7 @@ namespace NUnit.Commander
             IsRunning = false;
             if (isDisposing)
             {
-                _lock.Wait();
+                _lock.Wait(5 * 1000);
                 try
                 {
                     _client?.Dispose();

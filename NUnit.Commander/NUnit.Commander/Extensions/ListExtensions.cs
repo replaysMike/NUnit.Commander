@@ -71,6 +71,13 @@ namespace NUnit.Commander.Extensions
             return list.NthOrderStatistic((list.Count - 1) / 2);
         }
 
+        /// <summary>
+        /// Compute a median
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="sequence"></param>
+        /// <param name="getValue"></param>
+        /// <returns></returns>
         public static double Median<T>(this IEnumerable<T> sequence, Func<T, double> getValue)
         {
             var list = sequence.Select(getValue).ToList();
@@ -79,6 +86,43 @@ namespace NUnit.Commander.Extensions
                 var mid = (list.Count - 1) / 2;
                 return list.NthOrderStatistic(mid);
             }
+            return 0;
+        }
+
+        /// <summary>
+        /// Compute a weighted average
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="records"></param>
+        /// <param name="value"></param>
+        /// <param name="weight"></param>
+        /// <returns></returns>
+        public static double WeightedAverage<T>(this IEnumerable<T> records, Func<T, double> value, Func<T, double> weight)
+        {
+            var weightedValueSum = records.Sum(x => value(x) * weight(x));
+            var weightSum = records.Sum(x => weight(x));
+
+            if (weightSum != 0)
+                return weightedValueSum / weightSum;
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Compute a weighted average
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="records"></param>
+        /// <param name="value"></param>
+        /// <param name="weight"></param>
+        /// <returns></returns>
+        public static double WeightedAverage<T>(this IEnumerable<T> records, Func<T, double> value, double weight)
+        {
+            var weightedValueSum = records.Sum(x => value(x) * weight);
+
+            if (weight != 0)
+                return weightedValueSum / weight;
+
             return 0;
         }
     }

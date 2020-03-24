@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NUnit.Commander.Display
@@ -11,10 +14,13 @@ namespace NUnit.Commander.Display
     public static class CommanderConsole
     {
         private static ColorManager _map;
+
         internal static void SetColorManager(ColorManager colorManager)
         {
             _map = colorManager;
         }
+
+        public static string GetCurrentFont() => ConsoleUtil.GetCurrentFont().FontName;
 
         public static void Write(string text) => Console.Write(text);
         public static void Write(string text, Color color)

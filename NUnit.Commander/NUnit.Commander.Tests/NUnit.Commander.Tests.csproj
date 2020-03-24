@@ -44,6 +44,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NUnit.Commander\NUnit.Commander.csproj" />
   </ItemGroup>
 

@@ -15,6 +15,7 @@ namespace NUnit.Commander.Display.Views
         private string _version;
         private int _bottomPadding = 1;
         private int _previousWindowHeight = 0;
+        private int _currentRunningAnimationStep = 0;
 
         public ActiveTestsView()
         {
@@ -103,6 +104,17 @@ namespace NUnit.Commander.Display.Views
                 var testNumber = 0;
                 var totalActiveTests = context.ActiveTests.Count(x => !x.IsQueuedForRemoval);
                 var totalActiveTestFixtures = context.ActiveTestFixtures.Count(x => !x.IsQueuedForRemoval);
+                if (totalActiveTests > 0 && totalActiveTestFixtures == 0)
+                {
+                    // fix for older versions of nUnit that don't send the start test fixture event
+                    // it will still be incorrect, as it will treat parents of tests with multiple cases as a testfixture
+                    var parentIds = context.ActiveTests
+                        .Where(x => !x.IsQueuedForRemoval && !string.IsNullOrEmpty(x.Event.ParentId))
+                        .Select(x => x.Event.ParentId)
+                        .Distinct();
+                    totalActiveTestFixtures = context.ActiveTestSuites.Count(x => !x.IsQueuedForRemoval && parentIds.Contains(x.Event.Id));
+                }
+
                 var totalPasses = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Pass);
                 var totalFails = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail);
                 var totalIgnored = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Skipped);
@@ -200,12 +212,26 @@ namespace NUnit.Commander.Display.Views
                             break;
                         case TestStatus.Running:
                         default:
-                            testStatus = "RUN ";
+                            testStatus = $"RUN{GetRunningAnimationStep()}";
                             testColor = context.ColorScheme.Highlight;
                             break;
                     }
 
-                    var prettyTestName = DisplayUtil.GetPrettyTestName(test.Event.TestName, context.ColorScheme.DarkDefault, context.ColorScheme.Default, context.ColorScheme.DarkDefault, context.MaxTestCaseArgumentLength);
+                    var testName = test.Event.TestName;
+                    // try to get the parent fixture if its available
+                    var testFixtureName = !string.IsNullOrEmpty(test.Event.ParentId) ? context.ActiveTestFixtures
+                        .Where(x => x.Event.Id == test.Event.ParentId)
+                        .Select(x => x.Event.TestSuite)
+                        .FirstOrDefault() : string.Empty;
+                    if (string.IsNullOrEmpty(testFixtureName))
+                    {
+                        // if this is an older version of nUnit, try getting the parent suite name
+                        testFixtureName = !string.IsNullOrEmpty(test.Event.ParentId) ? context.ActiveTestSuites
+                        .Where(x => x.Event.Id == test.Event.ParentId)
+                        .Select(x => x.Event.TestSuite)
+                        .FirstOrDefault() : string.Empty;
+                    }
+                    var prettyTestName = DisplayUtil.GetPrettyTestName(testName, testFixtureName, context.ColorScheme.DarkDefault, context.ColorScheme.Default, context.ColorScheme.DarkDefault, context.MaxTestCaseArgumentLength);
                     // print out this test name and duration
                     context.Console.WriteAt(ColorTextBuilder.Create
                         // test number
@@ -229,6 +255,7 @@ namespace NUnit.Commander.Display.Views
                     context.LastNumberOfLinesDrawn++;
                 }
                 context.LastNumberOfTestsDrawn = testNumber;
+                IncrementRunningAnimationStep();
 
                 // **************************
                 // Draw Test Failures
@@ -272,6 +299,18 @@ namespace NUnit.Commander.Display.Views
                     }
                 }
             }
+        }
+
+        private char GetRunningAnimationStep()
+        {
+            return UTF8Constants.RunningAnim[_currentRunningAnimationStep];
+        }
+
+        private void IncrementRunningAnimationStep()
+        {
+            _currentRunningAnimationStep++;
+            if (_currentRunningAnimationStep >= UTF8Constants.RunningAnim.Length)
+                _currentRunningAnimationStep = 0;
         }
 
         /// <summary>

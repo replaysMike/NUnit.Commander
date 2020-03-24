@@ -41,8 +41,8 @@ namespace NUnit.Commander.IO
         private readonly ManualResetEvent _dataReadEvent;
         private readonly ManualResetEvent _closeEvent;
         private readonly ApplicationConfiguration _config;
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private readonly XmlSerializer _xmlSerializer = new XmlSerializer(typeof(DataEvent));
+        private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         private bool _isDisposed;
         private int _messageByteIndex = 0;
         private NamedPipeClientStream _client;
@@ -63,10 +63,9 @@ namespace NUnit.Commander.IO
             _client = new NamedPipeClientStream(".", "TestMonitorExtension", PipeDirection.InOut);
             try
             {
-                var timeoutSeconds = (int)TimeSpan.FromSeconds(_config.ConnectTimeoutSeconds).TotalMilliseconds;
                 IsWaitingForConnection = true;
-                if (timeoutSeconds > 0)
-                    _client.Connect(timeoutSeconds);
+                if (_config.ConnectTimeoutSeconds > 0)
+                    _client.Connect((int)TimeSpan.FromSeconds(_config.ConnectTimeoutSeconds).TotalMilliseconds); // specify in ms
                 else
                     _client.Connect();
                 _client.ReadMode = PipeTransmissionMode.Byte;
@@ -130,7 +129,7 @@ namespace NUnit.Commander.IO
 
                         var dataToProcess = true;
                         var loopCounter = 0;
-                        while (dataToProcess)
+                        while (dataToProcess || loopCounter > 1000)
                         {
                             loopCounter++;
                             if (_messageByteIndex >= TotalHeaderLength)
@@ -244,7 +243,7 @@ namespace NUnit.Commander.IO
             if (isDisposing)
             {
                 _closeEvent?.Set();
-                _lock.Wait();
+                _lock.Wait(5 * 1000);
                 try
                 {
                     try
@@ -258,12 +257,12 @@ namespace NUnit.Commander.IO
                     }
                     _closeEvent?.Dispose();
                     _readThread = null;
-                    _console?.Dispose();
                 }
                 finally
                 {
                     _lock.Release();
                     _lock.Dispose();
+                    _lock = null;
                 }
             }
         }

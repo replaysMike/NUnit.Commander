@@ -1,6 +1,8 @@
 ﻿using AnyConsole;
 using NUnit.Commander.Configuration;
+using NUnit.Commander.Display;
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Text;
@@ -70,6 +72,21 @@ namespace NUnit.Commander.IO
                 _console.OutputEncoding = value;
             }
         }
+
+        public int WindowLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowHeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowWidth { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int CursorLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int CursorTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string Title { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public Color ForegroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public Color BackgroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public bool CursorVisible { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public string FontName { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public short FontXSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public short FontYSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int FontWeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public void SetCursorPosition(int x, int y) => _console.SetCursorPosition(x, y);
 
@@ -193,6 +210,11 @@ namespace NUnit.Commander.IO
 
         public void WriteRow(string rowName, string text, ColumnLocation location, int offset) => _console.WriteRow(rowName, text, location, offset);
 
+
+        public bool CheckIfCharInFont(char character, Font font) => _console.CheckIfCharInFont(character, font);
+
+        public ICollection<ExtendedConsole.FontRange> GetFontUnicodeRanges(Font font) => _console.GetFontUnicodeRanges(font);
+
         public void Dispose()
         {
             Dispose(true);
@@ -217,6 +239,5 @@ namespace NUnit.Commander.IO
                 _stream?.Dispose();
             }
         }
-
     }
 }
