@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-	<Product Id="*" Name="NUnit.Commander" Language="1033" Version="1.1.0.0" Manufacturer="Refactor Software" UpgradeCode="ac6af802-406a-45b1-944f-5bda378018c0">
+	<Product Id="*" Name="NUnit.Commander" Language="1033" Version="1.2.0.0" Manufacturer="Refactor Software" UpgradeCode="ac6af802-406a-45b1-944f-5bda378018c0">
 		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Keywords="Installer" Platform="x64" 
              Description="NUnit.Commander is a test manager for running NUnit tests" 
              Comments="Copyright 2020 Refactor Software"
@@ -14,7 +14,7 @@
     <Icon Id="icon.ico" SourceFile="$(var.NUnit.Commander.ProjectDir)icon.ico"/>
     <Property Id="ARPPRODUCTICON" Value="icon.ico" />
     <Feature Id="Complete"
-             Title="NUnit.Commander 1.1"
+             Title="NUnit.Commander 1.2"
              Description="NUnit.Commander is a test manager for running NUnit tests"
              Level="1"
              Display="expand"
