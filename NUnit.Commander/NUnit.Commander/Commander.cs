@@ -39,7 +39,9 @@ namespace NUnit.Commander
         internal readonly ICollection<string> _frameworkVersions = new List<string>();
         internal readonly List<EventEntry> _eventLog;
         internal readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        internal readonly SemaphoreSlim _performanceLock = new SemaphoreSlim(1, 1);
         internal readonly ApplicationConfiguration _configuration;
+        internal readonly PerformanceLog _performanceLog = new PerformanceLog();
         internal IpcClient _client;
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
@@ -56,7 +58,6 @@ namespace NUnit.Commander
         internal string _currentFramework;
         internal string _currentFrameworkVersion;
         internal int _totalTestsQueued;
-        private PerformanceLog _performanceLog = new PerformanceLog();
         private int _performanceIteration;
         private ViewManager _viewManager;
         private bool _isDisposed;
@@ -368,33 +369,51 @@ namespace NUnit.Commander
 
         private void LogPerformance()
         {
-            _performanceIteration++;
-            if (_eventLog.Count > 0 && _performanceIteration > 30 && _performanceIteration % 10 == 0)
+            _performanceLock?.Wait();
+            try
             {
-                if (RunContext?.PerformanceCounters?.CpuCounter != null)
-                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, RunContext.PerformanceCounters.CpuCounter.NextValue());
-                if (RunContext?.PerformanceCounters?.DiskCounter != null)
-                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
-
-                var activeTestCount = 0;
-                var activeTestFixtureCount = 0;
-                _lock.Wait();
-                try
+                _performanceIteration++;
+                if (_eventLog.Count > 0 && _performanceIteration > 30 && _performanceIteration % 10 == 0)
                 {
-                    activeTestCount = _activeTests.Count(x => !x.IsQueuedForRemoval);
-                    activeTestFixtureCount = _activeTestFixtures.Count(x => !x.IsQueuedForRemoval);
-                }
-                finally
-                {
-                    _lock.Release();
-                }
-                _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestConcurrency, activeTestCount);
-                _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestFixtureConcurrency, activeTestFixtureCount);
+                    if (RunContext?.PerformanceCounters?.CpuCounter != null)
+                        _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, RunContext.PerformanceCounters.CpuCounter.NextValue());
+                    if (RunContext?.PerformanceCounters?.DiskCounter != null)
+                        _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
 
-                // we don't use a performance counter for memory, this is more accurate
-                var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
-                var totalMemoryBytes = PerformanceInfo.GetTotalMemoryInMiB() * 1024;
-                _performanceLog.AddEntry(PerformanceLog.PerformanceType.MemoryUsed, totalMemoryBytes - availableMemoryBytes);
+                    var activeTestCount = 0;
+                    var activeTestFixtureCount = 0;
+                    _lock.Wait();
+                    try
+                    {
+                        activeTestCount = _activeTests.Count(x => !x.IsQueuedForRemoval);
+                        activeTestFixtureCount = _activeTestFixtures.Count(x => !x.IsQueuedForRemoval);
+                        if (activeTestCount > 0 && activeTestFixtureCount == 0)
+                        {
+                            // fix for older versions of nUnit that don't send the start test fixture event
+                            // it will still be incorrect, as it will treat parents of tests with multiple cases as a testfixture
+                            var parentIds = _activeTests
+                                .Where(x => !x.IsQueuedForRemoval && !string.IsNullOrEmpty(x.Event.ParentId))
+                                .Select(x => x.Event.ParentId)
+                                .Distinct();
+                            activeTestFixtureCount = _activeTestSuites.Count(x => !x.IsQueuedForRemoval && parentIds.Contains(x.Event.Id));
+                        }
+                    }
+                    finally
+                    {
+                        _lock.Release();
+                    }
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestConcurrency, activeTestCount);
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestFixtureConcurrency, activeTestFixtureCount);
+
+                    // we don't use a performance counter for memory, this is more accurate
+                    var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
+                    var totalMemoryBytes = PerformanceInfo.GetTotalMemoryInMiB() * 1024;
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.MemoryUsed, totalMemoryBytes - availableMemoryBytes);
+                }
+            }
+            finally
+            {
+                _performanceLock?.Release();
             }
         }
 
@@ -439,30 +458,38 @@ namespace NUnit.Commander
 
         public ReportContext GenerateReportContext()
         {
-            return new ReportContext
+            _performanceLock.Wait();
+            try
             {
-                CommanderRunId = CommanderRunId,
-                StartTime = StartTime,
-                EndTime = EndTime,
-                FrameworkRuntimes = _frameworkVersions,
-                Frameworks = _frameworks,
-                TestRunIds = _testRunIds,
-                EventEntries = _eventLog,
-                PerformanceLog = _performanceLog,
-                Performance = new ReportContext.PerformanceOverview
+                return new ReportContext
                 {
-                    PeakCpuUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.CpuUsed),
-                    MedianCpuUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.CpuUsed),
-                    PeakMemoryUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.MemoryUsed),
-                    MedianMemoryUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.MemoryUsed),
-                    PeakDiskTime = _performanceLog.GetPeak(PerformanceLog.PerformanceType.DiskTime),
-                    MedianDiskTime = _performanceLog.GetMedian(PerformanceLog.PerformanceType.DiskTime),
-                    PeakTestConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestConcurrency),
-                    MedianTestConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestConcurrency),
-                    PeakTestFixtureConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestFixtureConcurrency),
-                    MedianTestFixtureConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestFixtureConcurrency),
-                }
-            };
+                    CommanderRunId = CommanderRunId,
+                    StartTime = StartTime,
+                    EndTime = EndTime,
+                    FrameworkRuntimes = _frameworkVersions,
+                    Frameworks = _frameworks,
+                    TestRunIds = _testRunIds,
+                    EventEntries = _eventLog,
+                    PerformanceLog = _performanceLog,
+                    Performance = new ReportContext.PerformanceOverview
+                    {
+                        PeakCpuUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.CpuUsed),
+                        MedianCpuUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.CpuUsed),
+                        PeakMemoryUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.MemoryUsed),
+                        MedianMemoryUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.MemoryUsed),
+                        PeakDiskTime = _performanceLog.GetPeak(PerformanceLog.PerformanceType.DiskTime),
+                        MedianDiskTime = _performanceLog.GetMedian(PerformanceLog.PerformanceType.DiskTime),
+                        PeakTestConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestConcurrency),
+                        MedianTestConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestConcurrency),
+                        PeakTestFixtureConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestFixtureConcurrency),
+                        MedianTestFixtureConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestFixtureConcurrency),
+                    }
+                };
+            }
+            finally
+            {
+                _performanceLock.Release();
+            }
         }
 
         private void FinalizeTestRun()

@@ -289,7 +289,7 @@ namespace NUnit.Commander.IO
                 // add in the test concurrency chart
                 var chartWidth = 30;
                 var chartHeight = 10;
-                var chartSpacing = 5;
+                var chartSpacing = 3;
                 var testConcurrency = new ColorTextBuilder();
                 WriteRoundBox(testConcurrency, $"Test Concurrency", 8);
                 var testConcurrencyChart = new AsciiChart(chartWidth, chartHeight);
@@ -306,7 +306,16 @@ namespace NUnit.Commander.IO
                 testFixtureConcurrency.Append(testFixtureConcurrencyChart.GraphXY(testFixtureChartData, _colorScheme.DarkHighlight, _colorScheme.DarkDefault));
                 testFixtureConcurrency.AppendLine();
 
+                var cpuUsage = new ColorTextBuilder();
+                WriteRoundBox(cpuUsage, "CPU Usage");
+                var cpuUsageChart = new AsciiChart(chartWidth, chartHeight);
+                var cpuUsageData = _runContext.Runs.SelectMany(x => x.Key.PerformanceLog.GetAll(PerformanceLog.PerformanceType.CpuUsed));
+                var cpuUsageChartData = cpuUsageData.ToDictionary(key => key.TimeSlot, value => value.Value);
+                cpuUsage.Append(cpuUsageChart.GraphXY(cpuUsageChartData, _colorScheme.Default, _colorScheme.DarkDefault));
+                cpuUsage.AppendLine();
+
                 var graphs = testConcurrency.Interlace(testFixtureConcurrency, chartSpacing);
+                graphs = graphs.Interlace(cpuUsage, chartSpacing);
                 performance.Append(graphs);
             }
 
