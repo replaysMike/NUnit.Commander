@@ -11,6 +11,9 @@ namespace NUnit.Commander.Display
 {
     public static class ConsoleUtil
     {
+        [DllImport("kernel32")]
+        private static extern IntPtr GetStdHandle(StdHandle index);
+
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         extern static bool GetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool bMaximumWindow, ref CONSOLE_FONT_INFOEX lpConsoleCurrentFont);
 
@@ -32,7 +35,29 @@ namespace NUnit.Commander.Display
 
         [DllImport("gdi32.dll")]
         private extern static IntPtr SelectObject(IntPtr hDC, IntPtr hObject);
-        
+
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Ansi)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ReadConsoleOutputCharacterA(
+            IntPtr hStdout,   // result of 'GetStdHandle(-11)'
+            out byte ch,      // A̲N̲S̲I̲ character result
+            uint c_in,        // (set to '1')
+            COORD coord_XY,    // screen location to read, X:loword, Y:hiword
+            out uint c_out);  // (unwanted, discard)
+
+        [DllImport("kernel32", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ReadConsoleOutputCharacterW(
+            IntPtr hStdout,   // result of 'GetStdHandle(-11)'
+            out Char ch,      // U̲n̲i̲c̲o̲d̲e̲ character result
+            uint c_in,        // (set to '1')
+            COORD coord_XY,    // screen location to read, X:loword, Y:hiword
+            out uint c_out);  // (unwanted, discard)
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool ReadConsoleOutputCharacter(IntPtr hConsoleOutput, [Out] StringBuilder lpCharacter, uint nLength, COORD dwReadCoord, out uint lpNumberOfCharsRead);
+
         private enum StdHandle
         {
             OutputHandle = -11
@@ -41,14 +66,26 @@ namespace NUnit.Commander.Display
         private const int TMPF_TRUETYPE = 4;
         private const int LF_FACESIZE = 32;
 
-        [DllImport("kernel32")]
-        private static extern IntPtr GetStdHandle(StdHandle index);
-
-
         public struct FontCapabilities
         {
             public string FontName;
             public bool SupportsDesiredUnicodeRanges;
+        }
+
+        public static char GetCharAt(int x, int y)
+        {
+            uint length = 1;
+            var builder = new StringBuilder((int)length);
+            COORD xy;
+            xy.X = (short)x;
+            xy.Y = (short)y;
+
+            ReadConsoleOutputCharacterW(GetStdHandle(StdHandle.OutputHandle), out var ch, length, xy, out var charsRead);
+            //ReadConsoleOutputCharacterA(GetStdHandle(StdHandle.OutputHandle), out var ch, length, xy, out var charsRead);
+            //ReadConsoleOutputCharacter(GetStdHandle(StdHandle.OutputHandle), builder, length, xy, out charsRead);
+
+            //return builder.ToString();
+            return ch;
         }
 
         public static FontCapabilities GetCurrentFont()

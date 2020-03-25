@@ -96,5 +96,10 @@
         /// History analysis configuration
         /// </summary>
         public HistoryAnalysisConfiguration HistoryAnalysisConfiguration { get; set; } = new HistoryAnalysisConfiguration();
+
+        /// <summary>
+        /// Display configuration
+        /// </summary>
+        internal DisplayConfiguration DisplayConfiguration { get; set; } = new DisplayConfiguration();
     } 
 }

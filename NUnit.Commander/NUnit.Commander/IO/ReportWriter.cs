@@ -285,7 +285,38 @@ namespace NUnit.Commander.IO
                     performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", _colorScheme.Duration);
                 }
                 performance.AppendLine(Environment.NewLine);
+            }
 
+            // ***********************
+            // Slowest Assemblies Summary
+            // ***********************
+            if (_configuration.GenerateReportType.HasFlag(GenerateReportType.Performance))
+            {
+                WriteRoundBox(performance, $"Top {_configuration.SlowestTestsCount} slowest assemblies");
+                var allAssembliesByName = _runContext.Runs
+                    .SelectMany(x => x.Key.EventEntries)
+                    .Where(x => x.Event.Event == EventNames.StartAssembly || x.Event.Event == EventNames.EndAssembly)
+                    .GroupBy(x => x.Event.TestName);
+                var slowestAssemblies = allAssembliesByName
+                    .SelectMany(x => x.Select(y => y.Event))
+                    .Where(x => x.Event == EventNames.EndAssembly)
+                    .OrderByDescending(x => x.Duration)
+                    .GroupBy(x => x.TestName)
+                    .Take(_configuration.SlowestTestsCount);
+                foreach (var test in slowestAssemblies)
+                {
+                    performance.Append($" {UTF8Constants.Bullet} ");
+                    performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault));
+                    performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", _colorScheme.Duration);
+                }
+                performance.AppendLine(Environment.NewLine);
+            }
+
+            // ***********************
+            // Charts
+            // ***********************
+            if (_configuration.GenerateReportType.HasFlag(GenerateReportType.Charts))
+            {
                 // add in the test concurrency chart
                 var chartWidth = 30;
                 var chartHeight = 10;
@@ -306,6 +337,17 @@ namespace NUnit.Commander.IO
                 testFixtureConcurrency.Append(testFixtureConcurrencyChart.GraphXY(testFixtureChartData, _colorScheme.DarkHighlight, _colorScheme.DarkDefault));
                 testFixtureConcurrency.AppendLine();
 
+                var assemblyConcurrency = new ColorTextBuilder();
+                var assemblyData = _runContext.Runs.SelectMany(x => x.Key.PerformanceLog.GetAll(PerformanceLog.PerformanceType.AssemblyConcurrency));
+                if (assemblyData.Sum(x => x.Value) > 0)
+                {
+                    WriteRoundBox(assemblyConcurrency, "Assembly Concurrency", 4);
+                    var assemblyConcurrencyChart = new AsciiChart(chartWidth, chartHeight);
+                    var assemblyChartData = assemblyData.ToDictionary(key => key.TimeSlot, value => value.Value);
+                    assemblyConcurrency.Append(assemblyConcurrencyChart.GraphXY(assemblyChartData, _colorScheme.DarkError, _colorScheme.DarkDefault));
+                    assemblyConcurrency.AppendLine();
+                }
+
                 var cpuUsage = new ColorTextBuilder();
                 WriteRoundBox(cpuUsage, "CPU Usage");
                 var cpuUsageChart = new AsciiChart(chartWidth, chartHeight);
@@ -314,8 +356,13 @@ namespace NUnit.Commander.IO
                 cpuUsage.Append(cpuUsageChart.GraphXY(cpuUsageChartData, _colorScheme.Default, _colorScheme.DarkDefault));
                 cpuUsage.AppendLine();
 
-                var graphs = testConcurrency.Interlace(testFixtureConcurrency, chartSpacing);
-                graphs = graphs.Interlace(cpuUsage, chartSpacing);
+                var graphs = testFixtureConcurrency;
+                if (testFixtureConcurrency.Length > 0)
+                    graphs = testConcurrency.Interlace(testFixtureConcurrency, chartSpacing);
+                if (assemblyConcurrency.Length > 0)
+                    graphs = graphs.Interlace(assemblyConcurrency, chartSpacing);
+                if (cpuUsage.Length > 0)
+                    graphs = graphs.Interlace(cpuUsage, chartSpacing);
                 performance.Append(graphs);
             }
 

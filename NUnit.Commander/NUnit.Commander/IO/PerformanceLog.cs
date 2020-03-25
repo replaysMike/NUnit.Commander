@@ -18,6 +18,7 @@ namespace NUnit.Commander.IO
             _log.Add(PerformanceType.DiskTime, new List<PerformanceEntry>());
             _log.Add(PerformanceType.TestConcurrency, new List<PerformanceEntry>());
             _log.Add(PerformanceType.TestFixtureConcurrency, new List<PerformanceEntry>());
+            _log.Add(PerformanceType.AssemblyConcurrency, new List<PerformanceEntry>());
         }
 
         public void AddEntry(PerformanceType type, float value)
@@ -77,7 +78,8 @@ namespace NUnit.Commander.IO
             CpuUsed,
             DiskTime,
             TestConcurrency,
-            TestFixtureConcurrency
+            TestFixtureConcurrency,
+            AssemblyConcurrency
         }
 
         public class PerformanceEntry

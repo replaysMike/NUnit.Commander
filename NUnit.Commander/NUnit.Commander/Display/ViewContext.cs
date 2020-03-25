@@ -25,6 +25,7 @@ namespace NUnit.Commander.Display
         public int BeginY => Commander.BeginY;
         public List<EventEntry> ActiveTests => Commander._activeTests;
         public List<EventEntry> ActiveTestFixtures => Commander._activeTestFixtures;
+        public List<EventEntry> ActiveAssemblies => Commander._activeAssemblies;
         public List<EventEntry> ActiveTestSuites => Commander._activeTestSuites;
         public List<EventEntry> EventLog => Commander._eventLog;
         public DateTime LastDrawTime

@@ -14,6 +14,7 @@ using System.Reflection;
 using System.Text;
 using ColorfulConsole = Colorful.Console;
 using Console = NUnit.Commander.Display.CommanderConsole;
+using UtilityConsole = AnyConsole.ExtendedConsole;
 
 namespace NUnit.Commander
 {
@@ -161,9 +162,30 @@ namespace NUnit.Commander
             // this is because it can be slow, we don't want to delay connecting to the test runner
             try
             {
-                Console.WriteLine($"Console font: {Console.GetCurrentFont()}");
-                Console.WriteLine($"Unicode test: \u2022 ╭╮╰╯═══\u2801\u2802\u2804\u2840\u28FF");
-                
+                if (!Console.IsOutputRedirected)
+                {
+                    // UtilityConsole.SetCurrentFont("Consolas", 10);
+                    var currentFont = ConsoleUtil.GetCurrentFont().FontName;
+                    Console.WriteLine($"Console font: {currentFont}");
+                    Console.WriteLine($"Unicode test:");
+                    Console.Write("\u2022 ╭╮╰╯═══\u2801\u2802\u2804\u2840\u28FF");
+                    var conEmuDetected = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConEmuPID"));
+                    var dotChar = ConsoleUtil.GetCharAt(0, Console.CursorTop); // dot ok
+                    var brailleChar = ConsoleUtil.GetCharAt(9, Console.CursorTop); // braille ok
+                    var dotCharOk = ConsoleUtil.CheckIfCharInFont(dotChar, new Font(currentFont, 10));
+                    var brailleCharOk = ConsoleUtil.CheckIfCharInFont(brailleChar, new Font(currentFont, 10));
+                    Console.WriteLine();
+                    // Console.WriteLine($"Dot: {dotCharOk}, Braille: {brailleCharOk}");
+                    if (conEmuDetected)
+                    {
+                        Console.WriteLine($"Detection: ConEmu detected");
+                        config.DisplayConfiguration.IsConEmuDetected = true;
+                        config.DisplayConfiguration.SupportsExtendedUnicode = true;
+                    }
+                }
+                Console.Write($"Test runner arguments: ");
+                Console.WriteLine(options.TestRunnerArguments, colorScheme.DarkDefault);
+
                 Console.WriteLine($"Initializing performance counters...", colorScheme.Default);
                 runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
                 runContext.PerformanceCounters.DiskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
@@ -538,7 +560,8 @@ namespace NUnit.Commander
             {
                 case ConsoleKey.Q:
                     // Quit application and show report immediately
-                    _launcher.OnTestRunnerExit -= Launcher_OnTestRunnerExit;
+                    if (_launcher != null)
+                        _launcher.OnTestRunnerExit -= Launcher_OnTestRunnerExit;
                     var report = _commander?.CreateReportFromHistory();
                     _commander?.RunReports.Add(report);
                     _commander?.Close();

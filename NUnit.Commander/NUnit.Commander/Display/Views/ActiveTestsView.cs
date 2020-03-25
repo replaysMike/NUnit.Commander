@@ -104,6 +104,7 @@ namespace NUnit.Commander.Display.Views
                 var testNumber = 0;
                 var totalActiveTests = context.ActiveTests.Count(x => !x.IsQueuedForRemoval);
                 var totalActiveTestFixtures = context.ActiveTestFixtures.Count(x => !x.IsQueuedForRemoval);
+                var totalActiveAssemblies = context.ActiveAssemblies.Count(x => !x.IsQueuedForRemoval);
                 if (totalActiveTests > 0 && totalActiveTestFixtures == 0)
                 {
                     // fix for older versions of nUnit that don't send the start test fixture event
@@ -124,10 +125,12 @@ namespace NUnit.Commander.Display.Views
                 // write the summary of all test state
                 context.Console.WriteAt(ColorTextBuilder.Create
                         .Append("Tests state: ", context.ColorScheme.Bright)
-                        .Append($"ActiveTests=", context.ColorScheme.Default)
+                        .Append($"Tests=", context.ColorScheme.Default)
                         .Append($"{totalActiveTests} ", context.ColorScheme.Highlight)
-                        .Append($"ActiveFixtures=", context.ColorScheme.Default)
+                        .Append($"Fixtures=", context.ColorScheme.Default)
                         .Append($"{totalActiveTestFixtures} ", context.ColorScheme.Highlight)
+                        .Append($"Assemblies=", context.ColorScheme.Default)
+                        .Append($"{totalActiveAssemblies} ", context.ColorScheme.Highlight)
                         .Append($"Pass=", context.ColorScheme.Default)
                         .AppendIf(totalPasses > 0, $"{totalPasses} ", context.ColorScheme.Success)
                         .AppendIf(totalPasses == 0, $"{totalPasses} ", context.ColorScheme.Default)
@@ -212,7 +215,7 @@ namespace NUnit.Commander.Display.Views
                             break;
                         case TestStatus.Running:
                         default:
-                            testStatus = $"RUN{GetRunningAnimationStep()}";
+                            testStatus = $"RUN{GetRunningAnimationStep(context)}";
                             testColor = context.ColorScheme.Highlight;
                             break;
                     }
@@ -255,7 +258,7 @@ namespace NUnit.Commander.Display.Views
                     context.LastNumberOfLinesDrawn++;
                 }
                 context.LastNumberOfTestsDrawn = testNumber;
-                IncrementRunningAnimationStep();
+                IncrementRunningAnimationStep(context);
 
                 // **************************
                 // Draw Test Failures
@@ -301,15 +304,21 @@ namespace NUnit.Commander.Display.Views
             }
         }
 
-        private char GetRunningAnimationStep()
+        private char GetRunningAnimationStep(ViewContext context)
         {
-            return UTF8Constants.RunningAnim[_currentRunningAnimationStep];
+            if (context.Configuration.DisplayConfiguration.SupportsExtendedUnicode)
+                return UTF8Constants.BrailleRunningAnim[_currentRunningAnimationStep];
+            else
+                return UTF8Constants.AsciiRunningAnim[_currentRunningAnimationStep];
         }
 
-        private void IncrementRunningAnimationStep()
+        private void IncrementRunningAnimationStep(ViewContext context)
         {
             _currentRunningAnimationStep++;
-            if (_currentRunningAnimationStep >= UTF8Constants.RunningAnim.Length)
+            var maxLength = UTF8Constants.AsciiRunningAnim.Length;
+            if (context.Configuration.DisplayConfiguration.SupportsExtendedUnicode)
+                maxLength = UTF8Constants.BrailleRunningAnim.Length;
+            if (_currentRunningAnimationStep >= maxLength)
                 _currentRunningAnimationStep = 0;
         }
 

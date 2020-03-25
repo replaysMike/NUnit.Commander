@@ -46,6 +46,7 @@ namespace NUnit.Commander
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
         internal List<EventEntry> _activeTestFixtures;
+        internal List<EventEntry> _activeAssemblies;
         internal List<EventEntry> _activeTestSuites;
         private Thread _updateThread;
         private Thread _utilityThread;
@@ -147,6 +148,7 @@ namespace NUnit.Commander
             _eventLog = new List<EventEntry>();
             _activeTests = new List<EventEntry>();
             _activeTestFixtures = new List<EventEntry>();
+            _activeAssemblies = new List<EventEntry>();
             _activeTestSuites = new List<EventEntry>();
             _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
@@ -382,11 +384,13 @@ namespace NUnit.Commander
 
                     var activeTestCount = 0;
                     var activeTestFixtureCount = 0;
+                    var activeAssembliesCount = 0;
                     _lock.Wait();
                     try
                     {
                         activeTestCount = _activeTests.Count(x => !x.IsQueuedForRemoval);
                         activeTestFixtureCount = _activeTestFixtures.Count(x => !x.IsQueuedForRemoval);
+                        activeAssembliesCount = _activeAssemblies.Count(x => !x.IsQueuedForRemoval);
                         if (activeTestCount > 0 && activeTestFixtureCount == 0)
                         {
                             // fix for older versions of nUnit that don't send the start test fixture event
@@ -404,6 +408,7 @@ namespace NUnit.Commander
                     }
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestConcurrency, activeTestCount);
                     _performanceLog.AddEntry(PerformanceLog.PerformanceType.TestFixtureConcurrency, activeTestFixtureCount);
+                    _performanceLog.AddEntry(PerformanceLog.PerformanceType.AssemblyConcurrency, activeAssembliesCount);
 
                     // we don't use a performance counter for memory, this is more accurate
                     var availableMemoryBytes = PerformanceInfo.GetPhysicalAvailableMemoryInMiB() * 1024;
@@ -459,6 +464,7 @@ namespace NUnit.Commander
         public ReportContext GenerateReportContext()
         {
             _performanceLock.Wait();
+            _lock.Wait();
             try
             {
                 return new ReportContext
@@ -466,10 +472,10 @@ namespace NUnit.Commander
                     CommanderRunId = CommanderRunId,
                     StartTime = StartTime,
                     EndTime = EndTime,
-                    FrameworkRuntimes = _frameworkVersions,
-                    Frameworks = _frameworks,
-                    TestRunIds = _testRunIds,
-                    EventEntries = _eventLog,
+                    FrameworkRuntimes = new List<string>(_frameworkVersions),
+                    Frameworks = new List<string>(_frameworks),
+                    TestRunIds = new List<Guid>(_testRunIds),
+                    EventEntries = new List<EventEntry>(_eventLog),
                     PerformanceLog = _performanceLog,
                     Performance = new ReportContext.PerformanceOverview
                     {
@@ -489,6 +495,7 @@ namespace NUnit.Commander
             finally
             {
                 _performanceLock.Release();
+                _lock.Release();
             }
         }
 
@@ -557,8 +564,11 @@ namespace NUnit.Commander
                     _totalTestsQueued += e.Event.TestCount;
                     break;
                 case EventNames.StartAssembly:
+                    _activeAssemblies.Add(new EventEntry(e));
                     break;
                 case EventNames.EndAssembly:
+                    var matchingActiveAssembly = _activeAssemblies.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartAssembly);
+                    UpdateEventEntry(matchingActiveAssembly, e);
                     break;
                 case EventNames.StartSuite:
                     _activeTestSuites.Add(new EventEntry(e));
@@ -666,7 +676,7 @@ namespace NUnit.Commander
                         if (_updateThread?.Join(5 * 1000) == false)
                             _updateThread.Abort();
                     }
-                    catch (Exception)
+                    catch (PlatformNotSupportedException)
                     {
                         // threadabort not supported
                     }
@@ -675,7 +685,7 @@ namespace NUnit.Commander
                         if (_utilityThread?.Join(5 * 1000) == false)
                             _utilityThread.Abort();
                     }
-                    catch (Exception)
+                    catch (PlatformNotSupportedException)
                     {
                         // threadabort not supported
                     }

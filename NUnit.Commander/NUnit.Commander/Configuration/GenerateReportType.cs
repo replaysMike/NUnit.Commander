@@ -32,6 +32,10 @@ namespace NUnit.Commander.Configuration
         /// Show all test analysis
         /// </summary>
         TestAnalysis = 1 << 5,
-        All = PassFail | Performance | TestOutput | Errors | StackTraces | TestAnalysis
+        /// <summary>
+        /// Show all charts
+        /// </summary>
+        Charts = 1 << 6,
+        All = PassFail | Performance | TestOutput | Errors | StackTraces | TestAnalysis | Charts
     }
 }

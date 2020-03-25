@@ -7,6 +7,7 @@ using Console = NUnit.Commander.Display.CommanderConsole;
 using ColorfulConsole = Colorful.Console;
 using System.Threading;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace NUnit.Commander.IO
 {
@@ -35,16 +36,16 @@ namespace NUnit.Commander.IO
             set { Console.OutputEncoding = value; }
         }
 
-        public int WindowLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WindowTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WindowHeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WindowWidth { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int CursorLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int CursorTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowLeft { get => Console.WindowLeft; set { Console.WindowLeft = value; } }
+        public int WindowTop { get => Console.WindowTop; set { Console.WindowTop = value; } }
+        public int WindowHeight { get => Console.WindowHeight; set { Console.WindowHeight = value; } }
+        public int WindowWidth { get => Console.WindowWidth; set { Console.WindowWidth = value; } }
+        public int CursorLeft { get => Console.CursorLeft; set { Console.CursorLeft = value; } }
+        public int CursorTop { get => Console.CursorTop; set { Console.CursorTop = value; } }
         public string Title { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public Color ForegroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public Color BackgroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public bool CursorVisible { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public Color ForegroundColor { get => Console.ForegroundColor; set { Console.ForegroundColor = value; } }
+        public Color BackgroundColor { get => Console.BackgroundColor; set { Console.BackgroundColor = value; } }
+        public bool CursorVisible { get => Console.CursorVisible; set { Console.CursorVisible = value; } }
         public string FontName { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public short FontXSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public short FontYSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
@@ -90,7 +91,11 @@ namespace NUnit.Commander.IO
                             keyState |= ControlKeyState.LEFT_ALT_PRESSED;
                         if (key.Modifiers.HasFlag(ConsoleModifiers.Shift))
                             keyState |= ControlKeyState.SHIFT_PRESSED;
-                        OnKeyPress?.Invoke(new KeyPressEventArgs(key.Key, keyState));
+                        // don't allow any keystrokes to lock this thread
+                        Task.Run(() =>
+                        {
+                            OnKeyPress?.Invoke(new KeyPressEventArgs(key.Key, keyState));
+                        });
                     }
                 }
             }
@@ -280,7 +285,7 @@ namespace NUnit.Commander.IO
                     if (_inputThread?.Join(5 * 1000) == false)
                         _inputThread?.Abort();
                 }
-                catch (Exception)
+                catch (PlatformNotSupportedException)
                 {
                     // threadabort not supportedd
                 }
