@@ -38,10 +38,10 @@ namespace NUnit.Commander
         internal readonly ICollection<string> _frameworks = new List<string>();
         internal readonly ICollection<string> _frameworkVersions = new List<string>();
         internal readonly List<EventEntry> _eventLog;
-        internal readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        internal readonly SemaphoreSlim _performanceLock = new SemaphoreSlim(1, 1);
         internal readonly ApplicationConfiguration _configuration;
         internal readonly PerformanceLog _performanceLog = new PerformanceLog();
+        internal SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
+        internal SemaphoreSlim _performanceLock = new SemaphoreSlim(1, 1);
         internal IpcClient _client;
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
@@ -216,7 +216,7 @@ namespace NUnit.Commander
         private void IpcClient_OnMessageReceived(object sender, MessageEventArgs e)
         {
             // a new message has been received from the IpcServer
-            _lock.Wait();
+            _lock?.Wait();
             try
             {
                 // inject data
@@ -255,7 +255,7 @@ namespace NUnit.Commander
             }
             finally
             {
-                _lock.Release();
+                _lock?.Release();
             }
 
             if (e.EventEntry.Event.Event == EventNames.Report)
@@ -489,6 +489,8 @@ namespace NUnit.Commander
                         MedianTestConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestConcurrency),
                         PeakTestFixtureConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.TestFixtureConcurrency),
                         MedianTestFixtureConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.TestFixtureConcurrency),
+                        PeakAssemblyConcurrency = _performanceLog.GetPeak(PerformanceLog.PerformanceType.AssemblyConcurrency),
+                        MedianAssemblyConcurrency = _performanceLog.GetMedian(PerformanceLog.PerformanceType.AssemblyConcurrency),
                     }
                 };
             }
@@ -571,7 +573,15 @@ namespace NUnit.Commander
                     UpdateEventEntry(matchingActiveAssembly, e);
                     break;
                 case EventNames.StartSuite:
-                    _activeTestSuites.Add(new EventEntry(e));
+                    if (!string.IsNullOrEmpty(e.Event.TestSuite) && e.Event.TestSuite.EndsWith(".dll"))
+                    {
+                        // fix for older versions of nunit
+                        e.Event.Event = EventNames.StartAssembly;
+                        Debug.WriteLine($"StartAssembly: {e.Event.TestSuite}");
+                        _activeAssemblies.Add(new EventEntry(e));
+                    }
+                    else
+                        _activeTestSuites.Add(new EventEntry(e));
                     break;
                 case EventNames.EndSuite:
                     var matchingActiveTestSuite = _activeTestSuites.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartSuite);
@@ -667,6 +677,7 @@ namespace NUnit.Commander
             if (isDisposing)
             {
                 _lock.Wait(5 * 1000);
+                _performanceLock.Wait(5 * 1000);
                 try
                 {
                     _client?.Dispose();
@@ -700,6 +711,10 @@ namespace NUnit.Commander
                 {
                     _lock.Release();
                     _lock.Dispose();
+                    _lock = null;
+                    _performanceLock.Release();
+                    _performanceLock.Dispose();
+                    _performanceLock = null;
                 }
             }
         }

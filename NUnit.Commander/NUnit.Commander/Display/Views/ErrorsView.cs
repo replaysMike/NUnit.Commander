@@ -44,6 +44,7 @@ namespace NUnit.Commander.Display.Views
                 if (Console.WindowTop > 0)
                     return;
 
+                Console.CursorVisible = false;
                 _performFullDraw = (_startTicks - ticks) % DefaultTickWait == 0;
                 var windowWidth = Console.WindowWidth;
                 var windowHeight = Console.WindowHeight;
@@ -56,6 +57,7 @@ namespace NUnit.Commander.Display.Views
 
                 var lineSeparator = DisplayUtil.Pad(Console.WindowWidth - 1, UTF8Constants.HorizontalLine);
                 var yPos = 0;
+                WriteHeader(context);
                 // figure out how many tests we can fit on screen
                 var maxActiveTestsToDisplay = Console.WindowHeight - yPos - 2;
 

@@ -3,6 +3,7 @@ using CommandLine;
 using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.Display;
+using NUnit.Commander.Extensions;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
 using System;
@@ -184,7 +185,7 @@ namespace NUnit.Commander
                     }
                 }
                 Console.Write($"Test runner arguments: ");
-                Console.WriteLine(options.TestRunnerArguments, colorScheme.DarkDefault);
+                Console.WriteLine(options.TestRunnerArguments.MaxLength(260), colorScheme.DarkDefault);
 
                 Console.WriteLine($"Initializing performance counters...", colorScheme.Default);
                 runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");

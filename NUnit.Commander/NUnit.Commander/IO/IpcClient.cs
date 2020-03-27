@@ -110,7 +110,7 @@ namespace NUnit.Commander.IO
                 try
                 {
                     bytesRead = _client.EndRead(ar);
-                    Debug.WriteLine($"{bytesRead} bytes read.");
+                    // Debug.WriteLine($"{bytesRead} bytes read.");
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -181,7 +181,7 @@ namespace NUnit.Commander.IO
                                         throw new IpcClientException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
                                     }
                                     var e = new EventEntry(dataEvent);
-                                    Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
+                                    // Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");
 
                                     // if there is more data received past the initial message size, copy it to the beginning of the buffer
                                     var totalMessageDataLength = TotalHeaderLength + totalMessageLength;

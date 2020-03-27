@@ -157,6 +157,11 @@ namespace NUnit.Commander.IO
                     passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakTestFixtureConcurrency):N0}%", _colorScheme.Default);
                     passFail.Append($", Median: ", _colorScheme.DarkDefault);
                     passFail.AppendLine($"{_runContext.Runs.Max(x => x.Key.Performance.MedianTestFixtureConcurrency):N0}%", _colorScheme.Default);
+
+                    passFail.Append($"  Peak Assembly Concurrency: ", _colorScheme.DarkDefault);
+                    passFail.Append($"{_runContext.Runs.Max(x => x.Key.Performance.PeakAssemblyConcurrency):N0}%", _colorScheme.Default);
+                    passFail.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFail.AppendLine($"{_runContext.Runs.Max(x => x.Key.Performance.MedianAssemblyConcurrency):N0}%", _colorScheme.Default);
                 }
 
                 passFail.AppendLine(Environment.NewLine);
@@ -255,6 +260,11 @@ namespace NUnit.Commander.IO
                     passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
                     passFailByRun.AppendLine($"{run.Key.Performance.MedianTestFixtureConcurrency:N0}%", _colorScheme.Default);
 
+                    passFailByRun.Append($"  Peak Assembly Concurrency: ", _colorScheme.DarkDefault);
+                    passFailByRun.Append($"{run.Key.Performance.PeakAssemblyConcurrency:N0}%", _colorScheme.Default);
+                    passFailByRun.Append($", Median: ", _colorScheme.DarkDefault);
+                    passFailByRun.AppendLine($"{run.Key.Performance.MedianAssemblyConcurrency:N0}%", _colorScheme.Default);
+
                     passFailByRun.Append($"  Run Id: ", _colorScheme.Default);
                     passFailByRun.AppendLine(run.Key.CommanderRunId.ToString(), _colorScheme.DarkDefault);
 
@@ -296,17 +306,17 @@ namespace NUnit.Commander.IO
                 var allAssembliesByName = _runContext.Runs
                     .SelectMany(x => x.Key.EventEntries)
                     .Where(x => x.Event.Event == EventNames.StartAssembly || x.Event.Event == EventNames.EndAssembly)
-                    .GroupBy(x => x.Event.TestName);
+                    .GroupBy(x => x.Event.TestSuite);
                 var slowestAssemblies = allAssembliesByName
                     .SelectMany(x => x.Select(y => y.Event))
                     .Where(x => x.Event == EventNames.EndAssembly)
                     .OrderByDescending(x => x.Duration)
-                    .GroupBy(x => x.TestName)
+                    .GroupBy(x => x.TestSuite)
                     .Take(_configuration.SlowestTestsCount);
                 foreach (var test in slowestAssemblies)
                 {
                     performance.Append($" {UTF8Constants.Bullet} ");
-                    performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().FullName, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault));
+                    performance.Append(DisplayUtil.GetPrettyTestName(test.FirstOrDefault().TestSuite, _colorScheme.DarkDefault, _colorScheme.Default, _colorScheme.DarkDefault));
                     performance.AppendLine($" {test.FirstOrDefault().Duration.ToElapsedTime()}", _colorScheme.Duration);
                 }
                 performance.AppendLine(Environment.NewLine);
@@ -322,20 +332,26 @@ namespace NUnit.Commander.IO
                 var chartHeight = 10;
                 var chartSpacing = 3;
                 var testConcurrency = new ColorTextBuilder();
-                WriteRoundBox(testConcurrency, $"Test Concurrency", 8);
-                var testConcurrencyChart = new AsciiChart(chartWidth, chartHeight);
                 var testData = _runContext.Runs.SelectMany(x => x.Key.PerformanceLog.GetAll(PerformanceLog.PerformanceType.TestConcurrency));
-                var testChartData = testData.ToDictionary(key => key.TimeSlot, value => value.Value);
-                testConcurrency.Append(testConcurrencyChart.GraphXY(testChartData, _colorScheme.DarkSuccess, _colorScheme.DarkDefault));
-                testConcurrency.AppendLine();
+                if (testData.Sum(x => x.Value) > 0)
+                {
+                    WriteRoundBox(testConcurrency, $"Test Concurrency", 8);
+                    var testConcurrencyChart = new AsciiChart(chartWidth, chartHeight);
+                    var testChartData = testData.ToDictionary(key => key.TimeSlot, value => value.Value);
+                    testConcurrency.Append(testConcurrencyChart.GraphXY(testChartData, _colorScheme.DarkSuccess, _colorScheme.DarkDefault));
+                    testConcurrency.AppendLine();
+                }
 
                 var testFixtureConcurrency = new ColorTextBuilder();
-                WriteRoundBox(testFixtureConcurrency, "Test Fixture Concurrency");
-                var testFixtureConcurrencyChart = new AsciiChart(chartWidth, chartHeight);
                 var testFixtureData = _runContext.Runs.SelectMany(x => x.Key.PerformanceLog.GetAll(PerformanceLog.PerformanceType.TestFixtureConcurrency));
-                var testFixtureChartData = testFixtureData.ToDictionary(key => key.TimeSlot, value => value.Value);
-                testFixtureConcurrency.Append(testFixtureConcurrencyChart.GraphXY(testFixtureChartData, _colorScheme.DarkHighlight, _colorScheme.DarkDefault));
-                testFixtureConcurrency.AppendLine();
+                if (testFixtureData.Sum(x => x.Value) > 0)
+                {
+                    WriteRoundBox(testFixtureConcurrency, "Test Fixture Concurrency");
+                    var testFixtureConcurrencyChart = new AsciiChart(chartWidth, chartHeight);
+                    var testFixtureChartData = testFixtureData.ToDictionary(key => key.TimeSlot, value => value.Value);
+                    testFixtureConcurrency.Append(testFixtureConcurrencyChart.GraphXY(testFixtureChartData, _colorScheme.DarkHighlight, _colorScheme.DarkDefault));
+                    testFixtureConcurrency.AppendLine();
+                }
 
                 var assemblyConcurrency = new ColorTextBuilder();
                 var assemblyData = _runContext.Runs.SelectMany(x => x.Key.PerformanceLog.GetAll(PerformanceLog.PerformanceType.AssemblyConcurrency));
@@ -349,21 +365,33 @@ namespace NUnit.Commander.IO
                 }
 
                 var cpuUsage = new ColorTextBuilder();
-                WriteRoundBox(cpuUsage, "CPU Usage");
-                var cpuUsageChart = new AsciiChart(chartWidth, chartHeight);
                 var cpuUsageData = _runContext.Runs.SelectMany(x => x.Key.PerformanceLog.GetAll(PerformanceLog.PerformanceType.CpuUsed));
-                var cpuUsageChartData = cpuUsageData.ToDictionary(key => key.TimeSlot, value => value.Value);
-                cpuUsage.Append(cpuUsageChart.GraphXY(cpuUsageChartData, _colorScheme.Default, _colorScheme.DarkDefault));
-                cpuUsage.AppendLine();
+                if (cpuUsageData.Sum(x => x.Value) > 0)
+                {
+                    WriteRoundBox(cpuUsage, "CPU Usage");
+                    var cpuUsageChart = new AsciiChart(chartWidth, chartHeight);
+                    var cpuUsageChartData = cpuUsageData.ToDictionary(key => key.TimeSlot, value => value.Value);
+                    cpuUsage.Append(cpuUsageChart.GraphXY(cpuUsageChartData, _colorScheme.Default, _colorScheme.DarkDefault));
+                    cpuUsage.AppendLine();
+                }
 
-                var graphs = testFixtureConcurrency;
-                if (testFixtureConcurrency.Length > 0)
-                    graphs = testConcurrency.Interlace(testFixtureConcurrency, chartSpacing);
-                if (assemblyConcurrency.Length > 0)
-                    graphs = graphs.Interlace(assemblyConcurrency, chartSpacing);
-                if (cpuUsage.Length > 0)
-                    graphs = graphs.Interlace(cpuUsage, chartSpacing);
-                performance.Append(graphs);
+                // stack the graphs horizontally, until they won't fit on the console
+                var chartRows = new List<ColorTextBuilder>();
+                var isNewRow = false;
+                var charts = testConcurrency;
+                chartRows.Add(charts);
+                chartRows[chartRows.Count - 1] = StackGraph(chartRows.Last(), testFixtureConcurrency, chartSpacing, out isNewRow);
+                if(isNewRow)
+                    chartRows.Add(ColorTextBuilder.Create.Append(testFixtureConcurrency));
+                chartRows[chartRows.Count - 1] = StackGraph(chartRows.Last(), assemblyConcurrency, chartSpacing, out isNewRow);
+                if (isNewRow)
+                    chartRows.Add(ColorTextBuilder.Create.Append(assemblyConcurrency));
+                chartRows[chartRows.Count - 1] = StackGraph(chartRows.Last(), cpuUsage, chartSpacing, out isNewRow);
+                if (isNewRow)
+                    chartRows.Add(ColorTextBuilder.Create.Append(cpuUsage));
+
+                foreach(var chartRow in chartRows)
+                    performance.AppendLine(chartRow);
             }
 
             // ***********************
@@ -545,6 +573,23 @@ namespace NUnit.Commander.IO
             }
 
             return overallTestStatus;
+        }
+
+        private ColorTextBuilder StackGraph(ColorTextBuilder existingChart, ColorTextBuilder newChart, int chartSpacing, out bool isNewRow)
+        {
+            isNewRow = false;
+            if (newChart.Length > 0)
+            {
+                if (!_console.IsOutputRedirected && _console.WindowWidth > existingChart.Width + newChart.Width + chartSpacing)
+                {
+                    existingChart = existingChart.Interlace(newChart, chartSpacing);
+                }
+                else
+                {
+                    isNewRow = true;
+                }
+            }
+            return existingChart;
         }
 
         private void WriteSquareBox(ColorTextBuilder builder, string str, int leftPadding = 0, Color? color = null)

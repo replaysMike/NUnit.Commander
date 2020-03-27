@@ -73,16 +73,16 @@ namespace NUnit.Commander.IO
             }
         }
 
-        public int WindowLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WindowTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WindowHeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int WindowWidth { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int CursorLeft { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int CursorTop { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int WindowLeft { get => _console.WindowLeft; set => _console.WindowLeft = value; }
+        public int WindowTop { get => _console.WindowTop; set => _console.WindowTop = value; }
+        public int WindowHeight { get => _console.WindowHeight; set => _console.WindowHeight = value; }
+        public int WindowWidth { get => _console.WindowWidth; set => _console.WindowWidth = value; }
+        public int CursorLeft { get => _console.CursorLeft; set => _console.CursorLeft = value; }
+        public int CursorTop { get => _console.CursorTop; set => _console.CursorTop = value; }
+        public Color ForegroundColor { get => _console.ForegroundColor; set => _console.ForegroundColor = value; }
+        public Color BackgroundColor { get => _console.BackgroundColor; set => _console.BackgroundColor = value; }
+        public bool CursorVisible { get => _console.CursorVisible; set => _console.CursorVisible = value; }
         public string Title { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public Color ForegroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public Color BackgroundColor { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public bool CursorVisible { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public string FontName { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public short FontXSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public short FontYSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }

@@ -100,7 +100,8 @@ namespace NUnit.Commander.Display
                 {
                     avg = samples.Average(x => x.Value);
                 }
-                slicedData.Add(segmentStart, avg);
+                if(!slicedData.ContainsKey(segmentStart))
+                    slicedData.Add(segmentStart, avg);
             }
             // compute the scale based on final values
             var yScale = height / (slicedData.Max(x => x.Value) - slicedData.Min(x => x.Value));

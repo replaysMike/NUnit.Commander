@@ -58,6 +58,7 @@ namespace NUnit.Commander.Display.Views
             var windowHeight = 40;
             if (!context.Console.IsOutputRedirected)
             {
+                Console.CursorVisible = false;
                 windowWidth = Console.WindowWidth;
                 windowHeight = Console.WindowHeight;
                 if (windowHeight != _previousWindowHeight)
@@ -115,7 +116,6 @@ namespace NUnit.Commander.Display.Views
                         .Distinct();
                     totalActiveTestFixtures = context.ActiveTestSuites.Count(x => !x.IsQueuedForRemoval && parentIds.Contains(x.Event.Id));
                 }
-
                 var totalPasses = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Pass);
                 var totalFails = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Fail);
                 var totalIgnored = context.EventLog.Count(x => x.Event.Event == EventNames.EndTest && x.Event.TestStatus == TestStatus.Skipped);

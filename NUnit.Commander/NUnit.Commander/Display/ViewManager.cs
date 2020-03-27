@@ -19,9 +19,11 @@ namespace NUnit.Commander.Display
         {
             _viewContext = viewContext;
             View = defaultView;
+            // this does not define the order, ViewPages does
             _views.Add(ViewPages.ActiveTests, new ActiveTestsView());
-            _views.Add(ViewPages.ReportPreview, new ReportPreviewView());
             _views.Add(ViewPages.Errors, new ErrorsView());
+            _views.Add(ViewPages.RunStatus, new RunStatusView());
+            _views.Add(ViewPages.ReportPreview, new ReportPreviewView());
         }
 
         public void TogglePauseDisplay()
