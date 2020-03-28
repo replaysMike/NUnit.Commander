@@ -89,8 +89,9 @@ namespace NUnit.Commander
         /// <summary>
         /// Generate a report context
         /// </summary>
+        /// <param name="isExclusive">True if a lock must be obtained</param>
         /// <returns></returns>
-        ReportContext GenerateReportContext();
+        ReportContext GenerateReportContext(bool isExclusive = true);
 
         /// <summary>
         /// Switch to the next view

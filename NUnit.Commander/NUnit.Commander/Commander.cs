@@ -3,6 +3,7 @@ using NUnit.Commander.Configuration;
 using NUnit.Commander.Display;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
+using NUnit.Commander.Reporting;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -293,12 +294,11 @@ namespace NUnit.Commander
 
         public void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect)
         {
-            var extensionName = "NUnit.Extension.TestMonitor";
             if (showOutput)
             {
                 var timeoutStr = $" (Timeout: {(_configuration.ConnectTimeoutSeconds > 0 ? $"{_configuration.ConnectTimeoutSeconds} seconds" : "none")})";
                 Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
-                _console.WriteLine($"Connecting to {extensionName}{timeoutStr}...");
+                _console.WriteLine($"Connecting to {Constants.ExtensionName}{timeoutStr}...");
             }
 
             _client = new IpcClient(_configuration, _console);
@@ -312,7 +312,7 @@ namespace NUnit.Commander
                 if (showOutput)
                 {
                     Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
-                    _console.WriteLine($"Connected to {extensionName}, Run #{RunNumber}.");
+                    _console.WriteLine($"Connected to {Constants.ExtensionName}, Run #{RunNumber}.");
                     if (_console.IsOutputRedirected)
                         _console.WriteLine($"Tests started at {DateTime.Now}");
                     onSuccessConnect(this);
@@ -324,9 +324,9 @@ namespace NUnit.Commander
                 if (showOutput)
                 {
                     Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
-                    _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {extensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
-                    _console.WriteLine($"Please ensure your test runner is launched and the {extensionName} extension is correctly configured.");
-                    _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append($"https://github.com/replaysMike/{extensionName}", ColorScheme.Highlight).AppendLine(" for more details."));
+                    _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {Constants.ExtensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
+                    _console.WriteLine($"Please ensure your test runner is launched and the {Constants.ExtensionName} extension is correctly configured.");
+                    _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append(Constants.ExtensionUrl, ColorScheme.Highlight).AppendLine(" for more details."));
                 }
                 onFailedConnect(this);
             });
@@ -461,10 +461,11 @@ namespace NUnit.Commander
             }
         }
 
-        public ReportContext GenerateReportContext()
+        public ReportContext GenerateReportContext(bool isExclusive = true)
         {
             _performanceLock.Wait();
-            _lock.Wait();
+            if (isExclusive)
+                _lock.Wait();
             try
             {
                 return new ReportContext
@@ -477,7 +478,7 @@ namespace NUnit.Commander
                     TestRunIds = new List<Guid>(_testRunIds),
                     EventEntries = new List<EventEntry>(_eventLog),
                     PerformanceLog = _performanceLog,
-                    Performance = new ReportContext.PerformanceOverview
+                    Performance = new PerformanceOverview
                     {
                         PeakCpuUsed = _performanceLog.GetPeak(PerformanceLog.PerformanceType.CpuUsed),
                         MedianCpuUsed = _performanceLog.GetMedian(PerformanceLog.PerformanceType.CpuUsed),
@@ -497,7 +498,8 @@ namespace NUnit.Commander
             finally
             {
                 _performanceLock.Release();
-                _lock.Release();
+                if (isExclusive)
+                    _lock.Release();
             }
         }
 

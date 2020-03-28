@@ -1,6 +1,5 @@
 ﻿using AnyConsole;
 using NUnit.Commander.Configuration;
-using NUnit.Commander.Display;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -61,17 +60,7 @@ namespace NUnit.Commander.IO
 
         public bool IsErrorRedirected => _console.IsErrorRedirected;
 
-        public Encoding OutputEncoding
-        {
-            get
-            {
-                return _console.OutputEncoding;
-            }
-            set
-            {
-                _console.OutputEncoding = value;
-            }
-        }
+        public Encoding OutputEncoding { get => _console.OutputEncoding; set => _console.OutputEncoding = value; }
 
         public int WindowLeft { get => _console.WindowLeft; set => _console.WindowLeft = value; }
         public int WindowTop { get => _console.WindowTop; set => _console.WindowTop = value; }
@@ -209,7 +198,6 @@ namespace NUnit.Commander.IO
         public void WriteRow(string rowName, string text, ColumnLocation location) => _console.WriteRow(rowName, text, location);
 
         public void WriteRow(string rowName, string text, ColumnLocation location, int offset) => _console.WriteRow(rowName, text, location, offset);
-
 
         public bool CheckIfCharInFont(char character, Font font) => _console.CheckIfCharInFont(character, font);
 

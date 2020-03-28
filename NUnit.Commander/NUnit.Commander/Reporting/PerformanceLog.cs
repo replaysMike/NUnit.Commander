@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NUnit.Commander.IO
+namespace NUnit.Commander.Reporting
 {
     public class PerformanceLog : IDisposable
     {

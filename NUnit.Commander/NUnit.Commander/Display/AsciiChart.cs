@@ -1,23 +1,16 @@
 ﻿using AnyConsole;
-using NUnit.Commander.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Text;
 
 namespace NUnit.Commander.Display
 {
+    /// <summary>
+    /// Ascii chart
+    /// </summary>
     public class AsciiChart
     {
-        public enum AsciiChartStyle
-        {
-            Gradient,
-            InvertedGradient,
-            Block,
-            InvertedBlock
-        }
-
         public AsciiChartStyle ChartStyle { get; set; } = AsciiChartStyle.Gradient;
         public int Width { get; set; }
         public int Height { get; set; }
@@ -27,11 +20,23 @@ namespace NUnit.Commander.Display
             Height = height;
         }
 
+        /// <summary>
+        /// Plot an XY chart
+        /// </summary>
+        /// <param name="data">Data dictionary Key = X, Value = Y</param>
+        /// <returns></returns>
         public string GraphXY(Dictionary<DateTime, double> data)
         {
             return GraphXY(data, Color.Gray, Color.Gray).ToString();
         }
 
+        /// <summary>
+        /// Plot an XY chart
+        /// </summary>
+        /// <param name="data">Data dictionary Key = X, Value = Y</param>
+        /// <param name="foregroundColor"></param>
+        /// <param name="backgroundColor"></param>
+        /// <returns></returns>
         public ColorTextBuilder GraphXY(Dictionary<DateTime, double> data, Color foregroundColor, Color backgroundColor)
         {
             var chart = new ColorTextBuilder();
@@ -77,6 +82,7 @@ namespace NUnit.Commander.Display
             return chart;
         }
 
+        // summarize the data using the dimensions of the chart
         private Dictionary<DateTime, double> GetXYSlices(Dictionary<DateTime, double> data, int width, int height)
         {
             var slicedData = new Dictionary<DateTime, double>();

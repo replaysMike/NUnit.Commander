@@ -6,6 +6,7 @@ using NUnit.Commander.Display;
 using NUnit.Commander.Extensions;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
+using NUnit.Commander.Reporting;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -15,7 +16,6 @@ using System.Reflection;
 using System.Text;
 using ColorfulConsole = Colorful.Console;
 using Console = NUnit.Commander.Display.CommanderConsole;
-using UtilityConsole = AnyConsole.ExtendedConsole;
 
 namespace NUnit.Commander
 {
@@ -154,7 +154,7 @@ namespace NUnit.Commander
                 Console.Clear();
                 var fontBytes = ResourceLoader.Load("big.flf");
                 var font = Colorful.FigletFont.Load(fontBytes);
-                ColorfulConsole.WriteAscii("NUnit Commander", font, colorScheme.Highlight);
+                ColorfulConsole.WriteAscii(Constants.ApplicationName, font, colorScheme.Highlight);
                 ColorfulConsole.WriteLine($"Version {Assembly.GetExecutingAssembly().GetName().Version}", colorScheme.DarkHighlight);
                 ColorfulConsole.WriteLine(new string(UTF8Constants.BoxHorizontal, Console.WindowWidth - 5), colorScheme.DarkHighlight);
             }
@@ -167,25 +167,37 @@ namespace NUnit.Commander
                 {
                     // UtilityConsole.SetCurrentFont("Consolas", 10);
                     var currentFont = ConsoleUtil.GetCurrentFont().FontName;
-                    Console.WriteLine($"Console font: {currentFont}");
-                    Console.WriteLine($"Unicode test:");
-                    Console.Write("\u2022 ╭╮╰╯═══\u2801\u2802\u2804\u2840\u28FF");
+                    Console.Write($"Console font: ");
+                    Console.WriteLine(currentFont, colorScheme.DarkDefault);
+                    var unicodeTestHeader = "Unicode test:";
+                    Console.Write(unicodeTestHeader);
+                    Console.WriteLine("\u2022 ╭╮╰╯═══\u2801\u2802\u2804\u2840\u28FF", colorScheme.DarkDefault);
                     var conEmuDetected = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ConEmuPID"));
-                    var dotChar = ConsoleUtil.GetCharAt(0, Console.CursorTop); // dot ok
-                    var brailleChar = ConsoleUtil.GetCharAt(9, Console.CursorTop); // braille ok
+                    var parentProcess = ParentProcessUtilities.GetParentProcess();
+                    var powershellDetected = parentProcess?.ProcessName.Equals("powershell", StringComparison.InvariantCultureIgnoreCase) == true;
+                    var dotChar = ConsoleUtil.GetCharAt(unicodeTestHeader.Length, Console.CursorTop); // dot ok
+                    var brailleChar = ConsoleUtil.GetCharAt(unicodeTestHeader.Length + 9, Console.CursorTop); // braille ok
                     var dotCharOk = ConsoleUtil.CheckIfCharInFont(dotChar, new Font(currentFont, 10));
                     var brailleCharOk = ConsoleUtil.CheckIfCharInFont(brailleChar, new Font(currentFont, 10));
-                    Console.WriteLine();
                     // Console.WriteLine($"Dot: {dotCharOk}, Braille: {brailleCharOk}");
+                    Console.Write("Detection: ");
                     if (conEmuDetected)
                     {
-                        Console.WriteLine($"Detection: ConEmu detected");
+                        Console.WriteLine("ConEmu", colorScheme.DarkDefault);
                         config.DisplayConfiguration.IsConEmuDetected = true;
                         config.DisplayConfiguration.SupportsExtendedUnicode = true;
                     }
+                    else if (powershellDetected)
+                    {
+                        Console.WriteLine("Powershell", colorScheme.DarkDefault);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Command Prompt", colorScheme.DarkDefault);
+                    }
                 }
                 Console.Write($"Test runner arguments: ");
-                Console.WriteLine(options.TestRunnerArguments.MaxLength(260), colorScheme.DarkDefault);
+                Console.WriteLine(options.TestRunnerArguments.MaxLength(360), colorScheme.DarkDefault);
 
                 Console.WriteLine($"Initializing performance counters...", colorScheme.Default);
                 runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
@@ -392,7 +404,8 @@ namespace NUnit.Commander
                         isConnectSuccessful = true;
                         if (!Console.IsOutputRedirected)
                             Console.Clear();
-                    }, (c) => {
+                    }, (c) =>
+                    {
                         // connect failure
                         c.Close();
                     });
@@ -484,7 +497,8 @@ namespace NUnit.Commander
                         isConnectSuccessful = true;
                         if (!Console.IsOutputRedirected)
                             Console.Clear();
-                    }, (c) => {
+                    }, (c) =>
+                    {
                         // connect failure
                         c.Close();
                     });

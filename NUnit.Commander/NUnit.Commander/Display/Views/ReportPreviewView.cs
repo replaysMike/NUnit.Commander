@@ -2,6 +2,7 @@
 using NUnit.Commander.Configuration;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
+using NUnit.Commander.Reporting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -112,7 +113,7 @@ namespace NUnit.Commander.Display.Views
                     // build a report
                     var runContext = new RunContext();
                     var report = context.Commander.CreateReportFromHistory(false);
-                    runContext.Runs.Add(context.Commander.GenerateReportContext(), new List<DataEvent> { report });
+                    runContext.Runs.Add(context.Commander.GenerateReportContext(false), new List<DataEvent> { report });
 
                     var reportWriter = new ReportWriter(context.Console, context.ColorScheme, context.Configuration, runContext, false);
                     reportWriter.WriteFinalReport();
