@@ -1,7 +1,6 @@
 using Moq;
-using NUnit.Commander.IO;
+using NUnit.Commander.Reporting;
 using NUnit.Framework;
-using static NUnit.Commander.IO.PerformanceLog;
 
 namespace NUnit.Commander.Tests.IO
 {
@@ -30,7 +29,7 @@ namespace NUnit.Commander.Tests.IO
         {
             // Arrange
             var performanceLog = CreatePerformanceLog();
-            PerformanceType type = PerformanceType.CpuUsed;
+            var type = PerformanceLog.PerformanceType.CpuUsed;
 
             // Act
             performanceLog.AddEntry(type, 90);
@@ -47,7 +46,7 @@ namespace NUnit.Commander.Tests.IO
         {
             // Arrange
             var performanceLog = CreatePerformanceLog();
-            PerformanceType type = PerformanceType.CpuUsed;
+            var type = PerformanceLog.PerformanceType.CpuUsed;
             float value = 100;
 
             // Act
@@ -66,7 +65,7 @@ namespace NUnit.Commander.Tests.IO
         {
             // Arrange
             var performanceLog = CreatePerformanceLog();
-            PerformanceType type = PerformanceType.CpuUsed;
+            var type = PerformanceLog.PerformanceType.CpuUsed;
 
             // Act
             performanceLog.AddEntry(type, 100);

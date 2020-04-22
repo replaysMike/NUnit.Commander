@@ -1,8 +1,6 @@
 using Moq;
-using NUnit.Commander.IO;
+using NUnit.Commander.Models;
 using NUnit.Framework;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace NUnit.Commander.Tests.IO
 {

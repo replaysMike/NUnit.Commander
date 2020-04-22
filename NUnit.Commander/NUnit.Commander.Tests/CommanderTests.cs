@@ -1,5 +1,6 @@
 using Moq;
 using NUnit.Commander.Configuration;
+using NUnit.Commander.Display;
 using NUnit.Framework;
 
 namespace NUnit.Commander.Tests
@@ -22,7 +23,7 @@ namespace NUnit.Commander.Tests
         private Commander CreateCommander()
         {
             return new Commander(
-                mockApplicationConfiguration.Object);
+                mockApplicationConfiguration.Object, new ColorScheme(ColorSchemes.Default));
         }
 
         [Test]

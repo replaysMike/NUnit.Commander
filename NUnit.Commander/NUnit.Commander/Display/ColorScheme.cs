@@ -3,35 +3,41 @@ using NUnit.Commander.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 
 namespace NUnit.Commander.Display
 {
-    public class ColorManager : IColorScheme
+    public class ColorScheme : IColorScheme
     {
-        private readonly IDictionary<ConsoleColor, MappedColor> _colorMap = new Dictionary<ConsoleColor, MappedColor>();
+        private readonly Dictionary<ConsoleColor, MappedColor> _colorMap = new Dictionary<ConsoleColor, MappedColor>();
+        private Dictionary<string, COLORREF> _originalColorMap = new Dictionary<string, COLORREF>();
+        private ColorMapper _mapper = new ColorMapper();
+
         public ColorSchemes ColorSchemeName { get; }
-        public IColorScheme ColorScheme { get; private set; }
+        public IColorScheme Colors { get; private set; }
 
-        public Color? Background => ColorScheme.Background;
-        public Color RaisedBackground => ColorScheme.RaisedBackground;
-        public Color Default => ColorScheme.Default;
-        public Color DarkDefault => ColorScheme.DarkDefault;
-        public Color Bright => ColorScheme.Bright;
-        public Color Error => ColorScheme.Error;
-        public Color DarkError => ColorScheme.DarkError;
-        public Color Success => ColorScheme.Success;
-        public Color DarkSuccess => ColorScheme.DarkSuccess;
-        public Color Highlight => ColorScheme.Highlight;
-        public Color DarkHighlight => ColorScheme.DarkHighlight;
-        public Color DarkHighlight2 => ColorScheme.DarkHighlight2;
-        public Color DarkHighlight3 => ColorScheme.DarkHighlight3;
-        public Color Duration => ColorScheme.Duration;
-        public Color DarkDuration => ColorScheme.DarkDuration;
+        public Color? Background => Colors.Background;
+        public Color RaisedBackground => Colors.RaisedBackground;
+        public Color Default => Colors.Default;
+        public Color DarkDefault => Colors.DarkDefault;
+        public Color Bright => Colors.Bright;
+        public Color Error => Colors.Error;
+        public Color DarkError => Colors.DarkError;
+        public Color Success => Colors.Success;
+        public Color DarkSuccess => Colors.DarkSuccess;
+        public Color Highlight => Colors.Highlight;
+        public Color DarkHighlight => Colors.DarkHighlight;
+        public Color DarkHighlight2 => Colors.DarkHighlight2;
+        public Color DarkHighlight3 => Colors.DarkHighlight3;
+        public Color Duration => Colors.Duration;
+        public Color DarkDuration => Colors.DarkDuration;
 
-        public ColorManager(ColorSchemes colorScheme)
+        public ColorScheme(ColorSchemes colorScheme)
         {
             ColorSchemeName = colorScheme;
+
+            MapExistingColors();
             // load the color scheme
             LoadColorScheme();
             MapColorScheme();
@@ -77,25 +83,35 @@ namespace NUnit.Commander.Display
             switch (ColorSchemeName)
             {
                 case ColorSchemes.Cmder:
-                    ColorScheme = new CmderColorScheme();
+                    Colors = new CmderColorScheme();
                     break;
                 case ColorSchemes.Monochrome:
-                    ColorScheme = new MonochromeColorScheme();
+                    Colors = new MonochromeColorScheme();
                     break;
                 case ColorSchemes.Default:
                 default:
-                    ColorScheme = new DefaultColorScheme();
+                    Colors = new DefaultColorScheme();
                     break;
+            }
+        }
+
+        private void MapExistingColors()
+        {
+            if (!Console.IsOutputRedirected)
+            {
+                _originalColorMap = _mapper.GetBufferColors();
+                File.AppendAllText(@"C:\logs\colors.txt", $"------------------------------------{Environment.NewLine}");
+                foreach (var map in _originalColorMap)
+                    File.AppendAllText(@"C:\logs\colors.txt", $"Storing [{map.Key}] to [{map.Value}]{Environment.NewLine}");
             }
         }
 
         private void MapColorScheme()
         {
-            var mapper = new ColorMapper();
-            if (!Console.IsOutputRedirected)
+            /*if (!Console.IsOutputRedirected)
                 System.Console.ResetColor();
             System.Console.BackgroundColor = ConsoleColor.Black;
-            System.Console.ForegroundColor = ConsoleColor.Gray;
+            System.Console.ForegroundColor = ConsoleColor.Gray;*/
 
             if (Background.HasValue)
                 _colorMap.Add(System.ConsoleColor.Black, new MappedColor(Background.Value, nameof(Background)));
@@ -124,10 +140,29 @@ namespace NUnit.Commander.Display
             if (!Console.IsOutputRedirected)
             {
                 foreach (var map in _colorMap)
-                    mapper.MapColor(map.Key, map.Value.Color);
+                    _mapper.MapColor(map.Key, map.Value.Color);
             }
         }
 
+        /// <summary>
+        /// Reset console colors to original state
+        /// </summary>
+        public void ResetColor()
+        {
+            if (!Console.IsOutputRedirected && _originalColorMap != null && _originalColorMap.Any())
+            {
+                /*File.AppendAllText(@"C:\logs\colors.txt", $"=========RESET======================{Environment.NewLine}");
+                foreach (var map in _originalColorMap)
+                    File.AppendAllText(@"C:\logs\colors.txt", $"Map [{map.Key}] to [{map.Value}]{Environment.NewLine}");*/
+                _mapper.SetBatchBufferColors(_originalColorMap);
+            }
+        }
+
+        /// <summary>
+        /// Get a mapped console color for a given color
+        /// </summary>
+        /// <param name="color"></param>
+        /// <returns></returns>
         public System.ConsoleColor GetMappedConsoleColor(Color color)
         {
             var consoleColor = _colorMap
@@ -137,6 +172,11 @@ namespace NUnit.Commander.Display
             return consoleColor;
         }
 
+        /// <summary>
+        /// Get a mapped color for a given console color
+        /// </summary>
+        /// <param name="consoleColor"></param>
+        /// <returns></returns>
         public Color GetMappedColor(System.ConsoleColor consoleColor)
         {
             var mappedColor = _colorMap
@@ -146,6 +186,24 @@ namespace NUnit.Commander.Display
             return mappedColor;
         }
 
+        public void PrintColorMap()
+        {
+            var block = "████████████████";
+
+            System.Console.WriteLine($"Background - {System.Console.BackgroundColor}");
+            System.Console.WriteLine($"Foreground - {System.Console.ForegroundColor}");
+            var colors = _mapper.GetBufferColors();
+            foreach (var color in colors)
+            {
+                var c = Color.FromArgb((int)color.Value.ColorDWORD);
+                System.Console.Write($"Color: ");
+                System.Console.WriteLine($"{color.Key} - {c.R},{c.B},{c.G} ({color.Value.ColorDWORD})");
+            }
+        }
+
+        /// <summary>
+        /// Print the color map to the console
+        /// </summary>
         public void PrintColorsToConsole()
         {
             var block = "████████████████";
@@ -162,7 +220,7 @@ namespace NUnit.Commander.Display
             Console.WriteLine();
             Console.ResetColor();
             Console.WriteLine($"Color Scheme:   {ColorSchemeName}");
-            Console.WriteLine($"Color Type:     {ColorScheme.GetType().FullName}");
+            Console.WriteLine($"Color Type:     {Colors.GetType().FullName}");
             foreach (var mappedColor in _colorMap)
             {
                 Console.ResetColor();

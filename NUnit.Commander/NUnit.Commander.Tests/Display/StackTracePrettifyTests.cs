@@ -23,7 +23,7 @@ at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, Cont
 at System.Threading.ExecutionContext.Run(ExecutionContext executionContext, ContextCallback callback, Object state)
 at System.Threading.ThreadHelper.ThreadStart()";
 
-            var prettyStackTrace = StackTracePrettify.Format(stackTrace, new ColorManager(NUnit.Commander.Configuration.ColorSchemes.Default));
+            var prettyStackTrace = StackTracePrettify.Format(stackTrace, new ColorScheme(NUnit.Commander.Configuration.ColorSchemes.Default));
 
             Assert.NotNull(prettyStackTrace);
             // 69 for the win

@@ -12,7 +12,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
 {
     public class FailedTestsReport : ReportBase
     {
-        public FailedTestsReport(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorManager colorScheme) : base(configuration, console, runContext, colorScheme) { }
+        public FailedTestsReport(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorScheme colorScheme) : base(configuration, console, runContext, colorScheme) { }
 
         public override ColorTextBuilder Write(object parameters = null)
         {

@@ -13,16 +13,18 @@ namespace NUnit.Commander.Analysis
     {
         private readonly TestHistoryDatabaseProvider _testHistoryDatabaseProvider;
         private readonly ApplicationConfiguration _configuration;
+        private readonly ColorScheme _colorScheme;
 
-        public TestHistoryAnalyzer(ApplicationConfiguration configuration, TestHistoryDatabaseProvider testHistoryDatabaseProvider)
+        public TestHistoryAnalyzer(ApplicationConfiguration configuration, ColorScheme colorScheme, TestHistoryDatabaseProvider testHistoryDatabaseProvider)
         {
-            _testHistoryDatabaseProvider = testHistoryDatabaseProvider;
             _configuration = configuration;
+            _colorScheme = colorScheme;
+            _testHistoryDatabaseProvider = testHistoryDatabaseProvider;
         }
 
         public HistoryReport Analyze(IEnumerable<TestHistoryEntry> currentRun)
         {
-            var report = new HistoryReport(new ColorManager(_configuration.ColorScheme));
+            var report = new HistoryReport(_colorScheme);
 
             var data = _testHistoryDatabaseProvider.Database.Entries;
             var testsByName = data.GroupBy(x => x.FullName);

@@ -51,9 +51,9 @@ namespace NUnit.Commander.IO
         public short FontYSize { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public int FontWeight { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
-        public LogFriendlyConsole(bool clearConsole, ColorManager colorScheme)
+        public LogFriendlyConsole(bool clearConsole, ColorScheme colorScheme)
         {
-            Console.SetColorManager(colorScheme);
+            Console.SetColorScheme(colorScheme);
 
             Console.OutputEncoding = System.Text.Encoding.UTF8;
             ColorfulConsole.OutputEncoding = System.Text.Encoding.UTF8;

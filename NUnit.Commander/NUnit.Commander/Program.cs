@@ -27,6 +27,7 @@ namespace NUnit.Commander
         static int Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
+            System.Console.CancelKeyPress += Console_CancelKeyPress;
 
             try
             {
@@ -52,16 +53,12 @@ namespace NUnit.Commander
                         exitCode = ArgsParsingError(errors);
                     });
 
+                ResetColor();
                 return (int)exitCode;
             }
             catch (Exception ex)
             {
-                if (!Console.IsOutputRedirected)
-                {
-                    Console.CursorVisible = true;
-                    Console.ResetColor();
-                    Console.ForegroundColor = Color.Gray;
-                }
+                ResetColor();
 
                 Console.Error.WriteLine($"Unhandled exception: {ex.GetBaseException().Message}");
                 Console.Error.WriteLine($"Stack trace: {ex.StackTrace}");
@@ -118,8 +115,8 @@ namespace NUnit.Commander
             if (!string.IsNullOrEmpty(options.HistoryPath))
                 config.HistoryPath = options.HistoryPath;
 
-            var colorScheme = new ColorManager(config.ColorScheme);
-            Console.SetColorManager(colorScheme);
+            var colorScheme = new ColorScheme(config.ColorScheme);
+            Console.SetColorScheme(colorScheme);
             var testRunnerSuccess = true;
             var runNumber = 0;
             var runContext = new RunContext();
@@ -128,23 +125,15 @@ namespace NUnit.Commander
             // handle custom operations
             if (options.ListColors)
             {
-                colorScheme.PrintColorsToConsole();
-                if (!Console.IsOutputRedirected)
-                {
-                    Console.CursorVisible = true;
-                    Console.ForegroundColor = Color.Gray;
-                }
+                colorScheme.PrintColorMap();
+                // ResetColor();
                 Environment.Exit(0);
             }
             if (options.ClearHistory)
             {
                 runContext.TestHistoryDatabaseProvider.DeleteAll();
                 runContext.TestHistoryDatabaseProvider.Dispose();
-                if (!Console.IsOutputRedirected)
-                {
-                    Console.CursorVisible = true;
-                    Console.ForegroundColor = Color.Gray;
-                }
+                ResetColor();
                 Environment.Exit(0);
             }
 
@@ -252,12 +241,7 @@ namespace NUnit.Commander
                 }
             }
 
-            if (!Console.IsOutputRedirected)
-            {
-                Console.ResetColor();
-                Console.CursorVisible = true;
-                Console.ForegroundColor = Color.Gray;
-            }
+            ResetColor();
 
             return isTestPass;
         }
@@ -289,17 +273,12 @@ namespace NUnit.Commander
                     Console.Error.WriteLine($"{launcher.TestRunnerName} output: {launcher.ConsoleOutput}");
                 }
 
-                if (!Console.IsOutputRedirected)
-                {
-                    Console.ResetColor();
-                    Console.ForegroundColor = Color.Gray;
-                    Console.CursorVisible = true;
-                }
+                ResetColor();
                 Environment.Exit((int)ExitCode.TestRunnerExited);
             }
         }
 
-        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, ColorManager colorScheme)
+        private static void ParseConsoleRunnerOutput(bool isSuccess, Options options, ApplicationConfiguration config, ColorScheme colorScheme)
         {
             _launcher.WaitForExit();
             var output = _launcher.ConsoleOutput;
@@ -387,7 +366,7 @@ namespace NUnit.Commander
             return exitCode;
         }
 
-        private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, ColorManager colorScheme, int runNumber, RunContext runContext)
+        private static bool RunLogFriendly(Options options, ApplicationConfiguration configuration, ColorScheme colorScheme, int runNumber, RunContext runContext)
         {
             var isSuccess = false;
             var console = new LogFriendlyConsole(false, colorScheme);
@@ -395,7 +374,7 @@ namespace NUnit.Commander
 
             try
             {
-                using (_commander = new Commander(configuration, console, runNumber, runContext))
+                using (_commander = new Commander(configuration, colorScheme, console, runNumber, runContext))
                 {
                     var isConnectSuccessful = false;
                     _commander.Connect(true, (c) =>
@@ -424,7 +403,7 @@ namespace NUnit.Commander
                             if (configuration.HistoryAnalysisConfiguration.Enabled)
                             {
                                 Console.WriteLine("Analyzing...", colorScheme.Default);
-                                var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                                var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, colorScheme, runContext.TestHistoryDatabaseProvider);
                                 runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
                             }
 
@@ -456,7 +435,7 @@ namespace NUnit.Commander
             return isSuccess;
         }
 
-        private static bool RunFullScreen(Options options, ApplicationConfiguration configuration, ColorManager colorScheme, int runNumber, RunContext runContext)
+        private static bool RunFullScreen(Options options, ApplicationConfiguration configuration, ColorScheme colorScheme, int runNumber, RunContext runContext)
         {
             var isSuccess = false;
             var console = new ExtendedConsole();
@@ -488,7 +467,7 @@ namespace NUnit.Commander
 
             try
             {
-                using (_commander = new Commander(configuration, console, runNumber, runContext))
+                using (_commander = new Commander(configuration, colorScheme, console, runNumber, runContext))
                 {
                     var isConnectSuccessful = false;
                     _commander.Connect(true, (c) =>
@@ -517,7 +496,7 @@ namespace NUnit.Commander
                             if (configuration.HistoryAnalysisConfiguration.Enabled)
                             {
                                 Console.WriteLine("Analyzing...", colorScheme.Default);
-                                var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, runContext.TestHistoryDatabaseProvider);
+                                var testHistoryAnalyzer = new TestHistoryAnalyzer(configuration, colorScheme, runContext.TestHistoryDatabaseProvider);
                                 runContext.HistoryReport = testHistoryAnalyzer.Analyze(currentRunHistory);
                             }
 
@@ -567,6 +546,39 @@ namespace NUnit.Commander
                 return currentRunTestHistoryEntries;
             }
             return null;
+        }
+
+        private static void ResetColor()
+        {
+            /*if (!Console.IsOutputRedirected)
+            {
+                Console.ColorScheme?.ResetColor();
+                Console.CursorVisible = true;
+                Console.ForegroundColor = Color.Gray;
+            }*/
+        }
+
+        private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        {
+            ResetColor();
+            // Quit application and show report immediately
+            try
+            {
+                if (_launcher != null)
+                    _launcher.OnTestRunnerExit -= Launcher_OnTestRunnerExit;
+                var report = _commander?.CreateReportFromHistory();
+                _commander?.RunReports.Add(report);
+                _commander?.Close();
+                _launcher.Kill();
+            }
+            catch (Exception)
+            {
+                // something went wrong, exit application
+            }
+            finally
+            {
+                Console.WriteLine("Application force quitting (CTRL-C pressed)...");
+            }
         }
 
         private static void Console_OnKeyPress(KeyPressEventArgs e)

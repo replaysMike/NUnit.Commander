@@ -13,10 +13,10 @@ namespace NUnit.Commander.Reporting.ReportWriters
         internal ApplicationConfiguration _configuration;
         internal IExtendedConsole _console;
         internal RunContext _runContext;
-        internal ColorManager _colorScheme;
+        internal ColorScheme _colorScheme;
 
         private ReportBase() { }
-        internal ReportBase(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorManager colorScheme)
+        internal ReportBase(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorScheme colorScheme)
         {
             _configuration = configuration;
             _console = console;

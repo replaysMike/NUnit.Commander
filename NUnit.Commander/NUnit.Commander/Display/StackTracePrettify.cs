@@ -8,7 +8,7 @@ namespace NUnit.Commander.Display
 {
     public static class StackTracePrettify
     {
-        public static ColorTextBuilder Format(string stackTrace, ColorManager colorScheme)
+        public static ColorTextBuilder Format(string stackTrace, ColorScheme colorScheme)
         {
             var builder = new ColorTextBuilder();
             var colors = typeof(IColorScheme).GetPublicProperties();

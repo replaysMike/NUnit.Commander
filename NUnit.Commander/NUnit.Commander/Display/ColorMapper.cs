@@ -68,6 +68,9 @@ namespace NUnit.Commander.Display
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool SetConsoleScreenBufferInfoEx(IntPtr hConsoleOutput, ref CONSOLE_SCREEN_BUFFER_INFO_EX csbe);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        static extern bool SetConsoleTextAttribute(IntPtr hConsoleOutput, ushort wAttributes);
+
         /// <summary>
         /// Maps a System.Drawing.Color to a System.ConsoleColor.
         /// </summary>
@@ -75,20 +78,18 @@ namespace NUnit.Commander.Display
         /// <param name="newColor">The color to be mapped.</param>
         public void MapColor(ConsoleColor oldColor, Color newColor)
         {
-            // NOTE: The default console colors used are gray (foreground) and black (background).
             MapColor(oldColor, newColor.R, newColor.G, newColor.B);
         }
 
         /// <summary>
         /// Gets a collection of all 16 colors in the console buffer.
         /// </summary>
-        /// <returns>Returns all 16 COLORREFs in the console buffer as a dictionary keyed by the COLORREF's alias
-        /// in the buffer's ColorTable.</returns>
+        /// <returns>Returns all 16 COLORREFs in the console buffer as a dictionary keyed by the COLORREF's alias in the buffer's ColorTable.</returns>
         public Dictionary<string, COLORREF> GetBufferColors()
         {
-            Dictionary<string, COLORREF> colors = new Dictionary<string, COLORREF>();
-            IntPtr hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);    // 7
-            CONSOLE_SCREEN_BUFFER_INFO_EX csbe = GetBufferInfo(hConsoleOutput);
+            var colors = new Dictionary<string, COLORREF>();
+            var hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);    // 7
+            var csbe = GetBufferInfo(hConsoleOutput);
 
             colors.Add("black", csbe.black);
             colors.Add("darkBlue", csbe.darkBlue);
@@ -113,14 +114,14 @@ namespace NUnit.Commander.Display
         /// <summary>
         /// Sets all 16 colors in the console buffer using colors supplied in a dictionary.
         /// </summary>
-        /// <param name="colors">A dictionary containing COLORREFs keyed by the COLORREF's alias in the buffer's 
-        /// ColorTable.</param>
+        /// <param name="colors">A dictionary containing COLORREFs keyed by the COLORREF's alias in the buffer's ColorTable.</param>
         public void SetBatchBufferColors(Dictionary<string, COLORREF> colors)
         {
-            IntPtr hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); // 7
-            CONSOLE_SCREEN_BUFFER_INFO_EX csbe = GetBufferInfo(hConsoleOutput);
+            var hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); // 7
+            var csbe = GetBufferInfo(hConsoleOutput);
 
             csbe.black = colors["black"];
+            //csbe.black = new COLORREF(255, 0, 0);
             csbe.darkBlue = colors["darkBlue"];
             csbe.darkGreen = colors["darkGreen"];
             csbe.darkCyan = colors["darkCyan"];
@@ -128,6 +129,7 @@ namespace NUnit.Commander.Display
             csbe.darkMagenta = colors["darkMagenta"];
             csbe.darkYellow = colors["darkYellow"];
             csbe.gray = colors["gray"];
+            //csbe.gray = new COLORREF(255, 0, 0);
             csbe.darkGray = colors["darkGray"];
             csbe.blue = colors["blue"];
             csbe.green = colors["green"];
@@ -142,7 +144,7 @@ namespace NUnit.Commander.Display
 
         private CONSOLE_SCREEN_BUFFER_INFO_EX GetBufferInfo(IntPtr hConsoleOutput)
         {
-            CONSOLE_SCREEN_BUFFER_INFO_EX csbe = new CONSOLE_SCREEN_BUFFER_INFO_EX();
+            var csbe = new CONSOLE_SCREEN_BUFFER_INFO_EX();
             csbe.cbSize = (int)Marshal.SizeOf(csbe); // 96 = 0x60
 
             if (hConsoleOutput == INVALID_HANDLE_VALUE)
@@ -150,7 +152,7 @@ namespace NUnit.Commander.Display
                 throw CreateException(Marshal.GetLastWin32Error());
             }
 
-            bool brc = GetConsoleScreenBufferInfoEx(hConsoleOutput, ref csbe);
+            var brc = GetConsoleScreenBufferInfoEx(hConsoleOutput, ref csbe);
 
             if (!brc)
             {
@@ -162,8 +164,8 @@ namespace NUnit.Commander.Display
 
         public void MapColor(ConsoleColor color, uint r, uint g, uint b)
         {
-            IntPtr hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); // 7
-            CONSOLE_SCREEN_BUFFER_INFO_EX csbe = GetBufferInfo(hConsoleOutput);
+            var hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); // 7
+            var csbe = GetBufferInfo(hConsoleOutput);
 
             switch (color)
             {
@@ -225,7 +227,7 @@ namespace NUnit.Commander.Display
             csbe.srWindow.Bottom++;
             csbe.srWindow.Right++;
 
-            bool brc = SetConsoleScreenBufferInfoEx(hConsoleOutput, ref csbe);
+            var brc = SetConsoleScreenBufferInfoEx(hConsoleOutput, ref csbe);
             if (!brc)
             {
                 throw CreateException(Marshal.GetLastWin32Error());
@@ -251,7 +253,7 @@ namespace NUnit.Commander.Display
     [StructLayout(LayoutKind.Sequential)]
     public struct COLORREF
     {
-        private uint ColorDWORD;
+        public uint ColorDWORD;
 
         internal COLORREF(Color color)
         {
