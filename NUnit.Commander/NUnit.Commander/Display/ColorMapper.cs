@@ -10,6 +10,33 @@ namespace NUnit.Commander.Display
     /// </summary>
     public class ColorMapper
     {
+        private volatile byte _currentColors;
+        private volatile byte _currentForeground;
+        private volatile byte _currentBackground;
+        private volatile byte _defaultColors;
+        private volatile byte _defaultForeground;
+        private volatile byte _defaultBackground;
+        private bool _haveReadDefaultColors = false;
+
+        [Flags]
+        internal enum InternalColor : short
+        {
+            Black = 0,
+            ForegroundBlue = 0x1,
+            ForegroundGreen = 0x2,
+            ForegroundRed = 0x4,
+            ForegroundYellow = 0x6,
+            ForegroundIntensity = 0x8,
+            BackgroundBlue = 0x10,
+            BackgroundGreen = 0x20,
+            BackgroundRed = 0x40,
+            BackgroundYellow = 0x60,
+            BackgroundIntensity = 0x80,
+
+            ForegroundMask = 0xf,
+            BackgroundMask = 0xf0,
+            ColorMask = 0xff
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct COORD
@@ -112,6 +139,53 @@ namespace NUnit.Commander.Display
         }
 
         /// <summary>
+        /// Reset the foreground color only
+        /// </summary>
+        public void ResetForegroundColor()
+        {
+            var hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); // 7
+            var csbe = GetBufferInfo(hConsoleOutput);
+
+            var currentDefaultAttrs = (ushort)_currentColors;
+            var currentForeground = _currentForeground;
+            var currentBackground = _currentBackground;
+
+            var defaultAttrs = (ushort)_defaultColors;
+            var defaultForeground = _defaultForeground;
+            var defaultBackground = _defaultBackground;
+            if (currentForeground != defaultForeground)
+            {
+                // reset only the foreground bit
+                var resetAttrs = (ushort)((ushort)currentBackground | defaultForeground);
+                SetConsoleTextAttribute(hConsoleOutput, resetAttrs);
+            }
+        }
+
+        /// <summary>
+        /// Reset the background color only
+        /// </summary>
+        public void ResetBackgroundColor()
+        {
+            var hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE); // 7
+            var csbe = GetBufferInfo(hConsoleOutput);
+
+            var currentDefaultAttrs = (ushort)_currentColors;
+            var currentForeground = _currentForeground;
+            var currentBackground = _currentBackground;
+
+            var defaultAttrs = (ushort)_defaultColors;
+            var defaultForeground = _defaultForeground;
+            var defaultBackground = _defaultBackground;
+            if (currentBackground != defaultBackground)
+            {
+                // reset only the background bit
+                System.Diagnostics.Debug.WriteLine($"Background: {currentBackground},{defaultBackground}");
+                var resetAttrs = (ushort)((ushort)currentForeground | defaultBackground);
+                SetConsoleTextAttribute(hConsoleOutput, resetAttrs);
+            }
+        }
+
+        /// <summary>
         /// Sets all 16 colors in the console buffer using colors supplied in a dictionary.
         /// </summary>
         /// <param name="colors">A dictionary containing COLORREFs keyed by the COLORREF's alias in the buffer's ColorTable.</param>
@@ -157,6 +231,18 @@ namespace NUnit.Commander.Display
             if (!brc)
             {
                 throw CreateException(Marshal.GetLastWin32Error());
+            }
+
+            _currentColors = (byte)(csbe.wAttributes & (ushort)InternalColor.ColorMask);
+            _currentForeground = (byte)(csbe.wAttributes & (ushort)InternalColor.ForegroundMask);
+            _currentBackground = (byte)(csbe.wAttributes & (ushort)InternalColor.BackgroundMask);
+
+            if (!_haveReadDefaultColors)
+            {
+                _defaultColors = (byte)(csbe.wAttributes & (ushort)InternalColor.ColorMask);
+                _defaultForeground = (byte)(csbe.wAttributes & (ushort)InternalColor.ForegroundMask);
+                _defaultBackground = (byte)(csbe.wAttributes & (ushort)InternalColor.BackgroundMask);
+                _haveReadDefaultColors = true;
             }
 
             return csbe;

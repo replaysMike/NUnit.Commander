@@ -26,7 +26,7 @@ namespace NUnit.Commander.Display
         public string BeforeParameters { get; set; }
         public string AfterParameters { get; set; }
 
-        string IStackTraceFormatter<string>.Text(string text) => string.IsNullOrEmpty(text) ? string.Empty : WebUtility.HtmlEncode(text);
+        string IStackTraceFormatter<string>.Text(string text, bool encodeEntities) => string.IsNullOrEmpty(text) ? string.Empty : encodeEntities ? WebUtility.HtmlEncode(text) : text;
         string IStackTraceFormatter<string>.Type(string markup) => BeforeType + markup + AfterType;
         string IStackTraceFormatter<string>.Method(string markup) => BeforeMethod + markup + AfterMethod;
         string IStackTraceFormatter<string>.ParameterType(string markup) => BeforeParameterType + markup + AfterParameterType;
@@ -41,7 +41,7 @@ namespace NUnit.Commander.Display
 
     partial interface IStackTraceFormatter<T>
     {
-        T Text(string text);
+        T Text(string text, bool encodeEntities);
         T Type(T markup);
         T Method(T markup);
         T ParameterType(T markup);
@@ -58,24 +58,25 @@ namespace NUnit.Commander.Display
     {
         static readonly StackTraceHtmlFragments DefaultStackTraceHtmlFragments = new StackTraceHtmlFragments();
 
-        public static string FormatHtml(string text, IStackTraceFormatter<string> formatter)
+        public static string FormatHtml(string text, IStackTraceFormatter<string> formatter, bool encodeEntities)
         {
-            return string.Concat(Format(text, formatter ?? DefaultStackTraceHtmlFragments));
+            return string.Concat(Format(text, formatter ?? DefaultStackTraceHtmlFragments, encodeEntities));
         }
 
-        public static IEnumerable<T> Format<T>(string text, IStackTraceFormatter<T> formatter)
+        public static IEnumerable<T> Format<T>(string text, IStackTraceFormatter<T> formatter, bool encodeEntities)
         {
             Debug.Assert(text != null);
 
             var frames = StackTraceParser.Parse
                 (
                     text,
+                    encodeEntities,
                     (idx, len, txt) => new
                     {
                         Index = idx,
                         End = idx + len,
                         Text = txt,
-                        Markup = formatter.Text(txt),
+                        Markup = formatter.Text(txt, encodeEntities),
                     },
                     (t, m) => new
                     {
@@ -129,7 +130,7 @@ namespace NUnit.Commander.Display
                                         .Pairwise((prev, curr) => new { Previous = prev, Current = curr })
                 from m in new[]
                 {
-                    formatter.Text(text.Substring(token.Previous.End, token.Current.Index - token.Previous.End)),
+                    formatter.Text(text.Substring(token.Previous.End, token.Current.Index - token.Previous.End), encodeEntities),
                     token.Current.Markup,
                 }
                 select m;

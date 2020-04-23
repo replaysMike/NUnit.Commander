@@ -305,7 +305,7 @@ namespace NUnit.Commander
             if (showOutput)
             {
                 var timeoutStr = $" (Timeout: {(_configuration.ConnectTimeoutSeconds > 0 ? $"{_configuration.ConnectTimeoutSeconds} seconds" : "none")})";
-                Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                 _console.WriteLine($"Connecting to {Constants.ExtensionName}{timeoutStr}...");
             }
 
@@ -319,7 +319,7 @@ namespace NUnit.Commander
                 IsConnected = true;
                 if (showOutput)
                 {
-                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                     _console.WriteLine($"Connected to {Constants.ExtensionName}, Run #{RunNumber}.");
                     if (_console.IsOutputRedirected)
                         _console.WriteLine($"Tests started at {DateTime.Now}");
@@ -331,7 +331,7 @@ namespace NUnit.Commander
                 // failed connect
                 if (showOutput)
                 {
-                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                     _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {Constants.ExtensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
                     _console.WriteLine($"Please ensure your test runner is launched and the {Constants.ExtensionName} extension is correctly configured.");
                     _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append(Constants.ExtensionUrl, ColorScheme.Highlight).AppendLine(" for more details."));

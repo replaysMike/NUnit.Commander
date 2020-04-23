@@ -85,7 +85,7 @@ namespace NUnit.Commander.Reporting
             // Slowest Assemblies Summary
             // ***********************
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.Performance))
-                performance.Append(_reportFactory.Create<SlowestTestSummary>());
+                performance.Append(_reportFactory.Create<SlowestAssembliesSummary>());
 
             // ***********************
             // Charts

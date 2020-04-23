@@ -64,8 +64,6 @@ namespace NUnit.Commander.IO
                 if (clearConsole)
                 {
                     Console.ResetColor();
-                    if (colorScheme.Background.HasValue)
-                        Console.BackgroundColor = Color.Black;
                     Console.Clear();
                 }
 
@@ -212,6 +210,8 @@ namespace NUnit.Commander.IO
                     Console.ForegroundColor = defaultForegroundColor;
                 if (text.BackgroundColor.HasValue)
                     Console.BackgroundColor = text.BackgroundColor.Value;
+                else
+                    Console.BackgroundColor = Color.Transparent;
                 if (textBuilder.MaxLength.HasValue && totalLength + text.Text.Length > textBuilder.MaxLength.Value)
                 {
                     var txt = text.Text.Substring(0, (totalLength + text.Text.Length) - textBuilder.MaxLength.Value);

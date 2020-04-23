@@ -81,7 +81,17 @@ namespace NUnit.Commander.IO
                 _lock.EnterWriteLock();
                 try
                 {
-                    _db = Serializer.Deserialize<TestHistoryDatabase>(stream);
+                    try
+                    {
+                        _db = Serializer.Deserialize<TestHistoryDatabase>(stream);
+                    }
+                    catch (Exception)
+                    {
+                        // error serializing the database, wipe it clean and start fresh.
+                        // this may have happened if a process was killed while the database was in the middle of saving
+                        File.Delete(path);
+                        _db = new TestHistoryDatabase();
+                    }
                 }
                 finally
                 {

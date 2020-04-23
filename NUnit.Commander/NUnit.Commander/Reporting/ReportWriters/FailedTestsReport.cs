@@ -46,34 +46,34 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         testIndex++;
 
                         // write the failed test header
+                        if (!_console.IsOutputRedirected)
+                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - 1)}", _colorScheme.Error, _colorScheme.DarkError);
                         var testIndexStr = $"#{testIndex}) ";
                         if (failedTestCases.Count() > 1)
                             testIndexStr = $"#{runNumber}-{testIndex}) ";
-                        builder.Append(testIndexStr, _colorScheme.DarkError, _colorScheme.RaisedBackground);
+                        builder.Append(testIndexStr, _colorScheme.DarkError);
 
                         // write the test name only
-                        builder.Append(test.TestName, _colorScheme.Error, _colorScheme.RaisedBackground);
+                        builder.Append(test.TestName, _colorScheme.Error);
                         if (!_console.IsOutputRedirected)
-                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - testIndexStr.Length - test.TestName.Length - 1)}", _colorScheme.Error, _colorScheme.RaisedBackground);
+                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - testIndexStr.Length - test.TestName.Length - 1)}", _colorScheme.Error);
                         else
                             builder.AppendLine();
 
                         // write the test path
                         var fullName = $"{DisplayUtil.Pad(testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}";
-                        builder.Append(fullName, _colorScheme.DarkDuration, _colorScheme.RaisedBackground);
+                        builder.Append(fullName, _colorScheme.DarkDuration);
                         if (!_console.IsOutputRedirected)
-                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - fullName.Length - 1)}", _colorScheme.Error, _colorScheme.RaisedBackground);
+                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - fullName.Length - 1)}", _colorScheme.Error);
                         else
                             builder.AppendLine();
 
                         var runtimeVersion = $"{DisplayUtil.Pad(testIndexStr.Length)}{test.RuntimeVersion}";
-                        builder.Append($"{runtimeVersion}", _colorScheme.DarkDefault, _colorScheme.Background ?? Color.Black);
+                        builder.Append($"{runtimeVersion}", _colorScheme.DarkDefault);
                         if (!_console.IsOutputRedirected)
-                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - runtimeVersion.Length)}", _colorScheme.Error, _colorScheme.Background ?? Color.Black);
+                            builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - runtimeVersion.Length)}", _colorScheme.Error);
                         else
                             builder.AppendLine();
-
-                        builder.AppendLine();
 
                         builder.Append($"  Duration ", _colorScheme.DarkDefault);
                         builder.AppendLine($"{test.Duration.ToElapsedTime()}", _colorScheme.Duration);
@@ -82,7 +82,8 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         {
                             builder.AppendLine($"  Error Output ", _colorScheme.Bright);
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
-                            builder.AppendLine($"{test.ErrorMessage}", _colorScheme.DarkDefault);
+                            builder.Append(ErrorEncoding.Format(test.ErrorMessage, _colorScheme));
+                            builder.AppendLine();
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
                         }
                         if (showStackTraces && !string.IsNullOrEmpty(test.StackTrace))
@@ -97,7 +98,8 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         {
                             builder.AppendLine($"  Test Output: ", _colorScheme.Bright);
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
-                            builder.AppendLine($"{test.TestOutput}", _colorScheme.Default);
+                            builder.Append(ErrorEncoding.Format(test.TestOutput, _colorScheme));
+                            builder.AppendLine();
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
                         }
                         builder.AppendLine(Environment.NewLine);

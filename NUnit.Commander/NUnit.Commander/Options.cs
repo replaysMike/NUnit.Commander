@@ -95,6 +95,9 @@ namespace NUnit.Commander
         [Option("clear-history", Required = false, SetName = "TestRunner", HelpText = "Clear the run history database")]
         public bool ClearHistory { get; set; }
 
+        [Option("auto-update", Required = false, SetName = "TestRunner", HelpText = "Enables automatic self-updating of Commander")]
+        public bool AutoUpdate { get; set; }
+
         [Usage(ApplicationAlias = @".\NUnit.Commander.exe")]
         public static IEnumerable<Example> Examples
         {

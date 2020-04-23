@@ -16,6 +16,7 @@ using System.Reflection;
 using System.Text;
 using ColorfulConsole = Colorful.Console;
 using Console = NUnit.Commander.Display.CommanderConsole;
+using NUnit.Commander.AutoUpdate;
 
 namespace NUnit.Commander
 {
@@ -70,6 +71,10 @@ namespace NUnit.Commander
         private static bool Start(Options options, ApplicationConfiguration config)
         {
             var isTestPass = false;
+
+            // check for application updates
+            if (options.AutoUpdate && AutoUpdater.CheckForUpdate())
+                AutoUpdater.PerformUpdate();
 
             // override any configuration options via commandline
             if (options.EnableLog.HasValue)
@@ -169,7 +174,7 @@ namespace NUnit.Commander
                     var dotCharOk = ConsoleUtil.CheckIfCharInFont(dotChar, new Font(currentFont, 10));
                     var brailleCharOk = ConsoleUtil.CheckIfCharInFont(brailleChar, new Font(currentFont, 10));
                     // Console.WriteLine($"Dot: {dotCharOk}, Braille: {brailleCharOk}");
-                    Console.Write("Detection: ");
+                    Console.Write($"Console Detection: ");
                     if (conEmuDetected)
                     {
                         Console.WriteLine("ConEmu", colorScheme.DarkDefault);
@@ -179,10 +184,12 @@ namespace NUnit.Commander
                     else if (powershellDetected)
                     {
                         Console.WriteLine("Powershell", colorScheme.DarkDefault);
+                        config.DisplayConfiguration.IsPowershellDetected = true;
                     }
                     else
                     {
                         Console.WriteLine("Command Prompt", colorScheme.DarkDefault);
+                        config.DisplayConfiguration.IsCommandPromptDetected = true;
                     }
                 }
                 Console.Write($"Test runner arguments: ");
@@ -550,12 +557,12 @@ namespace NUnit.Commander
 
         private static void ResetColor()
         {
-            /*if (!Console.IsOutputRedirected)
+            if (!Console.IsOutputRedirected)
             {
                 Console.ColorScheme?.ResetColor();
                 Console.CursorVisible = true;
                 Console.ForegroundColor = Color.Gray;
-            }*/
+            }
         }
 
         private static void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)

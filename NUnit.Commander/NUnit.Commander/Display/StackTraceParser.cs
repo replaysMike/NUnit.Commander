@@ -49,11 +49,12 @@ namespace NUnit.Commander.Display
 
         public static IEnumerable<T> Parse<T>(
             string text,
+            bool encodeEntities,
             Func<string, string, string, string, IEnumerable<KeyValuePair<string, string>>, string, string, T> selector)
         {
             if (selector == null) throw new ArgumentNullException("selector");
 
-            return Parse(text, (idx, len, txt) => txt,
+            return Parse(text, encodeEntities, (idx, len, txt) => txt,
                                (t, m) => new { Type = t, Method = m },
                                (pt, pn) => new KeyValuePair<string, string>(pt, pn),
                                // ReSharper disable once PossibleMultipleEnumeration
@@ -64,6 +65,7 @@ namespace NUnit.Commander.Display
 
         public static IEnumerable<TFrame> Parse<TToken, TMethod, TParameters, TParameter, TSourceLocation, TFrame>(
             string text,
+            bool encodeEntities,
             Func<int, int, string, TToken> tokenSelector,
             Func<TToken, TToken, TMethod> methodSelector,
             Func<TToken, TToken, TParameter> parameterSelector,

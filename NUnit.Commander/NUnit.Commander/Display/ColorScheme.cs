@@ -100,9 +100,6 @@ namespace NUnit.Commander.Display
             if (!Console.IsOutputRedirected)
             {
                 _originalColorMap = _mapper.GetBufferColors();
-                File.AppendAllText(@"C:\logs\colors.txt", $"------------------------------------{Environment.NewLine}");
-                foreach (var map in _originalColorMap)
-                    File.AppendAllText(@"C:\logs\colors.txt", $"Storing [{map.Key}] to [{map.Value}]{Environment.NewLine}");
             }
         }
 
@@ -131,9 +128,9 @@ namespace NUnit.Commander.Display
             _colorMap.Add(System.ConsoleColor.Yellow, new MappedColor(Highlight, nameof(Highlight)));
             _colorMap.Add(System.ConsoleColor.DarkBlue, new MappedColor(DarkHighlight2, nameof(DarkHighlight2)));
             _colorMap.Add(System.ConsoleColor.Cyan, new MappedColor(DarkHighlight3, nameof(DarkHighlight3)));
-            _colorMap.Add(System.ConsoleColor.Magenta, new MappedColor(RaisedBackground, nameof(RaisedBackground)));
 
             // unused colors
+            // _colorMap.Add(System.ConsoleColor.Magenta, new MappedColor(RaisedBackground, nameof(RaisedBackground)));
             // _colorMap.Add(System.ConsoleColor.DarkGreen, new MappedColor(DarkSuccess, nameof(Color.Magenta)));
 
             // map the colors
@@ -151,10 +148,29 @@ namespace NUnit.Commander.Display
         {
             if (!Console.IsOutputRedirected && _originalColorMap != null && _originalColorMap.Any())
             {
-                /*File.AppendAllText(@"C:\logs\colors.txt", $"=========RESET======================{Environment.NewLine}");
-                foreach (var map in _originalColorMap)
-                    File.AppendAllText(@"C:\logs\colors.txt", $"Map [{map.Key}] to [{map.Value}]{Environment.NewLine}");*/
                 _mapper.SetBatchBufferColors(_originalColorMap);
+            }
+        }
+
+        /// <summary>
+        /// Reset console background color to original state
+        /// </summary>
+        public void ResetBackgroundColor()
+        {
+            if (!Console.IsOutputRedirected)
+            {
+                _mapper.ResetBackgroundColor();
+            }
+        }
+
+        /// <summary>
+        /// Reset console foreground color to original state
+        /// </summary>
+        public void ResetForegroundColor()
+        {
+            if (!Console.IsOutputRedirected)
+            {
+                _mapper.ResetForegroundColor();
             }
         }
 
@@ -163,13 +179,19 @@ namespace NUnit.Commander.Display
         /// </summary>
         /// <param name="color"></param>
         /// <returns></returns>
-        public System.ConsoleColor GetMappedConsoleColor(Color color)
+        public System.ConsoleColor? GetMappedConsoleColor(Color color)
         {
-            var consoleColor = _colorMap
+            if (_colorMap
                 .Where(x => x.Value.Color == color)
-                .Select(x => x.Key)
-                .FirstOrDefault();
-            return consoleColor;
+                .Any())
+            {
+                var consoleColor = _colorMap
+                    .Where(x => x.Value.Color == color)
+                    .Select(x => x.Key)
+                    .FirstOrDefault();
+                return consoleColor;
+            }
+            return null;
         }
 
         /// <summary>
