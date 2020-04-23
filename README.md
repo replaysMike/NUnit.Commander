@@ -1,5 +1,5 @@
 # NUnit.Commander
-[![Github Badge](https://img.shields.io/github/v/release/replaysMike/NUnit.Commander)](https://github.com/replaysMike/NUNit.Commander/latest)
+[![Github Badge](https://img.shields.io/github/v/release/replaysMike/NUnit.Commander)](https://github.com/replaysMike/NUnit.Commander/releases/latest)
 [![Build status](https://ci.appveyor.com/api/projects/status/6vxd3cq83kuo4hg1?svg=true)](https://ci.appveyor.com/project/MichaelBrown/NUnit.Commander)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/a549220ae45b459c96ed1a5572dab40c)](https://www.codacy.com/manual/replaysMike/NUnit.Commander?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=replaysMike/NUnit.Commander&amp;utm_campaign=Badge_Grade)
 [![Codacy Badge](https://api.codacy.com/project/badge/Coverage/a549220ae45b459c96ed1a5572dab40c)](https://www.codacy.com/manual/replaysMike/NUnit.Commander?utm_source=github.com&utm_medium=referral&utm_content=replaysMike/NUnit.Commander&utm_campaign=Badge_Coverage)
