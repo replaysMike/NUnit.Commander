@@ -21,9 +21,9 @@ namespace NUnit.Commander.Tests.Display
 
         }
 
-        private ColorManager CreateManager()
+        private ColorScheme CreateManager()
         {
-            return new ColorManager(NUnit.Commander.Configuration.ColorSchemes.Default);
+            return new ColorScheme(NUnit.Commander.Configuration.ColorSchemes.Default);
         }
 
         [Test]

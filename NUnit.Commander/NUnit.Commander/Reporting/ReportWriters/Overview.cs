@@ -10,7 +10,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
 {
     public class Overview : ReportBase
     {
-        public Overview(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorManager colorScheme) : base(configuration, console, runContext, colorScheme) { }
+        public Overview(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorScheme colorScheme) : base(configuration, console, runContext, colorScheme) { }
 
         public override ColorTextBuilder Write(object parameters = null)
         {

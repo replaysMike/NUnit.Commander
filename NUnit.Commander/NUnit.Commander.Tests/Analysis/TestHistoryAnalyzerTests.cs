@@ -1,6 +1,7 @@
 using Moq;
 using NUnit.Commander.Analysis;
 using NUnit.Commander.Configuration;
+using NUnit.Commander.Display;
 using NUnit.Commander.IO;
 using NUnit.Framework;
 using System.Collections.Generic;
@@ -13,6 +14,7 @@ namespace NUnit.Commander.Tests.Analysis
         private MockRepository mockRepository;
 
         private Mock<ApplicationConfiguration> mockApplicationConfiguration;
+        private Mock<ColorScheme> mockColorScheme;
         private Mock<TestHistoryDatabaseProvider> mockTestHistoryDatabaseProvider;
 
         [SetUp]
@@ -21,6 +23,7 @@ namespace NUnit.Commander.Tests.Analysis
             mockRepository = new MockRepository(MockBehavior.Strict);
 
             mockApplicationConfiguration = mockRepository.Create<ApplicationConfiguration>();
+            mockColorScheme = mockRepository.Create<ColorScheme>();
             mockTestHistoryDatabaseProvider = mockRepository.Create<TestHistoryDatabaseProvider>(mockApplicationConfiguration.Object);
         }
 
@@ -28,6 +31,7 @@ namespace NUnit.Commander.Tests.Analysis
         {
             return new TestHistoryAnalyzer(
                 mockApplicationConfiguration.Object,
+                mockColorScheme.Object,
                 mockTestHistoryDatabaseProvider.Object);
         }
 

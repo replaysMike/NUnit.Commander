@@ -11,7 +11,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
 {
     public class StackedCharts : ReportBase
     {
-        public StackedCharts(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorManager colorScheme) : base(configuration, console, runContext, colorScheme) { }
+        public StackedCharts(ApplicationConfiguration configuration, IExtendedConsole console, RunContext runContext, ColorScheme colorScheme) : base(configuration, console, runContext, colorScheme) { }
 
         public override ColorTextBuilder Write(object parameters = null)
         {

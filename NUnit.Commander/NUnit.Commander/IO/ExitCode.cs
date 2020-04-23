@@ -3,6 +3,10 @@
     public enum ExitCode
     {
         /// <summary>
+        /// Application was updated
+        /// </summary>
+        ApplicationUpdated = 3,
+        /// <summary>
         /// Application version requested
         /// </summary>
         VersionRequested = 2,

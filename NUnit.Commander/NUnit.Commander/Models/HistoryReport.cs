@@ -10,7 +10,7 @@ namespace NUnit.Commander.Models
     public class HistoryReport
     {
         private const string _bulletChar = "\u2022";
-        private readonly ColorManager _colorScheme;
+        private readonly ColorScheme _colorScheme;
         public List<TestPoint> UnstableTests { get; set; } = new List<TestPoint>();
         public List<TestPoint> DurationAnomalyTests { get; set; } = new List<TestPoint>();
 
@@ -19,7 +19,7 @@ namespace NUnit.Commander.Models
         /// </summary>
         public int TotalDataPoints { get; set; }
 
-        public HistoryReport(ColorManager colorScheme)
+        public HistoryReport(ColorScheme colorScheme)
         {
             _colorScheme = colorScheme;
         }

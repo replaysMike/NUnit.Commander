@@ -136,7 +136,8 @@ namespace NUnit.Commander.Display.Views
                             {
                                 testOutput.AppendLine($"  Error Output: ", context.ColorScheme.Bright);
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
-                                testOutput.AppendLine($"{test.Event.ErrorMessage}", context.ColorScheme.DarkError);
+                                testOutput.Append(ErrorEncoding.Format(test.Event.ErrorMessage, context.ColorScheme));
+                                testOutput.AppendLine();
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
                             }
                             if (!string.IsNullOrEmpty(test.Event.StackTrace))
@@ -151,7 +152,8 @@ namespace NUnit.Commander.Display.Views
                             {
                                 testOutput.AppendLine($"  Test Output: ", context.ColorScheme.Bright);
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
-                                testOutput.AppendLine($"{test.Event.TestOutput}", context.ColorScheme.Default);
+                                testOutput.Append(ErrorEncoding.Format(test.Event.TestOutput, context.ColorScheme));
+                                testOutput.AppendLine();
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
                             }
                             testOutput.AppendLine();

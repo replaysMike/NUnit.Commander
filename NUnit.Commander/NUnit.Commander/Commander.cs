@@ -137,12 +137,13 @@ namespace NUnit.Commander
         /// <summary>
         /// Set/Get the current color scheme
         /// </summary>
-        public ColorManager ColorScheme { get; set; }
+        public ColorScheme ColorScheme { get; }
 
 
-        public Commander(ApplicationConfiguration configuration)
+        public Commander(ApplicationConfiguration configuration, ColorScheme colorScheme)
         {
-            _configuration = configuration;
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            ColorScheme = colorScheme ?? throw new ArgumentNullException(nameof(colorScheme));
             IsRunning = true;
             GenerateReportType = configuration.GenerateReportType;
             _closeEvent = new ManualResetEvent(false);
@@ -153,7 +154,6 @@ namespace NUnit.Commander
             _activeTestSuites = new List<EventEntry>();
             _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
-            ColorScheme = new ColorManager(_configuration.ColorScheme);
 
             // start the display thread
             _updateThread = new Thread(new ThreadStart(DisplayThread));
@@ -171,8 +171,16 @@ namespace NUnit.Commander
             StartTime = DateTime.Now;
         }
 
-        public Commander(ApplicationConfiguration configuration, IExtendedConsole console, int runNumber, RunContext runContext) : this(configuration)
+        public Commander(ApplicationConfiguration configuration, ColorScheme colorScheme, IExtendedConsole console, int runNumber, RunContext runContext) : this(configuration, colorScheme)
         {
+            if(configuration == null) 
+                throw new ArgumentNullException(nameof(configuration));
+            if (colorScheme == null)
+                throw new ArgumentNullException(nameof(colorScheme));
+            if (console == null)
+                throw new ArgumentNullException(nameof(console));
+            if (runContext == null)
+                throw new ArgumentNullException(nameof(runContext));
             _console = new ConsoleWrapper(console, configuration);
             RunNumber = runNumber;
             RunContext = runContext;
@@ -297,7 +305,7 @@ namespace NUnit.Commander
             if (showOutput)
             {
                 var timeoutStr = $" (Timeout: {(_configuration.ConnectTimeoutSeconds > 0 ? $"{_configuration.ConnectTimeoutSeconds} seconds" : "none")})";
-                Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                 _console.WriteLine($"Connecting to {Constants.ExtensionName}{timeoutStr}...");
             }
 
@@ -311,7 +319,7 @@ namespace NUnit.Commander
                 IsConnected = true;
                 if (showOutput)
                 {
-                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                     _console.WriteLine($"Connected to {Constants.ExtensionName}, Run #{RunNumber}.");
                     if (_console.IsOutputRedirected)
                         _console.WriteLine($"Tests started at {DateTime.Now}");
@@ -323,7 +331,7 @@ namespace NUnit.Commander
                 // failed connect
                 if (showOutput)
                 {
-                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default);
+                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                     _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {Constants.ExtensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
                     _console.WriteLine($"Please ensure your test runner is launched and the {Constants.ExtensionName} extension is correctly configured.");
                     _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append(Constants.ExtensionUrl, ColorScheme.Highlight).AppendLine(" for more details."));

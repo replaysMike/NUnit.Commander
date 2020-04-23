@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace NUnit.Commander.Display
@@ -13,11 +10,16 @@ namespace NUnit.Commander.Display
     /// </summary>
     public static class CommanderConsole
     {
-        private static ColorManager _map;
+        private static Lazy<ColorScheme> _map = new Lazy<ColorScheme>(() => new ColorScheme(Configuration.ColorSchemes.Default));
 
-        internal static void SetColorManager(ColorManager colorManager)
+        /// <summary>
+        /// Get the current color scheme
+        /// </summary>
+        internal static ColorScheme ColorScheme => _map.Value;
+
+        internal static void SetColorScheme(ColorScheme colorManager)
         {
-            _map = colorManager;
+            _map = new Lazy<ColorScheme>(colorManager);
         }
 
         public static string GetCurrentFont() => ConsoleUtil.GetCurrentFont().FontName;
@@ -25,25 +27,46 @@ namespace NUnit.Commander.Display
         public static void Write(string text) => Console.Write(text);
         public static void Write(string text, Color color)
         {
-            var foreColor = Console.ForegroundColor;
-            Console.ForegroundColor = _map.GetMappedConsoleColor(color);
-            Console.Write(text, _map.GetMappedConsoleColor(color));
-            Console.ForegroundColor = foreColor;
+            if (_map != null)
+            {
+                var foreColor = Console.ForegroundColor;
+                Console.ForegroundColor = _map.Value.GetMappedConsoleColor(color) ?? ConsoleColor.Gray;
+                Console.Write(text);
+                Console.ForegroundColor = foreColor;
+            }
+            else
+            {
+                Console.Write(text);
+            }
         }
         public static void WriteLine(string text) => Console.WriteLine(text);
         public static void WriteLine(string text, Color color)
         {
-            var foreColor = Console.ForegroundColor;
-            Console.ForegroundColor = _map.GetMappedConsoleColor(color);
-            Console.WriteLine(text);
-            Console.ForegroundColor = foreColor;
+            if (_map != null)
+            {
+                var foreColor = Console.ForegroundColor;
+                Console.ForegroundColor = _map.Value.GetMappedConsoleColor(color) ?? ConsoleColor.Gray;
+                Console.WriteLine(text);
+                Console.ForegroundColor = foreColor;
+            }
+            else
+            {
+                Console.WriteLine(text);
+            }
         }
         public static void WriteLine() => Console.WriteLine();
         public static void SetCursorPosition(int left, int top) => Console.SetCursorPosition(left, top);
         public static void Clear() => Console.Clear();
         public static void Clear(Color color)
         {
-            Console.BackgroundColor = _map.GetMappedConsoleColor(color);
+            if (_map != null)
+            {
+                var consoleColor = _map.Value.GetMappedConsoleColor(color);
+                if (consoleColor != null)
+                    Console.BackgroundColor = consoleColor.Value;
+                else
+                    _map.Value.ResetBackgroundColor();
+            }
             Console.Clear();
         }
         public static void ResetColor() => Console.ResetColor();
@@ -104,14 +127,26 @@ namespace NUnit.Commander.Display
 
         public static Color BackgroundColor
         {
-            get { return _map.GetMappedColor(Console.BackgroundColor); }
-            set { Console.BackgroundColor = _map.GetMappedConsoleColor(value); }
+            get { return _map.Value.GetMappedColor(Console.BackgroundColor); }
+            set {
+                var consoleColor = _map.Value.GetMappedConsoleColor(value);
+                if (consoleColor != null)
+                    Console.BackgroundColor = consoleColor.Value;
+                else
+                    _map.Value.ResetBackgroundColor();
+            }
         }
 
         public static Color ForegroundColor
         {
-            get { return _map.GetMappedColor(Console.ForegroundColor); }
-            set { Console.ForegroundColor = _map.GetMappedConsoleColor(value); }
+            get { return _map.Value.GetMappedColor(Console.ForegroundColor); }
+            set {
+                var consoleColor = _map.Value.GetMappedConsoleColor(value);
+                if (consoleColor != null)
+                    Console.ForegroundColor = consoleColor.Value; 
+                else
+                    _map.Value.ResetForegroundColor();
+            }
         }
 
         public static bool IsOutputRedirected => Console.IsOutputRedirected;

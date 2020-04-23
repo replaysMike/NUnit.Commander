@@ -19,7 +19,7 @@ namespace NUnit.Commander.Display
         public RunContext RunContext => Commander.RunContext;
         public int MaxTestCaseArgumentLength => Commander.MaxTestCaseArgumentLength;
         public IExtendedConsole Console => Commander._console;
-        public ColorManager ColorScheme => Commander.ColorScheme;
+        public ColorScheme ColorScheme => Commander.ColorScheme;
         public bool AllowDrawActiveTests => Commander._allowDrawActiveTests;
         public SemaphoreSlim Lock => Commander._lock;
         public int BeginY => Commander.BeginY;

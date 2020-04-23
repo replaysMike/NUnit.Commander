@@ -1,12 +1,10 @@
-using AnyConsole;
 using Moq;
 using NUnit.Commander.Configuration;
 using NUnit.Commander.Display;
 using NUnit.Commander.IO;
 using NUnit.Commander.Models;
+using NUnit.Commander.Reporting;
 using NUnit.Framework;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace NUnit.Commander.Tests.IO
 {
@@ -16,7 +14,7 @@ namespace NUnit.Commander.Tests.IO
         private MockRepository mockRepository;
 
         private Mock<LogFriendlyConsole> mockExtendedConsole;
-        private Mock<ColorManager> mockColorManager;
+        private Mock<ColorScheme> mockColorManager;
         private Mock<ApplicationConfiguration> mockApplicationConfiguration;
         private Mock<RunContext> mockRunContext;
 
@@ -25,7 +23,7 @@ namespace NUnit.Commander.Tests.IO
         {
             mockRepository = new MockRepository(MockBehavior.Strict);
 
-            mockColorManager = mockRepository.Create<ColorManager>(ColorSchemes.Default);
+            mockColorManager = mockRepository.Create<ColorScheme>(ColorSchemes.Default);
             mockExtendedConsole = mockRepository.Create<LogFriendlyConsole>(false, mockColorManager.Object);
             mockApplicationConfiguration = mockRepository.Create<ApplicationConfiguration>();
             mockRunContext = mockRepository.Create<RunContext>();

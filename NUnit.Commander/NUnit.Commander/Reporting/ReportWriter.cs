@@ -19,7 +19,7 @@ namespace NUnit.Commander.Reporting
     public class ReportWriter
     {
         private const int DefaultBorderWidth = 50;
-        private readonly ColorManager _colorScheme;
+        private readonly ColorScheme _colorScheme;
         private readonly IExtendedConsole _console;
         private readonly ApplicationConfiguration _configuration;
         private readonly RunContext _runContext;
@@ -28,7 +28,7 @@ namespace NUnit.Commander.Reporting
         private readonly bool _allowFileOperations;
         private readonly ReportFactory _reportFactory;
 
-        public ReportWriter(IExtendedConsole console, ColorManager colorScheme, ApplicationConfiguration configuration, RunContext runContext, bool allowFileOperations)
+        public ReportWriter(IExtendedConsole console, ColorScheme colorScheme, ApplicationConfiguration configuration, RunContext runContext, bool allowFileOperations)
         {
             _console = console;
             _colorScheme = colorScheme;
@@ -85,7 +85,7 @@ namespace NUnit.Commander.Reporting
             // Slowest Assemblies Summary
             // ***********************
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.Performance))
-                performance.Append(_reportFactory.Create<SlowestTestSummary>());
+                performance.Append(_reportFactory.Create<SlowestAssembliesSummary>());
 
             // ***********************
             // Charts
