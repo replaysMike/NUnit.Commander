@@ -28,6 +28,11 @@
         public bool EnableReportLog { get; set; } = false;
 
         /// <summary>
+        /// True to skip prettify the test result output. Default: false
+        /// </summary>
+        public bool DontPrettify { get; set; } = false;
+
+        /// <summary>
         /// The event format type NUnit.Extension.TestMonitor is configured to send
         /// </summary>
         public EventFormatTypes EventFormatType { get; set; } = EventFormatTypes.Json;

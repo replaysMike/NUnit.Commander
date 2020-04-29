@@ -8,14 +8,15 @@ namespace NUnit.Commander.Display
     {
         public static DetectedEncoding DetectEncoding(string text)
         {
-            if (text.Contains("<html>", StringComparison.InvariantCultureIgnoreCase)
+            if (text.Contains("<html", StringComparison.InvariantCultureIgnoreCase)
                 && text.Contains("</html>", StringComparison.InvariantCultureIgnoreCase))
                 return DetectedEncoding.Html;
 
-            if (text.Contains('{') 
+            if (text.Contains('{')
                 && text.Contains('}')
+                && text.Contains(':')
                 // make sure its valid json or looks like it
-                && text.Count(c => c == '{') + text.Count(c => c == '}') % 2 == 2)
+                && (text.Count(c => c == '{') + text.Count(c => c == '}')) % 2 == 0)
                 return DetectedEncoding.Json;
 
             return DetectedEncoding.Text;

@@ -60,8 +60,8 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         else
                             builder.AppendLine();
 
-                        // write the test path
-                        var fullName = $"{DisplayUtil.Pad(testIndexStr.Length)}{test.FullName.Replace($".{test.TestName}", "")}";
+                        // write the test path + name (for Stack Trace Explorer)
+                        var fullName = $"{DisplayUtil.Pad(testIndexStr.Length)}{test.FullName}";
                         builder.Append(fullName, _colorScheme.DarkDuration);
                         if (!_console.IsOutputRedirected)
                             builder.AppendLine($"{DisplayUtil.Pad(Console.WindowWidth - fullName.Length - 1)}", _colorScheme.Error);
@@ -82,7 +82,13 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         {
                             builder.AppendLine($"  Error Output ", _colorScheme.Bright);
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
-                            builder.Append(ErrorEncoding.Format(test.ErrorMessage, _colorScheme));
+                            if (!_configuration.DontPrettify)
+                            {
+                                var errorMessage = ErrorEncoding.Format(test.ErrorMessage, _colorScheme);
+                                builder.Append(errorMessage);
+                            }
+                            else
+                                builder.Append(test.ErrorMessage);
                             builder.AppendLine();
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
                         }
@@ -90,7 +96,10 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         {
                             builder.AppendLine($"  Stack Trace:", _colorScheme.Bright);
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
-                            builder.Append(StackTracePrettify.Format(test.StackTrace, _colorScheme));
+                            if (!_configuration.DontPrettify)
+                                builder.Append(StackTracePrettify.Format(test.StackTrace, _colorScheme));
+                            else
+                                builder.Append(test.StackTrace);
                             builder.AppendLine();
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
                         }
@@ -98,7 +107,10 @@ namespace NUnit.Commander.Reporting.ReportWriters
                         {
                             builder.AppendLine($"  Test Output: ", _colorScheme.Bright);
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
-                            builder.Append(ErrorEncoding.Format(test.TestOutput, _colorScheme));
+                            if (!_configuration.DontPrettify)
+                                builder.Append(ErrorEncoding.Format(test.TestOutput, _colorScheme));
+                            else
+                                builder.Append(test.TestOutput);
                             builder.AppendLine();
                             builder.AppendLine(lineSeparator, lineSeparatorColor);
                         }

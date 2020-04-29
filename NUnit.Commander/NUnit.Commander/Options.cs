@@ -46,6 +46,9 @@ namespace NUnit.Commander
         [Option('o', "test-output", Required = false, HelpText = "Show test runner output")]
         public bool? ShowTestRunnerOutput { get; set; }
 
+        [Option('d', "dont-prettify", Required = false, HelpText = "Specify to not prettify the error/stacktrace test output")]
+        public bool? DontPrettify { get; set; }
+
         [Option('c', "color-scheme", Required = false, HelpText = "Specify the color scheme")]
         public ColorSchemes? ColorScheme { get; set; }
 
@@ -97,6 +100,9 @@ namespace NUnit.Commander
 
         [Option("auto-update", Required = false, SetName = "TestRunner", HelpText = "Enables automatic self-updating of Commander")]
         public bool AutoUpdate { get; set; }
+
+        [Option("relaunch", Required = false, SetName = "TestRunner", HelpText = "Re-launch application after auto-update is complete")]
+        public bool Relaunch { get; set; }
 
         [Usage(ApplicationAlias = @".\NUnit.Commander.exe")]
         public static IEnumerable<Example> Examples

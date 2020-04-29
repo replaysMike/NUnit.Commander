@@ -1,4 +1,5 @@
-﻿using NUnit.Commander.IO;
+﻿using NUnit.Commander.Display;
+using NUnit.Commander.IO;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -6,6 +7,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml;
+using Console = NUnit.Commander.Display.CommanderConsole;
 
 namespace NUnit.Commander.AutoUpdate
 {
@@ -52,7 +54,7 @@ namespace NUnit.Commander.AutoUpdate
         /// <summary>
         /// Update the current application
         /// </summary>
-        public static void PerformUpdate()
+        public static void PerformUpdate(Options options, ColorScheme colorScheme)
         {
             try
             {
@@ -61,14 +63,25 @@ namespace NUnit.Commander.AutoUpdate
                 // relaunch
                 var filename = Path.Combine(Path.GetTempPath(), "NUnit.Commander\\NUnit.Commander.msi");
                 Directory.CreateDirectory(Path.GetDirectoryName(filename));
-                var assemblyFile = Assembly.GetExecutingAssembly().Location;
+
+                // this won't work with .net core single file publishing
+                //var assemblyFile = Assembly.GetExecutingAssembly().Location;
+                var currentProcess = Process.GetCurrentProcess();
+                var assemblyFile = currentProcess.MainModule.FileName;
+#if DEBUG
+                var assemblyArgs = Environment.CommandLine.Replace(assemblyFile.Replace(".exe", ".dll"), "");
+#else
+                var assemblyArgs = Environment.CommandLine.Replace(assemblyFile, "");
+#endif
                 var assemblyPath = Path.GetDirectoryName(assemblyFile);
                 var assemblyTempFile = $"{assemblyFile}.tmp";
                 var client = new HttpClient();
+                var percentageX = 0;
                 if (!Console.IsOutputRedirected)
                 {
                     Console.CursorVisible = false;
-                    Console.WriteLine($"Downloading v{LatestVersion.ToString()} update...");
+                    Console.Write($"Downloading v{LatestVersion.ToString()} update... ");
+                    percentageX = Console.CursorLeft;
                 }
                 Task.Run(async () =>
                 {
@@ -85,17 +98,14 @@ namespace NUnit.Commander.AutoUpdate
                         var percDone = ((double)streamWriter.Length / totalLength) * 100.0;
                         if (!Console.IsOutputRedirected)
                         {
-                            Console.SetCursorPosition(0, Console.CursorTop);
-                            Console.Write($"{percDone:n0}%     ");
+                            Console.SetCursorPosition(percentageX, Console.CursorTop);
+                            Console.Write($"{percDone:n0}%     ", colorScheme.Duration);
                         }
                     } while (bytesRead > 0);
                     streamWriter.Close();
                     streamWriter.Dispose();
                     if (!Console.IsOutputRedirected)
-                    {
-                        Console.SetCursorPosition(0, Console.CursorTop);
-                        Console.WriteLine($"Download complete.     ");
-                    }
+                        Console.WriteLine($"{Environment.NewLine}Download complete.     ", colorScheme.Duration);
                 }).GetAwaiter().GetResult();
 
                 if (!Console.IsOutputRedirected)
@@ -109,23 +119,30 @@ namespace NUnit.Commander.AutoUpdate
                 var process = new Process();
                 process.StartInfo.FileName = "msiexec";
                 process.StartInfo.WorkingDirectory = Path.GetTempPath();
-                process.StartInfo.Arguments = $" /passive /norestart /log c:\\logs\\nunitinstall.log /i {filename} INSTALLFOLDER={assemblyPath}";
+                process.StartInfo.Arguments = $"/passive /norestart /i {filename} INSTALLFOLDER={assemblyPath}";
+                // To enable msi installation logging use: /log c:\\logs\\commander-msi-install.log
                 process.StartInfo.Verb = "runas";
                 process.Start();
                 var exited = process.WaitForExit(30 * 1000);
 
                 if (!Console.IsOutputRedirected)
                 {
-                    Console.WriteLine($"done! Exit code: {process.ExitCode}");
-                    try
+                    Console.WriteLine($"done!");
+                    if (options.Relaunch)
                     {
-                        Process.Start(assemblyFile);
+                        // relaunch application with same arguments. Note this will be out of process
+                        try
+                        {
+                            var relaunchProcess = new Process();
+                            relaunchProcess.StartInfo.FileName = assemblyFile;
+                            relaunchProcess.StartInfo.Arguments = assemblyArgs;
+                            relaunchProcess.Start();
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to restart application automatically. Please re-launch application manually. Error: {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"Failed to restart application automatically. Please launch application. {ex.Message}");
-                    }
-
                     // start a new process with a slight delay to cleanup our temp assembly file
                     Process.Start(new ProcessStartInfo()
                     {
@@ -134,6 +151,8 @@ namespace NUnit.Commander.AutoUpdate
                         CreateNoWindow = true,
                         FileName = "cmd.exe"
                     });
+
+                    // return success updated
                     Environment.Exit((int)ExitCode.ApplicationUpdated);
                 }
             }

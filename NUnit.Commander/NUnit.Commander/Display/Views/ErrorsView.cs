@@ -136,15 +136,22 @@ namespace NUnit.Commander.Display.Views
                             {
                                 testOutput.AppendLine($"  Error Output: ", context.ColorScheme.Bright);
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
-                                testOutput.Append(ErrorEncoding.Format(test.Event.ErrorMessage, context.ColorScheme));
+                                if (!context.Configuration.DontPrettify)
+                                    testOutput.Append(ErrorEncoding.Format(test.Event.ErrorMessage, context.ColorScheme));
+                                else
+                                    testOutput.Append(test.Event.ErrorMessage);
                                 testOutput.AppendLine();
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
+
                             }
                             if (!string.IsNullOrEmpty(test.Event.StackTrace))
                             {
                                 testOutput.AppendLine($"  Stack Trace:", context.ColorScheme.Bright);
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
-                                testOutput.Append(StackTracePrettify.Format(test.Event.StackTrace, context.ColorScheme));
+                                if (!context.Configuration.DontPrettify)
+                                    testOutput.Append(StackTracePrettify.Format(test.Event.StackTrace, context.ColorScheme));
+                                else
+                                    testOutput.Append(test.Event.StackTrace);
                                 testOutput.AppendLine();
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
                             }
@@ -152,7 +159,10 @@ namespace NUnit.Commander.Display.Views
                             {
                                 testOutput.AppendLine($"  Test Output: ", context.ColorScheme.Bright);
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
-                                testOutput.Append(ErrorEncoding.Format(test.Event.TestOutput, context.ColorScheme));
+                                if (!context.Configuration.DontPrettify)
+                                    testOutput.Append(ErrorEncoding.Format(test.Event.TestOutput, context.ColorScheme));
+                                else
+                                    testOutput.Append(test.Event.TestOutput);
                                 testOutput.AppendLine();
                                 testOutput.AppendLine(lineSeparator, context.ColorScheme.DarkDefault);
                             }

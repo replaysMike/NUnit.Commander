@@ -72,10 +72,6 @@ namespace NUnit.Commander
         {
             var isTestPass = false;
 
-            // check for application updates
-            if (options.AutoUpdate && AutoUpdater.CheckForUpdate())
-                AutoUpdater.PerformUpdate();
-
             // override any configuration options via commandline
             if (options.EnableLog.HasValue)
                 config.EnableLog = options.EnableLog.Value;
@@ -83,6 +79,8 @@ namespace NUnit.Commander
                 config.EnableTestLog = options.EnableTestLog.Value;
             if (options.EnableReportLog.HasValue)
                 config.EnableReportLog = options.EnableReportLog.Value;
+            if (options.DontPrettify.HasValue)
+                config.DontPrettify = options.DontPrettify.Value;
             if (options.EnableTestReliabilityAnalysis.HasValue)
                 config.HistoryAnalysisConfiguration.Enabled = options.EnableTestReliabilityAnalysis.Value;
             if (options.MaxTestReliabilityRuns.HasValue)
@@ -132,14 +130,14 @@ namespace NUnit.Commander
             {
                 colorScheme.PrintColorMap();
                 // ResetColor();
-                Environment.Exit(0);
+                Environment.Exit((int)ExitCode.Success);
             }
             if (options.ClearHistory)
             {
                 runContext.TestHistoryDatabaseProvider.DeleteAll();
                 runContext.TestHistoryDatabaseProvider.Dispose();
                 ResetColor();
-                Environment.Exit(0);
+                Environment.Exit((int)ExitCode.Success);
             }
 
             // display logo
@@ -152,6 +150,10 @@ namespace NUnit.Commander
                 ColorfulConsole.WriteLine($"Version {Assembly.GetExecutingAssembly().GetName().Version}", colorScheme.DarkHighlight);
                 ColorfulConsole.WriteLine(new string(UTF8Constants.BoxHorizontal, Console.WindowWidth - 5), colorScheme.DarkHighlight);
             }
+
+            // check for application updates
+            if (options.AutoUpdate && AutoUpdater.CheckForUpdate())
+                AutoUpdater.PerformUpdate(options, colorScheme);
 
             // initialize the performance counters before launching the test runner
             // this is because it can be slow, we don't want to delay connecting to the test runner

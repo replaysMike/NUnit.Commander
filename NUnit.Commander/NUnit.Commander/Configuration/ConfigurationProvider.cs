@@ -10,13 +10,16 @@ namespace NUnit.Commander.Configuration
         public IConfiguration LoadConfiguration(string configFilename = "appsettings.json")
         {
             // for .net core single file publishing, this must be used to locate the config
-            var configPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+            var currentProcess = Process.GetCurrentProcess();
+            var configPath = Path.GetDirectoryName(currentProcess.MainModule.FileName);
             var configFile = Path.Combine(configPath, configFilename);
+            // Console.WriteLine($"Loading configuration from {configFile}");
             if (!File.Exists(configFile))
             {
                 // when profiling the paths will be incorrect, use the base directory of the app instead
                 configPath = AppDomain.CurrentDomain.BaseDirectory;
                 configFile = Path.Combine(configPath, configFilename);
+                // Console.WriteLine($"Loading configuration from {configFile}");
             }
 
             if (!File.Exists(configFile))

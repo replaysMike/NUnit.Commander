@@ -14,6 +14,8 @@ namespace NUnit.Commander.Display
             {
                 var builder = new ColorTextBuilder();
                 var colors = typeof(IColorScheme).GetPublicProperties();
+                if (!text.Contains("\n"))
+                    text = text.Replace("at ", $"{Environment.NewLine}at ").Replace("--- E", $"{Environment.NewLine}--- E");
                 var formatted = StackTraceFormatter.FormatHtml(text, new StackTraceHtmlFragments
                 {
                     BeforeType = $"<{nameof(colorScheme.DarkDefault)}>",
@@ -28,38 +30,50 @@ namespace NUnit.Commander.Display
                     AfterLine = $"</{nameof(colorScheme.Error)}>",
                 }, false);
 
-                // indent
-                formatted = formatted.Replace(Environment.NewLine, $"{Environment.NewLine}  ");
+                // indent each line
+                var indentBy = "  ";
+                formatted = indentBy + formatted.Replace(Environment.NewLine, $"{Environment.NewLine}{indentBy}");
 
                 var chunk = string.Empty;
                 var startIndex = -1;
                 var endIndex = -1;
 
                 // todo: this is horribly inefficient, but I will readdress later
-                foreach (var c in formatted)
+                if (formatted.Length > 0)
                 {
-                    chunk += c;
-                    foreach (var colorProperty in colors)
+                    foreach (var c in formatted)
                     {
-                        var colorStartTag = $"<{colorProperty.Name}>";
-                        var colorEndTag = $"</{colorProperty.Name}>";
+                        chunk += c;
+                        foreach (var colorProperty in colors)
+                        {
+                            var colorStartTag = $"<{colorProperty.Name}>";
+                            var colorEndTag = $"</{colorProperty.Name}>";
 
-                        startIndex = chunk.IndexOf(colorStartTag);
-                        if (startIndex >= 0)
-                        {
-                            // add everything before this point
-                            if (startIndex > 0)
-                                builder.Append(chunk.Substring(0, startIndex), colorScheme.Default);
-                            chunk = chunk.Substring(startIndex + colorStartTag.Length, chunk.Length - colorStartTag.Length - startIndex);
-                        }
-                        endIndex = chunk.IndexOf(colorEndTag);
-                        if (endIndex >= 0)
-                        {
-                            // add everything before this point
-                            builder.Append(chunk.Substring(0, endIndex), colorScheme.GetColor(colorProperty.Name));
-                            chunk = chunk.Substring(endIndex + colorEndTag.Length, chunk.Length - colorEndTag.Length - endIndex);
+                            startIndex = chunk.IndexOf(colorStartTag);
+                            if (startIndex >= 0)
+                            {
+                                // add everything before this point
+                                if (startIndex > 0)
+                                    builder.Append(chunk.Substring(0, startIndex), colorScheme.Default);
+                                chunk = chunk.Substring(startIndex + colorStartTag.Length, chunk.Length - colorStartTag.Length - startIndex);
+                            }
+                            endIndex = chunk.IndexOf(colorEndTag);
+                            if (endIndex >= 0)
+                            {
+                                // add everything before this point
+                                builder.Append(chunk.Substring(0, endIndex), colorScheme.GetColor(colorProperty.Name));
+                                chunk = chunk.Substring(endIndex + colorEndTag.Length, chunk.Length - colorEndTag.Length - endIndex);
+                            }
                         }
                     }
+
+                    if (startIndex == -1 && endIndex == -1 && builder.Length == 0)
+                        builder.AppendLine(text, colorScheme.Default);
+                }
+                else
+                {
+                    // formatted text not found, output the full original text
+                    builder.AppendLine(text, colorScheme.Default);
                 }
 
                 return builder;
