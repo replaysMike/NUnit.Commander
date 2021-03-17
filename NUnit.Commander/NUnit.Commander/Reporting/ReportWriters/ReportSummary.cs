@@ -18,9 +18,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
             var allReports = (IEnumerable<DataEvent>)parameters;
             var builder = new ColorTextBuilder();
             var totalDuration = TimeSpan.FromTicks(allReports.Sum(x => x.Duration.Ticks));
-            var isPassed = allReports
-                .SelectMany(x => x.Report.TestReports)
-                .Count(x => x.TestStatus == TestStatus.Fail) == 0;
+            var isPassed = allReports.Sum(x => x.Failed) == 0;
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.PassFail))
             {
                 var statusColor = _colorScheme.Error;
@@ -29,7 +27,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
                 var errorsColor = _colorScheme.Default;
                 var warningsColor = _colorScheme.Default;
 
-                var allSuccess = allReports.Sum(x => x.Failed) == 0 && allReports.Sum(x => x.Passed) > 0;
+                var allSuccess = allReports.Sum(x => x.Failed) == 0;
                 var anyFailure = allReports.Sum(x => x.Failed) > 0;
                 var testCount = allReports.Sum(x => x.TestCount);
                 var passed = allReports.Sum(x => x.Passed);

@@ -32,6 +32,8 @@ namespace NUnit.Commander.Display
         public Color Duration => Colors.Duration;
         public Color DarkDuration => Colors.DarkDuration;
 
+        public ColorScheme() { }
+
         public ColorScheme(ColorSchemes colorScheme)
         {
             ColorSchemeName = colorScheme;

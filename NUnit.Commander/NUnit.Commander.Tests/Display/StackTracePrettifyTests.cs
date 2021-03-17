@@ -27,7 +27,9 @@ at System.Threading.ThreadHelper.ThreadStart()";
 
             Assert.NotNull(prettyStackTrace);
             // 69 for the win
-            Assert.AreEqual(69, prettyStackTrace.Length);
+            Assert.AreEqual(69, prettyStackTrace.TextFragments.Count);
+            Assert.AreEqual(150, prettyStackTrace.Width);
+            Assert.AreEqual(13, prettyStackTrace.Height);
         }
     }
 }

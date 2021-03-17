@@ -43,13 +43,13 @@ namespace NUnit.Commander
                     c.HelpWriter = Console.Error;
                 });
                 parser.ParseArguments<Options>(args)
-                    .WithParsed<Options>(o =>
+                    .WithParsed(o =>
                     {
                         var isTestPass = Start(o, config);
                         if (isTestPass)
                             exitCode = ExitCode.Success;
                     })
-                    .WithNotParsed<Options>(errors =>
+                    .WithNotParsed(errors =>
                     {
                         exitCode = ArgsParsingError(errors);
                     });
@@ -122,8 +122,10 @@ namespace NUnit.Commander
             Console.SetColorScheme(colorScheme);
             var testRunnerSuccess = true;
             var runNumber = 0;
-            var runContext = new RunContext();
-            runContext.TestHistoryDatabaseProvider = new TestHistoryDatabaseProvider(config);
+            var runContext = new RunContext
+            {
+                TestHistoryDatabaseProvider = new TestHistoryDatabaseProvider(config)
+            };
 
             // handle custom operations
             if (options.ListColors)

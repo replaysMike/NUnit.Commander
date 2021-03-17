@@ -39,7 +39,7 @@ namespace NUnit.Commander.Tests.Analysis
         public void Analyze_StateUnderTest_ExpectedBehavior()
         {
             // Arrange
-            var testHistoryAnalyzer = this.CreateTestHistoryAnalyzer();
+            var testHistoryAnalyzer = CreateTestHistoryAnalyzer();
             var currentRun = new List<Models.TestHistoryEntry>();
 
             // Act
