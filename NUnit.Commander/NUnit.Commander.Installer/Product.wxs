@@ -1,76 +1,88 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-	<Product Id="*" Name="NUnit.Commander" Language="1033" Version="1.3.0.0" Manufacturer="Refactor Software" UpgradeCode="ac6af802-406a-45b1-944f-5bda378018c0">
-		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Keywords="Installer" Platform="x64" 
-             Description="NUnit.Commander is a test manager for running NUnit tests" 
-             Comments="Copyright 2020 Refactor Software"
-             Manufacturer="Refactor Sfotware"
+	<Product Id="*" Name="NUnit.Commander" Language="1033" Version="1.4.0.0" Manufacturer="Refactor Software" UpgradeCode="ac6af802-406a-45b1-944f-5bda378018c0">
+		<Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" Keywords="Installer" Platform="x64"
+             Description="NUnit.Commander is a test manager for running NUnit tests"
+             Comments="Copyright 2021 Refactor Software"
+             Manufacturer="Refactor Software"
              Languages="1033"
              SummaryCodepage="1252"
              />
 
 		<MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
-    <MediaTemplate EmbedCab="yes" />
-    <Icon Id="icon.ico" SourceFile="$(var.NUnit.Commander.ProjectDir)icon.ico"/>
-    <Property Id="ARPPRODUCTICON" Value="icon.ico" />
-    <Feature Id="Complete"
-             Title="NUnit.Commander 1.3"
-             Description="NUnit.Commander is a test manager for running NUnit tests"
-             Level="1"
-             Display="expand"
-             ConfigurableDirectory="INSTALLFOLDER">
-      <Feature Id="ProductFeature" Title="NUnit.Commander Application" Description="NUnit.Commander application" Level="1">
-        <ComponentGroupRef Id="ProductComponents" />
-        <ComponentRef Id="ApplicationShortcut" />
-      </Feature>
-    </Feature>
-    <WixVariable Id="WixUIDialogBmp" Value="Dialog.bmp"/>
-    <WixVariable Id="WixUIBannerBmp" Value="Banner.bmp"/>
-    <WixVariable Id="WixUIInfoIco" Value="Info.bmp"/>
-    <UI Id='Mondo'>
-      <UIRef Id="WixUI_Mondo" />
-      <UIRef Id="WixUI_ErrorProgressText" />
-      <!-- skip license agreement -->
-      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="SetupTypeDlg" Order="3">1</Publish>
-      <Publish Dialog="SetupTypeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">1</Publish>
-    </UI>
+		<MediaTemplate EmbedCab="yes" />
+		<Icon Id="icon.ico" SourceFile="$(var.NUnit.Commander.ProjectDir)icon.ico"/>
+		<Property Id="ARPPRODUCTICON" Value="icon.ico" />
+		<Feature Id="Complete"
+				 Title="NUnit.Commander 1.4"
+				 Description="NUnit.Commander is a test manager for running NUnit tests"
+				 Level="1"
+				 Display="expand"
+				 ConfigurableDirectory="INSTALLFOLDER">
+			<Feature Id="ProductFeature" Title="NUnit.Commander Application" Description="NUnit.Commander application" Level="1">
+				<ComponentGroupRef Id="ProductComponents" />
+				<ComponentRef Id="ApplicationShortcut" />
+			</Feature>
+		</Feature>
+		<WixVariable Id="WixUIDialogBmp" Value="Dialog.bmp"/>
+		<WixVariable Id="WixUIBannerBmp" Value="Banner.bmp"/>
+		<WixVariable Id="WixUIInfoIco" Value="Info.bmp"/>
+		<UI Id='Mondo'>
+			<UIRef Id="WixUI_Mondo" />
+			<UIRef Id="WixUI_ErrorProgressText" />
+			<!-- skip license agreement -->
+			<Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="SetupTypeDlg" Order="3">1</Publish>
+			<Publish Dialog="SetupTypeDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="3">1</Publish>
+		</UI>
 	</Product>
 
-  <Fragment>
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFiles64Folder">
-        <Directory Id="INSTALLFOLDER" Name="NUnit.Commander" />
-      </Directory>
-      <Directory Id="ProgramMenuFolder">
-        <Directory Id="ApplicationProgramsFolder" Name="NUnit.Commander"/>
-      </Directory>
-    </Directory>
-  </Fragment>
+	<Fragment>
+		<Directory Id="TARGETDIR" Name="SourceDir">
+			<Directory Id="ProgramFiles64Folder">
+				<Directory Id="INSTALLFOLDER" Name="NUnit.Commander" />
+			</Directory>
+			<Directory Id="ProgramMenuFolder">
+				<Directory Id="ApplicationProgramsFolder" Name="NUnit.Commander"/>
+			</Directory>
+		</Directory>
+	</Fragment>
 
-  <Fragment>
-    <DirectoryRef Id="ApplicationProgramsFolder">
-      <Component Id="ApplicationShortcut" Guid="cdb135e4-0e27-4600-9711-3afe4f702bbc">
-        <Shortcut Id="ApplicationStartMenuShortcut"
-                  Name="NUnit.Commander"
-                  Description="NUnit.Commander is a test manager for running NUnit tests"
-                  Target="[#NUnitCommanderEXE]"
-                  WorkingDirectory="APPLICATIONROOTDIRECTORY"
-                  Icon="icon.ico"
+	<Fragment>
+		<DirectoryRef Id="ApplicationProgramsFolder">
+			<Component Id="ApplicationShortcut" Guid="cdb135e4-0e27-4600-9711-3afe4f702bbc">
+				<Shortcut Id="ApplicationStartMenuShortcut"
+						  Name="NUnit.Commander"
+						  Description="NUnit.Commander is a test manager for running NUnit tests"
+						  Target="[#NUnitCommanderEXE]"
+						  WorkingDirectory="APPLICATIONROOTDIRECTORY"
+						  Icon="icon.ico"
                   />
-        <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
-        <RegistryValue Root="HKCU" Key="Software\RefactorSoftware\NUnitCommander" Name="installed" Type="integer" Value="1" KeyPath="yes" />
-      </Component>
-    </DirectoryRef>
-  </Fragment>
+				<RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall"/>
+				<RegistryValue Root="HKCU" Key="Software\RefactorSoftware\NUnitCommander" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+			</Component>
+		</DirectoryRef>
+	</Fragment>
 
-  <Fragment>
-    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-      <Component Id="NUnit.Commander" Guid="37600d15-2db7-4a36-a5e8-c24358d4df3d" Win64="yes">
-        <File Id="NUnitCommanderEXE" Name="NUnit.Commander.exe" Source="$(var.NUnit.Commander.TargetDir)\publish\NUnit.Commander.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x64" />
-      </Component>
-      <Component Id="AppSettings" Guid="d63e7b6b-d084-48ba-ba71-e3664f7ec0c9" Win64="yes">
-        <File Id="AppSettingsJson" Name="appsettings.json" Source="$(var.NUnit.Commander.TargetDir)\appsettings.json" KeyPath="yes" ProcessorArchitecture="x64" />
-      </Component>
-    </ComponentGroup>
-  </Fragment>
+	<Fragment>
+		<ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
+			<Component Id="NUnit.Commander" Guid="37600d15-2db7-4a36-a5e8-c24358d4df3d" Win64="yes">
+				<File Id="NUnitCommanderEXE" Name="NUnit.Commander.exe" Source="$(var.NUnit.Commander.TargetDir)\publish\NUnit.Commander.exe" KeyPath="yes" Checksum="yes" ProcessorArchitecture="x64" />
+			</Component>
+			<Component Id="AppSettings" Guid="d63e7b6b-d084-48ba-ba71-e3664f7ec0c9" Win64="yes">
+				<File Id="AppSettingsJson" Name="appsettings.json" Source="$(var.NUnit.Commander.TargetDir)\appsettings.json" KeyPath="yes" ProcessorArchitecture="x64" />
+			</Component>
+			<Component Id="Clr1" Guid="f81488bd-8d68-4ff0-812a-0a1c50abfc46" Win64="yes">
+				<File Id="ClrCompression1" Name="clrcompression.dll" Source="$(var.NUnit.Commander.TargetDir)\clrcompression.dll" KeyPath="yes" ProcessorArchitecture="x64" />
+			</Component>
+			<Component Id="Clr2" Guid="68347a8d-054e-4b47-b5b4-b9fdb9e12413" Win64="yes">
+				<File Id="ClrCompression2" Name="clrjit.dll" Source="$(var.NUnit.Commander.TargetDir)\clrjit.dll" KeyPath="yes" ProcessorArchitecture="x64" />
+			</Component>
+			<Component Id="Clr3" Guid="f1100a67-0cca-496f-902f-599f03d010a4" Win64="yes">
+				<File Id="ClrCompression3" Name="coreclr.dll" Source="$(var.NUnit.Commander.TargetDir)\coreclr.dll" KeyPath="yes" ProcessorArchitecture="x64" />
+			</Component>
+			<Component Id="Clr4" Guid="46c1d8fe-c47e-4876-b40c-d39133647d44" Win64="yes">
+				<File Id="ClrCompression4" Name="mscordaccore.dll" Source="$(var.NUnit.Commander.TargetDir)\mscordaccore.dll" KeyPath="yes" ProcessorArchitecture="x64" />
+			</Component>
+		</ComponentGroup>
+	</Fragment>
 </Wix>
