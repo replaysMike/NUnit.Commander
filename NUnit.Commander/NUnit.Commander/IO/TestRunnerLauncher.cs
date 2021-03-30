@@ -18,7 +18,7 @@ namespace NUnit.Commander.IO
             public bool IsComplete { get; set; }
             public int Id { get; set; }
             public Process Process { get; set; }
-            
+           
             public PendingProcess(Process process, ProcessJobTracker jobTracker, bool enableDisplayOutput)
             {
                 IsStarted = false;
@@ -60,6 +60,8 @@ namespace NUnit.Commander.IO
         public TestRunner TestRunnerName => _options.TestRunner.Value;
         public bool HasErrors => !string.IsNullOrEmpty(ConsoleError.Replace(Environment.NewLine, string.Empty).Replace("\t", string.Empty).Trim());
         public int ProcessCount => _processes.Count;
+        public Action OnScanStarted { get; set; }
+        public Action OnScanCompleted { get; set; }
 
         public string ConsoleOutput
         {
@@ -292,12 +294,14 @@ namespace NUnit.Commander.IO
         /// <returns></returns>
         private Dictionary<string, FrameworkType> DetectRunnersFromAssemblies(string runnerAssemblies)
         {
+            OnScanStarted?.Invoke();
             var assemblyMetadata = new Dictionary<string, FrameworkType>();
             // load all of the assemblies and inspect them
             foreach (var assemblyPath in runnerAssemblies.Split(" ", StringSplitOptions.RemoveEmptyEntries))
             {
                 assemblyMetadata.Add(assemblyPath, PortableExecutableHelper.GetAssemblyFrameworkType(assemblyPath));
             }
+            OnScanCompleted?.Invoke();
             return assemblyMetadata;
         }
 

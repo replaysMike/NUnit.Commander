@@ -13,6 +13,7 @@
 		<MediaTemplate EmbedCab="yes" />
 		<Icon Id="icon.ico" SourceFile="$(var.NUnit.Commander.ProjectDir)icon.ico"/>
 		<Property Id="ARPPRODUCTICON" Value="icon.ico" />
+		<Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" Secure="yes" />
 		<Feature Id="Complete"
 				 Title="NUnit.Commander 1.5"
 				 Description="NUnit.Commander is a test manager for running NUnit tests"

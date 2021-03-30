@@ -109,7 +109,7 @@ namespace NUnit.Commander.AutoUpdate
                 }).GetAwaiter().GetResult();
 
                 if (!Console.IsOutputRedirected)
-                    Console.Write($"Installing v{LatestVersion.ToString()} update... ");
+                    Console.Write($"Installing v{LatestVersion.ToString()} update ({assemblyPath})... ");
 
                 // rename the current assembly
                 if (File.Exists(assemblyTempFile))
@@ -123,7 +123,7 @@ namespace NUnit.Commander.AutoUpdate
                 // To enable msi installation logging use: /log c:\\logs\\commander-msi-install.log
                 process.StartInfo.Verb = "runas";
                 process.Start();
-                var exited = process.WaitForExit(30 * 1000);
+                //var exited = process.WaitForExit(30 * 1000);
 
                 if (!Console.IsOutputRedirected)
                 {

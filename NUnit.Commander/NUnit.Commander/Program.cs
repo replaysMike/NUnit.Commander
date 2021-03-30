@@ -223,13 +223,21 @@ namespace NUnit.Commander
                 {
                     // launch test runner in another process if asked
                     _launcher = new TestRunnerLauncher(options);
+                    _launcher.OnScanStarted = () =>
+                    {
+                        Console.WriteLine($"Scanning test assemblies...", colorScheme.Default);
+                    };
+                    _launcher.OnScanCompleted = () =>
+                    {
+                        Console.WriteLine($"Done scanning test assemblies!", colorScheme.Default);
+                    };
                     _launcher.OnTestRunnerExit += Launcher_OnTestRunnerExit;
                     testRunnerSuccess = _launcher.StartTestRunner();
                 }
 
                 if (testRunnerSuccess)
                 {
-                    while (_launcher.NextProcess())
+                    while (_launcher?.NextProcess() ?? false)
                     {
                         // blocking
                         switch (config.DisplayMode)
