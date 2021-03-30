@@ -1,25 +1,67 @@
 ﻿using NUnit.Commander.Configuration;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace NUnit.Commander.IO
 {
     public class TestRunnerLauncher : IDisposable
     {
+        public class PendingProcess
+        {
+            private ProcessJobTracker _jobTracker;
+            private bool _enableDisplayOutput;
+            public bool IsStarted { get; set; }
+            public bool IsComplete { get; set; }
+            public int Id { get; set; }
+            public Process Process { get; set; }
+           
+            public PendingProcess(Process process, ProcessJobTracker jobTracker, bool enableDisplayOutput)
+            {
+                IsStarted = false;
+                IsComplete = false;
+                Process = process;
+                _jobTracker = jobTracker;
+                _enableDisplayOutput = enableDisplayOutput;
+            }
+
+            public void Start()
+            {
+                IsStarted = true;
+                if (Process.Start())
+                {
+                    Id = Process.Id;
+
+                    // tell windows to close this process if Commander is closed
+                    _jobTracker.AddProcess(Process);
+                }
+                if (!_enableDisplayOutput)
+                {
+                    Process.BeginErrorReadLine();
+                    Process.BeginOutputReadLine();
+                }
+            }
+        }
+
         private readonly Options _options;
         private readonly Stream _stream;
         private readonly Stream _streamError;
         private readonly StreamWriter _streamWriter;
         private readonly StreamWriter _streamErrorWriter;
         private readonly ProcessJobTracker _jobTracker;
-        private Process _process;
+        private int _currentProcessIndex = -1;
+        private List<PendingProcess> _processes = new List<PendingProcess>();
 
         public event EventHandler OnTestRunnerExit;
         public Options Options => _options;
         public TestRunner TestRunnerName => _options.TestRunner.Value;
         public bool HasErrors => !string.IsNullOrEmpty(ConsoleError.Replace(Environment.NewLine, string.Empty).Replace("\t", string.Empty).Trim());
+        public int ProcessCount => _processes.Count;
+        public Action OnScanStarted { get; set; }
+        public Action OnScanCompleted { get; set; }
 
         public string ConsoleOutput
         {
@@ -51,7 +93,8 @@ namespace NUnit.Commander.IO
                 var exitCode = 0;
                 try
                 {
-                    exitCode = _process?.ExitCode ?? 0;
+                    var process = _processes.FirstOrDefault();
+                    exitCode = process?.Process.ExitCode ?? 0;
                 }
                 catch (Exception)
                 {
@@ -74,6 +117,33 @@ namespace NUnit.Commander.IO
             _jobTracker = new ProcessJobTracker();
         }
 
+        private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            if (e.Data != null)
+                _streamErrorWriter.WriteLine(e.Data);
+        }
+
+        private void Process_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            if (e.Data != null)
+                _streamWriter.WriteLine(e.Data);
+        }
+
+        /// <summary>
+        /// Start the next process in the queue
+        /// </summary>
+        /// <returns></returns>
+        public bool NextProcess()
+        {
+            if(_currentProcessIndex < _processes.Count - 1)
+            {
+                _currentProcessIndex++;
+                _processes[_currentProcessIndex].Start();
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// Wait for process to exit
         /// </summary>
@@ -81,7 +151,11 @@ namespace NUnit.Commander.IO
         {
             try
             {
-                _process?.WaitForExit();
+                foreach (var process in _processes)
+                {
+                    process?.Process.WaitForExit();
+                    process.IsComplete = true;
+                }
             }
             catch (COMException)
             {
@@ -93,7 +167,8 @@ namespace NUnit.Commander.IO
         {
             try
             {
-                _process?.Kill(true);
+                foreach (var process in _processes)
+                    process?.Process?.Kill(true);
             }
             catch (Exception)
             {
@@ -103,35 +178,31 @@ namespace NUnit.Commander.IO
 
         public bool StartTestRunner()
         {
-            var runnerProcess = string.Empty;
-            var runnerArguments = _options.TestRunnerArguments;
-            var runnerPath = string.Empty;
-            var pathToProcess = string.Empty;
+            var isSuccess = false;
             switch (_options.TestRunner)
             {
                 case TestRunner.NUnitConsole:
-                    runnerProcess = "nunit3-console.exe";
-                    // runnerArguments += "";
-                    if (!string.IsNullOrEmpty(_options.TestRunnerPath))
-                        runnerPath = _options.TestRunnerPath;
-                    else
-                    {
-                        // default nunit-console path
-                        runnerPath = @"C:\Program Files (x86)\NUnit.org\nunit-console\";
-                    }
-                    pathToProcess = Path.Combine(runnerPath, runnerProcess);
-                    if (!File.Exists(pathToProcess))
-                    {
-                        Console.Error.WriteLine($"Error: Unable to find test runner at '{pathToProcess}'");
-                        Console.Error.WriteLine($"Please ensure you have specified the correct path.");
-                        return false;
-                    }
+                    isSuccess = LaunchNUnitConsole(string.Join(" ", _options.TestRunnerArguments, _options.NUnitConsoleArguments, _options.TestAssemblies));
                     break;
                 case TestRunner.DotNetTest:
-                    runnerProcess = "dotnet";
-                    runnerArguments = "test " + runnerArguments;
-                    runnerPath = string.Empty;
-                    pathToProcess = Path.Combine(runnerPath, runnerProcess);
+                    isSuccess = LaunchDotNetTest(string.Join(" ", _options.TestRunnerArguments, _options.DotNetTestArguments, _options.TestAssemblies));
+                    break;
+                case TestRunner.Auto:
+                    // launch runner for each framework detected
+                    var assemblyMetadata = DetectRunnersFromAssemblies(_options.TestAssemblies);
+                    var dotNetFrameworkTestAssemblies = assemblyMetadata.Where(x => x.Value == FrameworkType.DotNetFramework);
+                    var dotNetCoreTestAssemblies = assemblyMetadata.Where(x => x.Value == FrameworkType.DotNetCore);
+                    if (dotNetFrameworkTestAssemblies.Any())
+                    {
+                        var nunitConsoleTestAssemblies = string.Join(" ", dotNetFrameworkTestAssemblies.Select(x => x.Key));
+                        isSuccess = LaunchNUnitConsole(string.Join(" ", _options.NUnitConsoleArguments, nunitConsoleTestAssemblies));
+                    }
+                    if (dotNetCoreTestAssemblies.Any())
+                    {
+                        var dotNetTestAssemblies = string.Join(" ", dotNetCoreTestAssemblies.Select(x => x.Key));
+                        isSuccess = LaunchDotNetTest(string.Join(" ", dotNetTestAssemblies, _options.DotNetTestArguments));
+                    }
+                    //System.Threading.Thread.Sleep(500);
                     break;
             }
             /*Console.ForegroundColor = ConsoleColor.Magenta;
@@ -139,9 +210,45 @@ namespace NUnit.Commander.IO
             Console.WriteLine(runnerArguments);
             Console.ForegroundColor = ConsoleColor.Gray;*/
 
-            Console.WriteLine($"Launching [{_options.TestRunner}] test runner...");
             // launch process
-            _process = new Process
+            //_processes.First().Start();
+            return isSuccess;
+        }
+
+        private bool LaunchNUnitConsole(string runnerArguments)
+        {
+            Console.WriteLine($"Launching [NUnitConsole] test runner...");
+            var runnerProcess = "nunit3-console.exe";
+            // default nunit-console path
+            var runnerPath = @"C:\Program Files (x86)\NUnit.org\nunit-console\";
+            // runnerArguments += "";
+            if (!string.IsNullOrEmpty(_options.TestRunnerPath))
+                runnerPath = _options.TestRunnerPath;
+            var pathToProcess = Path.Combine(runnerPath, runnerProcess);
+            if (!File.Exists(pathToProcess))
+            {
+                Console.Error.WriteLine($"Error: Unable to find test runner at '{pathToProcess}'");
+                Console.Error.WriteLine($"Please ensure you have specified the correct path.");
+                return false;
+            }
+            LaunchProcess(pathToProcess, runnerArguments);
+            return true;
+        }
+
+        private bool LaunchDotNetTest(string runnerArguments)
+        {
+            Console.WriteLine($"Launching [dotnet] test runner...");
+            var runnerProcess = "dotnet";
+            var testRunnerArguments = "test " + runnerArguments;
+            var runnerPath = string.Empty;
+            var pathToProcess = Path.Combine(runnerPath, runnerProcess);
+            LaunchProcess(pathToProcess, testRunnerArguments);
+            return true;
+        }
+
+        private void LaunchProcess(string pathToProcess, string runnerArguments)
+        {
+            var process = new Process
             {
                 StartInfo = {
                     FileName = pathToProcess,
@@ -149,46 +256,53 @@ namespace NUnit.Commander.IO
                 },
                 EnableRaisingEvents = true,
             };
+
             if (!_options.EnableDisplayOutput)
             {
                 // disable all output (default)
-                _process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                _process.StartInfo.RedirectStandardOutput = true;
-                _process.StartInfo.RedirectStandardError = true;
-                _process.StartInfo.UseShellExecute = false;
-                _process.StartInfo.CreateNoWindow = true;
-                _process.EnableRaisingEvents = true;
-                _process.OutputDataReceived += Process_OutputDataReceived;
-                _process.ErrorDataReceived += Process_ErrorDataReceived;
+                process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.EnableRaisingEvents = true;
+                process.OutputDataReceived += Process_OutputDataReceived;
+                process.ErrorDataReceived += Process_ErrorDataReceived;
             }
-            _process.Exited += Process_Exited;
-            if (_process.Start())
-            {
-                // tell windows to close this process if Commander is closed
-                _jobTracker.AddProcess(_process);
-            }
-            if (!_options.EnableDisplayOutput)
-            {
-                _process.BeginErrorReadLine();
-                _process.BeginOutputReadLine();
-            }
-            return true;
+
+            process.Exited += Process_Exited;
+            _processes.Add(new PendingProcess(process, _jobTracker, _options.EnableDisplayOutput));
+            
         }
 
         private void Process_Exited(object sender, EventArgs e)
         {
-            _process = null;
-            OnTestRunnerExit?.Invoke(this, e);
+            var senderProcess = (Process)sender;
+            var process = _processes.FirstOrDefault(x => x.Id == senderProcess.Id);
+            if (process != null)
+            {
+                process.IsComplete = true;
+            }
+            if (_processes.Count(x => x.IsComplete) == _processes.Count)
+                OnTestRunnerExit?.Invoke(this, e);
         }
 
-        private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        /// <summary>
+        /// For each assembly specified, detect the .net runtime the dll is targeting
+        /// </summary>
+        /// <param name="runnerAssemblies"></param>
+        /// <returns></returns>
+        private Dictionary<string, FrameworkType> DetectRunnersFromAssemblies(string runnerAssemblies)
         {
-            _streamErrorWriter.WriteLine(e.Data);
-        }
-
-        private void Process_OutputDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            _streamWriter.WriteLine(e.Data);
+            OnScanStarted?.Invoke();
+            var assemblyMetadata = new Dictionary<string, FrameworkType>();
+            // load all of the assemblies and inspect them
+            foreach (var assemblyPath in runnerAssemblies.Split(" ", StringSplitOptions.RemoveEmptyEntries))
+            {
+                assemblyMetadata.Add(assemblyPath, PortableExecutableHelper.GetAssemblyFrameworkType(assemblyPath));
+            }
+            OnScanCompleted?.Invoke();
+            return assemblyMetadata;
         }
 
         public void Dispose()
@@ -209,7 +323,9 @@ namespace NUnit.Commander.IO
                 _streamError?.Dispose();
                 try
                 {
-                    _process?.Dispose();
+                    foreach(var process in _processes)
+                        process?.Process.Dispose();
+                    _processes.Clear();
                 }
                 catch (Exception)
                 {

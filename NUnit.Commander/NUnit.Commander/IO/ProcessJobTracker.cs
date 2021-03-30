@@ -16,7 +16,7 @@ namespace NUnit.Commander.IO
     /// To support Windows Vista or Windows 7 requires an app.manifest with specific content as described here:
     /// https://stackoverflow.com/a/9507862/46926
     /// </remarks>
-    internal class ProcessJobTracker : IDisposable
+    public class ProcessJobTracker : IDisposable
     {
         /// <summary>
         /// The job handle.

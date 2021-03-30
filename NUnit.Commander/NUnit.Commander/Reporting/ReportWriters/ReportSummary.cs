@@ -44,7 +44,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
                     successColor = _colorScheme.Success;
                     statusColor = _colorScheme.Success;
                 }
-                if (allReports.Sum(x => x.Failed) > 0)
+                if (failed > 0)
                     failuresColor = _colorScheme.Error;
                 if (errors > 0)
                     errorsColor = _colorScheme.DarkError;
