@@ -77,11 +77,20 @@ namespace NUnit.Commander
 
         // command-line only options
 
-        [Option('t', "test-runner", Required = false, SetName = "TestRunner", HelpText = "Specify which test runner to use: NUnitConsole, DotNetTest. If unspecified it will connect to any already running console runner")]
+        [Option('t', "test-runner", Required = false, SetName = "TestRunner", HelpText = "Specify which test runner to use: NUnitConsole, DotNetTest, Auto. If unspecified it will connect to any already running console runner")]
         public TestRunner? TestRunner { get; set; }
 
         [Option('a', "args", Required = false, SetName = "TestRunner", HelpText = "Specify arguments to pass to nunit-console or dotnet test. You can embed a \" character with \\\"")]
         public string TestRunnerArguments { get; set; }
+
+        [Option("nunit-args", Required = false, SetName = "TestRunner", HelpText = "Specify arguments to pass to nunit-console only. You can embed a \" character with \\\"")]
+        public string NUnitConsoleArguments { get; set; }
+
+        [Option("dotnet-args", Required = false, SetName = "TestRunner", HelpText = "Specify arguments to pass to dotnet test only. You can embed a \" character with \\\"")]
+        public string DotNetTestArguments { get; set; }
+
+        [Option("test-assemblies", Required = false, SetName = "TestRunner", HelpText = "Specify a list of assemblies to test; only compatible with test-runner=Auto")]
+        public string TestAssemblies { get; set; }
 
         [Option('p', "path", Required = false, SetName = "TestRunner", HelpText = "Specify the path to the test runner exe")]
         public string TestRunnerPath { get; set; }
@@ -111,6 +120,7 @@ namespace NUnit.Commander
             {
                 yield return new Example("Launch commander using NUnit", new Options { TestRunner = Configuration.TestRunner.NUnitConsole, TestRunnerPath = @"C:\Path-to\nunit-console.exe", TestRunnerArguments = @"C:\Path-to\TestProject\bin\TestProject.dll C:\Path-to\TestProject2\bin\TestProject2.dll" });
                 yield return new Example("Launch commander using dotnet test", new Options { TestRunner = Configuration.TestRunner.DotNetTest, TestRunnerArguments = @"C:\Path-to\Project" });
+                yield return new Example("Launch commander using dotnet auto", new Options { TestRunner = Configuration.TestRunner.Auto, TestRunnerArguments = @"C:\Path-to\Project" });
             }
         }
     }

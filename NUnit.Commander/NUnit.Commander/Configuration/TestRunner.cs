@@ -9,6 +9,10 @@
         /// <summary>
         /// Specifies to use dotnet test
         /// </summary>
-        DotNetTest
+        DotNetTest,
+        /// <summary>
+        /// Automatically select the correct NUnit test runner(s) based on the test assemblies specified
+        /// </summary>
+        Auto
     }
 }

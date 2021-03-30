@@ -10,9 +10,9 @@
 		<PackageProjectUrl>https://github.com/replaysMike/NUnit.Extension.TestMonitor</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/replaysMike/NUnit.Extension.TestMonitor</RepositoryUrl>
 		<PackageTags>nunit commander real-time testing tests refactor software michael brown</PackageTags>
-		<AssemblyVersion>1.4.0.0</AssemblyVersion>
-		<FileVersion>1.4.0.0</FileVersion>
-		<Version>1.4.0</Version>
+		<AssemblyVersion>1.5.0.0</AssemblyVersion>
+		<FileVersion>1.5.0.0</FileVersion>
+		<Version>1.5.0</Version>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
 		<PublishSingleFile>true</PublishSingleFile>
 		<PublishReadyToRun>true</PublishReadyToRun>
@@ -20,6 +20,10 @@
 		<RuntimeIdentifier>win10-x64</RuntimeIdentifier>
 		<ApplicationIcon>icon.ico</ApplicationIcon>
 		<PublishWithAspNetCoreTargetManifest>false</PublishWithAspNetCoreTargetManifest>
+	</PropertyGroup>
+
+	<PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
+		<DefineConstants>WINDOWS</DefineConstants>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

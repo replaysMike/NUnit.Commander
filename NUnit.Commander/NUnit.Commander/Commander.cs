@@ -385,11 +385,12 @@ namespace NUnit.Commander
                 _performanceIteration++;
                 if (_eventLog.Count > 0 && _performanceIteration > 30 && _performanceIteration % 10 == 0)
                 {
+#pragma warning disable CA1416 // Validate platform compatibility
                     if (RunContext?.PerformanceCounters?.CpuCounter != null)
                         _performanceLog.AddEntry(PerformanceLog.PerformanceType.CpuUsed, RunContext.PerformanceCounters.CpuCounter.NextValue());
                     if (RunContext?.PerformanceCounters?.DiskCounter != null)
                         _performanceLog.AddEntry(PerformanceLog.PerformanceType.DiskTime, RunContext.PerformanceCounters.DiskCounter.NextValue());
-
+#pragma warning restore CA1416 // Validate platform compatibility
                     var activeTestCount = 0;
                     var activeTestFixtureCount = 0;
                     var activeAssembliesCount = 0;

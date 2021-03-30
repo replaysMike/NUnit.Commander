@@ -18,9 +18,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
             var allReports = (IEnumerable<DataEvent>)parameters;
             var builder = new ColorTextBuilder();
             var totalDuration = TimeSpan.FromTicks(allReports.Sum(x => x.Duration.Ticks));
-            var isPassed = allReports
-                .SelectMany(x => x.Report.TestReports)
-                .Count(x => x.TestStatus == TestStatus.Fail) == 0;
+            var isPassed = allReports.Sum(x => x.Failed) == 0;
             if (_runContext.Runs.Count > 1)
             {
                 var runNumber = 0;
@@ -28,38 +26,52 @@ namespace NUnit.Commander.Reporting.ReportWriters
                 {
                     runNumber++;
 
-                    var allSuccess = run.Value.Sum(x => x.Failed) == 0 && run.Value.Sum(x => x.Passed) > 0;
+                    var allSuccess = run.Value.Sum(x => x.Failed) == 0;
                     var anyFailure = run.Value.Sum(x => x.Failed) > 0;
                     var statusColor = _colorScheme.Error;
-                    var successColor = _colorScheme.DarkSuccess;
-                    var failuresColor = _colorScheme.DarkError;
-                    if (allSuccess)
-                    {
-                        successColor = _colorScheme.DarkSuccess;
-                        statusColor = _colorScheme.DarkSuccess;
-                    }
-                    if (allReports.Sum(x => x.Failed) > 0)
-                        failuresColor = _colorScheme.DarkError;
+                    var successColor = _colorScheme.Default;
+                    var failuresColor = _colorScheme.Default;
+                    var errorsColor = _colorScheme.Default;
+                    var warningsColor = _colorScheme.Default;
 
+                    var testRunner = run.Value.Select(x => x.TestRunner).FirstOrDefault();
+                    var testRuntime = run.Value.Select(x => x.Runtime).FirstOrDefault();
                     var testCount = run.Value.Sum(x => x.TestCount);
                     var passed = run.Value.Sum(x => x.Passed);
                     var failed = run.Value.Sum(x => x.Failed);
                     var warnings = run.Value.Sum(x => x.Warnings);
                     var asserts = run.Value.Sum(x => x.Asserts);
                     var inconclusive = run.Value.Sum(x => x.Inconclusive);
-                    var errors = run.Value.SelectMany(x => x.Report.TestReports.Select(t => !string.IsNullOrEmpty(t.ErrorMessage))).Count();
+                    var errors = run.Value.SelectMany(x => x.Report.TestReports.Where(t => t.TestStatus == TestStatus.Fail && !string.IsNullOrEmpty(t.ErrorMessage))).Count();
                     var skipped = run.Value.Sum(x => x.Skipped);
                     var totalRuns = run.Value.GroupBy(x => x.RunNumber).Count();
 
+                    if (allSuccess)
+                    {
+                        successColor = _colorScheme.DarkSuccess;
+                        statusColor = _colorScheme.DarkSuccess;
+                    }
+                    if (failed > 0)
+                        failuresColor = _colorScheme.DarkError;
+                    if (errors > 0)
+                        errorsColor = _colorScheme.DarkError;
+                    if (warnings > 0)
+                        warningsColor = _colorScheme.DarkHighlight;
+
                     WriteRoundBox(builder, $"Test Run #{runNumber} Summary", 0, _colorScheme.DarkHighlight);
 
-                    builder.Append($"  Overall result: ", _colorScheme.Default);
-                    builder.AppendLine(isPassed ? "Passed" : "Failed", statusColor);
+                    builder.Append($"  Result: ", _colorScheme.Default);
+                    builder.AppendLine(allSuccess ? "Passed" : "Failed", statusColor);
 
                     builder.Append($"  Duration: ", _colorScheme.Default);
                     builder.Append($"{testCount:N0} ", _colorScheme.Bright);
                     builder.Append($"tests run in ", _colorScheme.Default);
                     builder.AppendLine($"{run.Key.EndTime.Subtract(run.Key.StartTime).ToTotalElapsedTime()}", _colorScheme.Duration);
+
+                    builder.Append($"  Test Framework: ", _colorScheme.Default);
+                    builder.AppendLine($"{testRuntime:N0} ", _colorScheme.Bright);
+                    builder.Append($"  Test Runner: ", _colorScheme.DarkDefault);
+                    builder.AppendLine($"{testRunner:N0} ", _colorScheme.Default);
                     builder.AppendLine("");
 
                     builder.Append($"  Test Runs: ", _colorScheme.Default);
@@ -74,9 +86,9 @@ namespace NUnit.Commander.Reporting.ReportWriters
                     builder.AppendLine($"{failed:N0}", failuresColor);
 
                     builder.Append($"  Errors: ", _colorScheme.DarkDefault);
-                    builder.Append($"{errors:N0}", _colorScheme.DarkError);
+                    builder.Append($"{errors:N0}", errorsColor);
                     builder.Append($", Warnings: ", _colorScheme.DarkDefault);
-                    builder.Append($"{warnings:N0}", _colorScheme.DarkHighlight);
+                    builder.Append($"{warnings:N0}", warningsColor);
                     builder.Append($", Ignored: ", _colorScheme.DarkDefault);
                     builder.AppendLine($"{skipped}", _colorScheme.Default);
 

@@ -17,6 +17,7 @@ using System.Text;
 using ColorfulConsole = Colorful.Console;
 using Console = NUnit.Commander.Display.CommanderConsole;
 using NUnit.Commander.AutoUpdate;
+using System.Runtime.InteropServices;
 
 namespace NUnit.Commander
 {
@@ -200,8 +201,13 @@ namespace NUnit.Commander
                 Console.WriteLine(options.TestRunnerArguments.MaxLength(360), colorScheme.DarkDefault);
 
                 Console.WriteLine($"Initializing performance counters...", colorScheme.Default);
-                runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-                runContext.PerformanceCounters.DiskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+#pragma warning disable CA1416 // Validate platform compatibility
+                    runContext.PerformanceCounters.CpuCounter = new PerformanceCounter("Processor", "% Processor Time", "_Total");
+                    runContext.PerformanceCounters.DiskCounter = new PerformanceCounter("PhysicalDisk", "% Disk Time", "_Total");
+#pragma warning restore CA1416 // Validate platform compatibility
+                }
             }
             catch (Exception ex)
             {
@@ -223,20 +229,22 @@ namespace NUnit.Commander
 
                 if (testRunnerSuccess)
                 {
-                    // blocking
-                    switch (config.DisplayMode)
+                    while (_launcher.NextProcess())
                     {
-                        case DisplayMode.LogFriendly:
-                            isTestPass = RunLogFriendly(options, config, colorScheme, runNumber, runContext);
-                            break;
-                        case DisplayMode.FullScreen:
-                            isTestPass = RunFullScreen(options, config, colorScheme, runNumber, runContext);
-                            break;
-                        default:
-                            Console.WriteLine($"Unknown DisplayMode '{config.DisplayMode}'");
-                            break;
+                        // blocking
+                        switch (config.DisplayMode)
+                        {
+                            case DisplayMode.LogFriendly:
+                                isTestPass = RunLogFriendly(options, config, colorScheme, runNumber, runContext);
+                                break;
+                            case DisplayMode.FullScreen:
+                                isTestPass = RunFullScreen(options, config, colorScheme, runNumber, runContext);
+                                break;
+                            default:
+                                Console.WriteLine($"Unknown DisplayMode '{config.DisplayMode}'");
+                                break;
+                        }
                     }
-
                     if (_launcher != null)
                     {
                         // kill the test runner if it's still running at this point
@@ -336,6 +344,8 @@ namespace NUnit.Commander
                         Console.WriteLine(output, colorScheme.Error);
                         Console.ForegroundColor = colorScheme.DarkHighlight;
                     }
+                    break;
+                case TestRunner.Auto:
                     break;
                 default:
                     Console.WriteLine($"Unknown TestRunner '{options.TestRunner}'", colorScheme.Error);
