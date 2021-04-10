@@ -1,8 +1,7 @@
 {
   "profiles": {
     "NUnit.Commander": {
-      "commandName": "Project",
-      "commandLineArgs": "--test-runner Auto --path=b:/gitrepo/provantagex/server/tools/NUnit --nunit-args=\"--noheader --noresult --workers=16 --where \\\"cat != ExcludeFakeCategory1\\\"\" --dotnet-args=\"--filter Name~Should_Pass3&TestCategory!=ExcludeFakeCategory1\" --test-assemblies=\"../../../../../DotNetFrameworkTests/bin/Debug/DotNetFrameworkTests.dll  ../../../../../DotNetCoreTests/bin/Debug/net5.0/DotNetCoreTests.dll\""
+      "commandName": "Project"
     }
   }
 }

@@ -196,11 +196,21 @@ namespace NUnit.Commander.IO
                     {
                         var nunitConsoleTestAssemblies = string.Join(" ", dotNetFrameworkTestAssemblies.Select(x => x.Key));
                         isSuccess = LaunchNUnitConsole(string.Join(" ", _options.NUnitConsoleArguments, nunitConsoleTestAssemblies));
+                        if (!isSuccess)
+                        {
+                            Console.WriteLine("Failed to launch NUnit console runner, aborting!");
+                            return false;
+                        }
                     }
                     if (dotNetCoreTestAssemblies.Any())
                     {
                         var dotNetTestAssemblies = string.Join(" ", dotNetCoreTestAssemblies.Select(x => x.Key));
                         isSuccess = LaunchDotNetTest(string.Join(" ", dotNetTestAssemblies, _options.DotNetTestArguments));
+                        if (!isSuccess)
+                        {
+                            Console.WriteLine("Failed to launch dotnet runner, aborting!");
+                            return false;
+                        }
                     }
                     //System.Threading.Thread.Sleep(500);
                     break;
@@ -299,7 +309,8 @@ namespace NUnit.Commander.IO
             // load all of the assemblies and inspect them
             foreach (var assemblyPath in runnerAssemblies.Split(" ", StringSplitOptions.RemoveEmptyEntries))
             {
-                assemblyMetadata.Add(assemblyPath, PortableExecutableHelper.GetAssemblyFrameworkType(assemblyPath));
+                var fullpath = assemblyPath;
+                assemblyMetadata.Add(fullpath, PortableExecutableHelper.GetAssemblyFrameworkType(fullpath));
             }
             OnScanCompleted?.Invoke();
             return assemblyMetadata;

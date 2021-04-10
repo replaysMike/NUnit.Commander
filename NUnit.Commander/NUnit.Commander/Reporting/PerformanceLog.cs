@@ -23,7 +23,6 @@ namespace NUnit.Commander.Reporting
 
         public void AddEntry(PerformanceType type, float value)
         {
-            System.Diagnostics.Debug.WriteLine($"{type}: {value}");
             _log[type].Add(new PerformanceEntry(value));
         }
 

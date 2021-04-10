@@ -275,8 +275,8 @@ namespace NUnit.Commander
                 if (DotNetRuntimes.Contains(e.EventEntry.Event.TestRunner))
                 {
                     // disconnect from the server, and wait for a new connection to appear
-                    Debug.WriteLine($"Waiting for another server connection...");
-                    _console.WriteLine($"Waiting for another server connection...");
+                    // if there is a long timeout here, the application will hang for a while
+                    _console.WriteLine($"Reconnecting to dotnet test extension ({_configuration.ConnectTimeoutSeconds}s timeout)...");
 
                     // launch another connection request, but in a non-blocking task as we are currently in an i/o lock
                     // could alternatively create a connection queue
@@ -588,7 +588,7 @@ namespace NUnit.Commander
                     {
                         // fix for older versions of nunit
                         e.Event.Event = EventNames.StartAssembly;
-                        Debug.WriteLine($"StartAssembly: {e.Event.TestSuite}");
+                        //Debug.WriteLine($"StartAssembly: {e.Event.TestSuite}");
                         _activeAssemblies.Add(new EventEntry(e));
                     }
                     else
