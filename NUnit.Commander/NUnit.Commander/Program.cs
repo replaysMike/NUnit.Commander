@@ -25,6 +25,7 @@ namespace NUnit.Commander
     {
         static Commander _commander;
         static TestRunnerLauncher _launcher;
+        static bool _applicationQuitRequested;
 
         static int Main(string[] args)
         {
@@ -98,6 +99,8 @@ namespace NUnit.Commander
                 config.DisplayMode = options.DisplayMode.Value;
             if (options.ConnectTimeoutSeconds.HasValue)
                 config.ConnectTimeoutSeconds = options.ConnectTimeoutSeconds.Value;
+            if (options.DotNetConnectTimeoutSeconds.HasValue)
+                config.DotNetConnectTimeoutSeconds = options.DotNetConnectTimeoutSeconds.Value;
             if (options.MaxActiveTestsToDisplay.HasValue)
                 config.MaxActiveTestsToDisplay = options.MaxActiveTestsToDisplay.Value;
             if (options.MaxFailedTestsToDisplay.HasValue)
@@ -216,7 +219,7 @@ namespace NUnit.Commander
                 // possibly need to run C:\Windows\SysWOW64> lodctr /r
             }
 
-            while (runNumber < options.Repeat)
+            while (!_applicationQuitRequested && runNumber < options.Repeat)
             {
                 runNumber++;
                 if (options.TestRunner.HasValue)
@@ -237,7 +240,7 @@ namespace NUnit.Commander
 
                 if (testRunnerSuccess)
                 {
-                    while (_launcher?.NextProcess() ?? false)
+                    while (!_applicationQuitRequested && (_launcher?.NextProcess() ?? false))
                     {
                         // blocking
                         switch (config.DisplayMode)
@@ -416,7 +419,7 @@ namespace NUnit.Commander
                     {
                         // connect failure
                         c.Close();
-                    });
+                    }, configuration.ConnectTimeoutSeconds);
                     _commander.WaitForClose();
 
                     if (isConnectSuccessful)
@@ -509,7 +512,7 @@ namespace NUnit.Commander
                     {
                         // connect failure
                         c.Close();
-                    });
+                    }, configuration.ConnectTimeoutSeconds);
 
                     _commander.WaitForClose();
                     if (isConnectSuccessful)
@@ -593,6 +596,7 @@ namespace NUnit.Commander
             // Quit application and show report immediately
             try
             {
+                _applicationQuitRequested = true;
                 if (_launcher != null)
                     _launcher.OnTestRunnerExit -= Launcher_OnTestRunnerExit;
                 var report = _commander?.CreateReportFromHistory();
@@ -616,6 +620,7 @@ namespace NUnit.Commander
             {
                 case ConsoleKey.Q:
                     // Quit application and show report immediately
+                    _applicationQuitRequested = true;
                     if (_launcher != null)
                         _launcher.OnTestRunnerExit -= Launcher_OnTestRunnerExit;
                     var report = _commander?.CreateReportFromHistory();

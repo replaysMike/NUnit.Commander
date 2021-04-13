@@ -8,9 +8,14 @@
         public DisplayMode DisplayMode { get; set; } = DisplayMode.FullScreen;
 
         /// <summary>
-        /// The time in seconds to try connecting to NUnit test run
+        /// The time in seconds to try connecting to NUnit test run when using the NUnit Console test runner
         /// </summary>
         public int ConnectTimeoutSeconds { get; set; } = 5;
+
+        /// <summary>
+        /// The time in seconds to try connecting to NUnit test run when using the Dotnet test runner
+        /// </summary>
+        public int DotNetConnectTimeoutSeconds { get; set; } = 5;
 
         /// <summary>
         /// True to log final reports to a file

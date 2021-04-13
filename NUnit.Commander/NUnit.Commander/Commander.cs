@@ -6,7 +6,6 @@ using NUnit.Commander.Models;
 using NUnit.Commander.Reporting;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -276,7 +275,7 @@ namespace NUnit.Commander
                 {
                     // disconnect from the server, and wait for a new connection to appear
                     // if there is a long timeout here, the application will hang for a while
-                    _console.WriteLine($"Reconnecting to dotnet test extension ({_configuration.ConnectTimeoutSeconds}s timeout)...");
+                    _console.WriteLine($"Reconnecting to dotnet test extension ({_configuration.DotNetConnectTimeoutSeconds}s timeout)...");
 
                     // launch another connection request, but in a non-blocking task as we are currently in an i/o lock
                     // could alternatively create a connection queue
@@ -288,7 +287,7 @@ namespace NUnit.Commander
                             // if connection fails, quit
                             FinalizeTestRun();
                             x.Close();
-                        });
+                        }, _configuration.DotNetConnectTimeoutSeconds);
                     });
                 }
                 else
@@ -300,11 +299,11 @@ namespace NUnit.Commander
             }
         }
 
-        public void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect)
+        public void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect, int connectTimeoutSeconds)
         {
             if (showOutput)
             {
-                var timeoutStr = $" (Timeout: {(_configuration.ConnectTimeoutSeconds > 0 ? $"{_configuration.ConnectTimeoutSeconds} seconds" : "none")})";
+                var timeoutStr = $" (Timeout: {(connectTimeoutSeconds > 0 ? $"{connectTimeoutSeconds} seconds" : "none")})";
                 Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
                 _console.WriteLine($"Connecting to {Constants.ExtensionName}{timeoutStr}...");
             }
@@ -337,7 +336,7 @@ namespace NUnit.Commander
                     _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append(Constants.ExtensionUrl, ColorScheme.Highlight).AppendLine(" for more details."));
                 }
                 onFailedConnect(this);
-            });
+            }, connectTimeoutSeconds);
         }
 
         public void WaitForClose()

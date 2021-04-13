@@ -2,6 +2,11 @@ using NUnit.Framework;
 
 namespace DotNetCoreTests
 {
+    /*
+     * These tests should not be run as part of the NUnit.Commander build.
+     * They are used to emulate pass/fail for testing run output of NUnit.Commander itself.
+     */
+
     [TestFixture]
     public class DotNetCoreTests
     {

@@ -157,6 +157,10 @@ namespace NUnit.Commander.IO
                     process.IsComplete = true;
                 }
             }
+            catch (InvalidOperationException)
+            {
+                // the process never started so can't wait for exit
+            }
             catch (COMException)
             {
                 // the process ended and handle was already released

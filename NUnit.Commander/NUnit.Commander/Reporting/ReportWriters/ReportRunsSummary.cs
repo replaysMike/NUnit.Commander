@@ -48,11 +48,11 @@ namespace NUnit.Commander.Reporting.ReportWriters
 
                     if (allSuccess)
                     {
-                        successColor = _colorScheme.DarkSuccess;
-                        statusColor = _colorScheme.DarkSuccess;
+                        successColor = _colorScheme.Success;
+                        statusColor = _colorScheme.Success;
                     }
                     if (failed > 0)
-                        failuresColor = _colorScheme.DarkError;
+                        failuresColor = _colorScheme.Error;
                     if (errors > 0)
                         errorsColor = _colorScheme.DarkError;
                     if (warnings > 0)

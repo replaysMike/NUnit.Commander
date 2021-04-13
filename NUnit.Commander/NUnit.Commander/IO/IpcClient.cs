@@ -58,14 +58,14 @@ namespace NUnit.Commander.IO
             _closeEvent = new ManualResetEvent(false);
         }
 
-        public void Connect(bool showOutput, Action<IpcClient> onSuccessConnect, Action<IpcClient> onFailedConnect)
+        public void Connect(bool showOutput, Action<IpcClient> onSuccessConnect, Action<IpcClient> onFailedConnect, int connectTimeoutSeconds)
         {
             _client = new NamedPipeClientStream(".", "TestMonitorExtension", PipeDirection.InOut);
             try
             {
                 IsWaitingForConnection = true;
-                if (_config.ConnectTimeoutSeconds > 0)
-                    _client.Connect((int)TimeSpan.FromSeconds(_config.ConnectTimeoutSeconds).TotalMilliseconds); // specify in ms
+                if (connectTimeoutSeconds > 0)
+                    _client.Connect((int)TimeSpan.FromSeconds(connectTimeoutSeconds).TotalMilliseconds); // specify in ms
                 else
                     _client.Connect();
                 _client.ReadMode = PipeTransmissionMode.Byte;

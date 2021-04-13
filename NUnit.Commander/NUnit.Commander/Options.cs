@@ -25,8 +25,11 @@ namespace NUnit.Commander
         [Option('d', "display-mode", Required = false, HelpText = "Specify the display mode: LogFriendly,FullScreen")]
         public DisplayMode? DisplayMode { get; set; }
 
-        [Option("timeout", Required = false, HelpText = "Specify the length of seconds to wait to connect")]
+        [Option("timeout", Required = false, HelpText = "Specify the length of seconds to wait to connect when using the nunit test runner")]
         public int? ConnectTimeoutSeconds { get; set; }
+
+        [Option("dotnet-timeout", Required = false, HelpText = "Specify the length of seconds to wait to connect when using the dotnet test runner")]
+        public int? DotNetConnectTimeoutSeconds { get; set; }
 
         [Option("max-display", Required = false, HelpText = "Specify the number of active tests to display on screen at a time. 0=auto calculate")]
         public int? MaxActiveTestsToDisplay { get; set; }

@@ -14,7 +14,8 @@ namespace NUnit.Commander
         /// <param name="showOutput">True to show output relating to connection status/failure</param>
         /// <param name="onSuccessConnect">Called on connection success</param>
         /// <param name="onFailedConnect">Called on connection failure</param>
-        void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect);
+        /// <param name="connectionTimeoutSeconds">The connection timeout in seconds</param>
+        void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect, int connectionTimeoutSeconds);
 
         /// <summary>
         /// List of tests that are currently running
