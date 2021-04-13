@@ -25,8 +25,6 @@ NUnit.Commander provides real-time test status output for tests run via the [NUn
 
 Download and install the [latest release](https://github.com/replaysMike/NUnit.Commander/releases).
 
-Or using [chocolatey](https://chocolatey.org/), `choco install NUnit.Commander`
-
 ## Requirements
 
 [NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor) must be installed along with your [NUnit-Console](https://github.com/nunit/nunit-console) test runner, or as a nuget package on your test project when using the `dotnet test` test runner. Please refer to installation instructions for [NUnit.Extension.TestMonitor](https://github.com/replaysMike/NUnit.Extension.TestMonitor)
