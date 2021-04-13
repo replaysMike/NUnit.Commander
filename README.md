@@ -59,5 +59,12 @@ Dotnet test is a little more flexible as you only need to give it the path to yo
 > NUnit.Commander.exe --timeout=15 --test-runner DotNetTest --args="C:/Path-to/MyTestProject"
 ```
 
+### Run using automatic test runner detection
+
+NUnit.Commander can detect the runtime of your test assembly and schedule the appropriate test runner. Results will be aggregated and displayed for each runtime as well as a final summary.
+```
+> NUnit.Commander.exe --timeout=15 --test-runner Auto --nunit-args="--noheader --noresult --workers=16 --where \"cat != CategoryToExclude\"" --dotnet-args="--filter TestCategory!=CategoryToExclude" --test-assemblies="C:/Path-to/MyTestProject1.dll C:/Path-to/MyTestProject2.dll"
+```
+
 
 
