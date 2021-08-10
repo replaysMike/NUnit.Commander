@@ -37,13 +37,18 @@ namespace NUnit.Commander.AutoUpdate
                 if (response.StatusCode == System.Net.HttpStatusCode.OK)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    var xml = new XmlDocument();
-                    xml.LoadXml(content);
-                    var latestVersionText = xml.DocumentElement.LastChild.LastChild.InnerText;
-                    LatestVersion = Version.Parse(latestVersionText.Replace("v", ""));
-                    if (LatestVersion > CurrentVersion)
+                    if (!string.IsNullOrEmpty(content))
                     {
-                        hasUpdate = true;
+                        var xml = new XmlDocument();
+                        xml.LoadXml(content);
+                        var latestVersionText = xml.DocumentElement?.LastChild?.LastChild?.InnerText?.Replace("v", "");
+                        if (latestVersionText != null && Version.TryParse(latestVersionText, out LatestVersion))
+                        {
+                            if (LatestVersion > CurrentVersion)
+                            {
+                                hasUpdate = true;
+                            }
+                        }
                     }
                 }
             }).GetAwaiter().GetResult();

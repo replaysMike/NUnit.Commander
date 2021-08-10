@@ -158,8 +158,15 @@ namespace NUnit.Commander
             }
 
             // check for application updates
-            if (options.AutoUpdate && AutoUpdater.CheckForUpdate())
-                AutoUpdater.PerformUpdate(options, colorScheme);
+            try
+            {
+                if (options.AutoUpdate && AutoUpdater.CheckForUpdate())
+                    AutoUpdater.PerformUpdate(options, colorScheme);
+            }
+            catch (Exception ex)
+            {
+                ColorfulConsole.WriteLine($"Warning: Auto-update failed. Error: {ex.GetBaseException().Message}", colorScheme.DarkError);
+            }
 
             // initialize the performance counters before launching the test runner
             // this is because it can be slow, we don't want to delay connecting to the test runner
@@ -167,7 +174,6 @@ namespace NUnit.Commander
             {
                 if (!Console.IsOutputRedirected)
                 {
-                    // UtilityConsole.SetCurrentFont("Consolas", 10);
                     var currentFont = ConsoleUtil.GetCurrentFont().FontName;
                     Console.Write($"Console font: ");
                     Console.WriteLine(currentFont, colorScheme.DarkDefault);
