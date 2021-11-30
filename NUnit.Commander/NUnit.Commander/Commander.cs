@@ -692,24 +692,6 @@ namespace NUnit.Commander
                 {
                     _client?.Dispose();
                     _closeEvent?.Set();
-                    try
-                    {
-                        if (_updateThread?.Join(5 * 1000) == false)
-                            _updateThread.Abort();
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // threadabort not supported
-                    }
-                    try
-                    {
-                        if (_utilityThread?.Join(5 * 1000) == false)
-                            _utilityThread.Abort();
-                    }
-                    catch (PlatformNotSupportedException)
-                    {
-                        // threadabort not supported
-                    }
                     _closeEvent?.Dispose();
                     _closeEvent = null;
                     _client = null;

@@ -2,7 +2,7 @@
 
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net5.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<Authors>Michael Brown</Authors>
 		<Company>Refactor Software</Company>
 		<Description>A wrapper for running NUnit tests that provides real-time reporting using NUnit-Console or dotnet test</Description>
@@ -10,9 +10,9 @@
 		<PackageProjectUrl>https://github.com/replaysMike/NUnit.Extension.TestMonitor</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/replaysMike/NUnit.Extension.TestMonitor</RepositoryUrl>
 		<PackageTags>nunit commander real-time testing tests refactor software michael brown</PackageTags>
-		<AssemblyVersion>1.5.3</AssemblyVersion>
-		<FileVersion>1.5.3</FileVersion>
-		<Version>1.5.3</Version>
+		<AssemblyVersion>2.0.0</AssemblyVersion>
+		<FileVersion>2.0.0</FileVersion>
+		<Version>2.0.0</Version>
 		<PackageLicenseFile>LICENSE</PackageLicenseFile>
 		<PublishSingleFile>true</PublishSingleFile>
 		<PublishReadyToRun>true</PublishReadyToRun>
@@ -20,18 +20,12 @@
 		<RuntimeIdentifier>win10-x64</RuntimeIdentifier>
 		<ApplicationIcon>icon.ico</ApplicationIcon>
 		<PublishWithAspNetCoreTargetManifest>false</PublishWithAspNetCoreTargetManifest>
+		<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+		<PlatformTarget>AnyCPU</PlatformTarget>
 	</PropertyGroup>
 
 	<PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
 		<DefineConstants>WINDOWS</DefineConstants>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	</PropertyGroup>
-
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -49,18 +43,18 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="AngleSharp" Version="0.14.0" />
+		<PackageReference Include="AngleSharp" Version="0.16.1" />
 		<PackageReference Include="AnyConsole" Version="1.0.65" />
 		<PackageReference Include="CommandLineParser" Version="2.8.0" />
-		<PackageReference Include="Microsoft.Extensions.Configuration" Version="5.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="5.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="6.0.0" />
 		<PackageReference Include="morelinq" Version="3.3.2" />
-		<PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
 		<PackageReference Include="PInvoke.Kernel32" Version="0.7.104" />
-		<PackageReference Include="protobuf-net" Version="3.0.73" />
-		<PackageReference Include="System.Diagnostics.PerformanceCounter" Version="5.0.1" />
-		<PackageReference Include="System.Drawing.Common" Version="5.0.2" />
+		<PackageReference Include="protobuf-net" Version="3.0.101" />
+		<PackageReference Include="System.Diagnostics.PerformanceCounter" Version="6.0.0" />
+		<PackageReference Include="System.Drawing.Common" Version="6.0.0" />
 	</ItemGroup>
 
 </Project>

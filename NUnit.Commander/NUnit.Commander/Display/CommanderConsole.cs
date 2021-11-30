@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace NUnit.Commander.Display
@@ -74,61 +75,94 @@ namespace NUnit.Commander.Display
 
         public static bool CursorVisible
         {
-            get { return Console.CursorVisible; }
-            set { Console.CursorVisible = value; }
+            [SupportedOSPlatformGuard("windows")]
+            get
+            {
+                if (OperatingSystem.IsWindows())
+                    return Console.CursorVisible;
+                return false;
+            }
+            set => Console.CursorVisible = value;
         }
+
         public static int WindowWidth
         {
-            get { return Console.WindowWidth; }
-            set { Console.WindowWidth = value; }
+            get => Console.WindowWidth;
+            [SupportedOSPlatformGuard("windows")]
+            set
+            {
+                if (OperatingSystem.IsWindows())
+                    Console.WindowWidth = value;
+            }
         }
 
         public static int WindowHeight
         {
-            get { return Console.WindowHeight; }
-            set { Console.WindowHeight = value; }
+            get => Console.WindowHeight;
+            [SupportedOSPlatformGuard("windows")]
+            set
+            {
+                if (OperatingSystem.IsWindows())
+                    Console.WindowHeight = value;
+            }
         }
 
         public static int WindowTop
         {
-            get { return Console.WindowTop; }
-            set { Console.WindowTop = value; }
+            get => Console.WindowTop;
+            [SupportedOSPlatformGuard("windows")]
+            set
+            {
+                if (OperatingSystem.IsWindows())
+                    Console.WindowTop = value;
+            }
         }
 
         public static int WindowLeft
         {
-            get { return Console.WindowLeft; }
-            set { Console.WindowLeft = value; }
+            get => Console.WindowLeft;
+            [SupportedOSPlatformGuard("windows")]
+            set
+            {
+                if (OperatingSystem.IsWindows())
+                    Console.WindowLeft = value;
+            }
         }
 
         public static int CursorTop
         {
-            get { return Console.CursorTop; }
-            set { Console.CursorTop = value; }
+            get => Console.CursorTop;
+            set => Console.CursorTop = value;
         }
 
         public static int CursorLeft
         {
-            get { return Console.CursorLeft; }
-            set { Console.CursorLeft = value; }
+            get => Console.CursorLeft;
+            set => Console.CursorLeft = value;
         }
 
         public static int CursorSize
         {
-            get { return Console.CursorSize; }
-            set { Console.CursorSize = value; }
+            get => Console.CursorSize;
+            [SupportedOSPlatformGuard("windows")]
+            set
+            {
+                if (OperatingSystem.IsWindows())
+                    Console.CursorSize = value;
+            }
         }
 
         public static Encoding OutputEncoding
         {
-            get { return Console.OutputEncoding; }
-            set { Console.OutputEncoding = value; }
+            get => Console.OutputEncoding;
+            set => Console.OutputEncoding = value;
         }
 
         public static Color BackgroundColor
         {
             get { return _map.Value.GetMappedColor(Console.BackgroundColor); }
-            set {
+            set
+            {
                 var consoleColor = _map.Value.GetMappedConsoleColor(value);
                 if (consoleColor != null)
                     Console.BackgroundColor = consoleColor.Value;
@@ -140,10 +174,11 @@ namespace NUnit.Commander.Display
         public static Color ForegroundColor
         {
             get { return _map.Value.GetMappedColor(Console.ForegroundColor); }
-            set {
+            set
+            {
                 var consoleColor = _map.Value.GetMappedConsoleColor(value);
                 if (consoleColor != null)
-                    Console.ForegroundColor = consoleColor.Value; 
+                    Console.ForegroundColor = consoleColor.Value;
                 else
                     _map.Value.ResetForegroundColor();
             }
