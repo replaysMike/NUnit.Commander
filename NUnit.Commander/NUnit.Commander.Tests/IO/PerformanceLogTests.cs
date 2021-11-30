@@ -47,7 +47,6 @@ namespace NUnit.Commander.Tests.IO
             // Arrange
             var performanceLog = CreatePerformanceLog();
             var type = PerformanceLog.PerformanceType.CpuUsed;
-            float value = 100;
 
             // Act
             performanceLog.AddEntry(type, 100);

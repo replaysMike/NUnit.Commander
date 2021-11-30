@@ -280,15 +280,6 @@ namespace NUnit.Commander.IO
             if (isDisposing)
             {
                 _closeEvent?.Set();
-                try
-                {
-                    if (_inputThread?.Join(5 * 1000) == false)
-                        _inputThread?.Abort();
-                }
-                catch (PlatformNotSupportedException)
-                {
-                    // threadabort not supportedd
-                }
                 Console.Out.Flush();
                 Console.Error.Flush();
                 if (!IsOutputRedirected)

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
 
 namespace NUnit.Commander.Display
@@ -88,22 +89,28 @@ namespace NUnit.Commander.Display
             return ch;
         }
 
+        [SupportedOSPlatformGuard("windows")]
         public static FontCapabilities GetCurrentFont()
         {
-            var handle = GetStdHandle(StdHandle.OutputHandle);
-            var info = new CONSOLE_FONT_INFOEX();
-            info.cbSize = (uint)Marshal.SizeOf(info);
-            GetCurrentConsoleFontEx(handle, false, ref info);
-            var isTrueType = (info.FontFamily & TMPF_TRUETYPE) == TMPF_TRUETYPE;
-            var fontName = info.FaceName;
-            var font = new Font(fontName, 10);
-            var ranges = GetUnicodeRangesForFont(font);
-            // ‭10240‬, ‭10495‬
-            var min = 0x2801;
-            var max = 0x28FF;
-            var test = CheckIfCharInFont('•', font);
-            int unicodeValue = Convert.ToUInt16('\u2801');
-            var supportsDesiredUnicodeRanges = ranges.Any(x => x.Low >= min && x.High <= min && (x.Low <= max && x.High >= max));
+            var fontName = "unknown";
+            var supportsDesiredUnicodeRanges = false;
+            if (OperatingSystem.IsWindows())
+            {
+                var handle = GetStdHandle(StdHandle.OutputHandle);
+                var info = new CONSOLE_FONT_INFOEX();
+                info.cbSize = (uint)Marshal.SizeOf(info);
+                GetCurrentConsoleFontEx(handle, false, ref info);
+                var isTrueType = (info.FontFamily & TMPF_TRUETYPE) == TMPF_TRUETYPE;
+                fontName = info.FaceName;
+                var font = new Font(fontName, 10);
+                var ranges = GetUnicodeRangesForFont(font);
+                // ‭10240‬, ‭10495‬
+                var min = 0x2801;
+                var max = 0x28FF;
+                var test = CheckIfCharInFont('•', font);
+                int unicodeValue = Convert.ToUInt16('\u2801');
+                supportsDesiredUnicodeRanges = ranges.Any(x => x.Low >= min && x.High <= min && (x.Low <= max && x.High >= max));
+            }
 
             return new FontCapabilities
             {
@@ -130,6 +137,8 @@ namespace NUnit.Commander.Display
 
         public static List<ExtendedConsole.FontRange> GetUnicodeRangesForFont(Font font)
         {
+            if (!OperatingSystem.IsWindows())
+                return new List<ExtendedConsole.FontRange>();
             var g = Graphics.FromHwnd(IntPtr.Zero);
             var hdc = g.GetHdc();
             var hFont = font.ToHfont();

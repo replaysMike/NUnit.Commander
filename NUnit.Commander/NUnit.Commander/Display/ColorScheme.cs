@@ -211,8 +211,6 @@ namespace NUnit.Commander.Display
 
         public void PrintColorMap()
         {
-            var block = "████████████████";
-
             System.Console.WriteLine($"Background - {System.Console.BackgroundColor}");
             System.Console.WriteLine($"Foreground - {System.Console.ForegroundColor}");
             var colors = _mapper.GetBufferColors();

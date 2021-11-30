@@ -185,8 +185,13 @@ namespace NUnit.Commander
                     var powershellDetected = parentProcess?.ProcessName.Equals("powershell", StringComparison.InvariantCultureIgnoreCase) == true;
                     var dotChar = ConsoleUtil.GetCharAt(unicodeTestHeader.Length, Console.CursorTop); // dot ok
                     var brailleChar = ConsoleUtil.GetCharAt(unicodeTestHeader.Length + 9, Console.CursorTop); // braille ok
-                    var dotCharOk = ConsoleUtil.CheckIfCharInFont(dotChar, new Font(currentFont, 10));
-                    var brailleCharOk = ConsoleUtil.CheckIfCharInFont(brailleChar, new Font(currentFont, 10));
+                    var dotCharOk = false;
+                    if (OperatingSystem.IsWindows())
+                        dotCharOk = ConsoleUtil.CheckIfCharInFont(dotChar, new Font(currentFont, 10));
+                    
+                    var brailleCharOk = false;
+                    if (OperatingSystem.IsWindows())
+                        brailleCharOk = ConsoleUtil.CheckIfCharInFont(brailleChar, new Font(currentFont, 10));
                     // Console.WriteLine($"Dot: {dotCharOk}, Braille: {brailleCharOk}");
                     Console.Write($"Console Detection: ");
                     if (conEmuDetected)
