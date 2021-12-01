@@ -17,8 +17,9 @@ namespace NUnit.Commander.IO
     /// </summary>
     internal class GrpcTestEventHost
     {
-        private HostBuilder _builder;
-        private ApplicationConfiguration _configuration;
+        private const string GrpcServer = "127.0.0.1";
+        private readonly HostBuilder _builder;
+        private readonly ApplicationConfiguration _configuration;
 
         public delegate void TestEventHandler(object sender, MessageEventArgs e);
         /// <summary>
@@ -44,7 +45,7 @@ namespace NUnit.Commander.IO
                 var server = new Server
                 {
                     Services = { TestEvent.BindService(testEventService), ServerReflection.BindService(reflectionService) },
-                    Ports = { new ServerPort("localhost", _configuration.Port, ServerCredentials.Insecure) },
+                    Ports = { new ServerPort(GrpcServer, _configuration.Port, ServerCredentials.Insecure) },
                 };
                 services.AddSingleton(server);
                 services.AddSingleton<IHostedService, GrpcHostedService>();
