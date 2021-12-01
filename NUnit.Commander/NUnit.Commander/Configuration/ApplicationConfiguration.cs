@@ -3,6 +3,11 @@
     public class ApplicationConfiguration
     {
         /// <summary>
+        /// Port number to accept connections to for test events
+        /// </summary>
+        public int Port { get; set; } = 35001;
+
+        /// <summary>
         /// Choose the display mode
         /// </summary>
         public DisplayMode DisplayMode { get; set; } = DisplayMode.FullScreen;
@@ -111,5 +116,5 @@
         /// Display configuration
         /// </summary>
         internal DisplayConfiguration DisplayConfiguration { get; set; } = new DisplayConfiguration();
-    } 
+    }
 }

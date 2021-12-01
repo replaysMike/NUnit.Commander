@@ -1,0 +1,20 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "TestEventService1";
+
+package testevent;
+
+// Test event service
+service TestEvent {
+  // Sends a test event message
+  rpc WriteTestEvent (TestEventRequest) returns (Empty);
+}
+
+// The test event to write
+message TestEventRequest {
+  string event = 1;
+}
+
+message Empty {
+
+}

@@ -43,6 +43,8 @@ namespace NUnit.Commander
         internal SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         internal SemaphoreSlim _performanceLock = new SemaphoreSlim(1, 1);
         internal IpcClient _client;
+        internal GrpcTestEventHost _host;
+        internal CancellationToken _hostCancellationToken;
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
         internal List<EventEntry> _activeTestFixtures;
@@ -153,6 +155,8 @@ namespace NUnit.Commander
             _activeTestSuites = new List<EventEntry>();
             _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
+            _host = new GrpcTestEventHost(configuration);
+            _host.TestEventReceived += GrpcHost_TestEventReceived;
 
             // start the display thread
             _updateThread = new Thread(new ThreadStart(DisplayThread));
@@ -162,12 +166,14 @@ namespace NUnit.Commander
             _updateThread.Start();
 
             // start the utility thread
-
             _utilityThread = new Thread(new ThreadStart(UtilityThread));
             _utilityThread.IsBackground = true;
             _utilityThread.Name = nameof(UtilityThread);
             _utilityThread.Start();
             StartTime = DateTime.Now;
+
+            _hostCancellationToken = new CancellationTokenSource().Token;
+            _host.RunAsync(_hostCancellationToken);
         }
 
         public Commander(ApplicationConfiguration configuration, ColorScheme colorScheme, IExtendedConsole console, int runNumber, RunContext runContext) : this(configuration, colorScheme)
@@ -221,7 +227,17 @@ namespace NUnit.Commander
             _viewManager?.SetView(view);
         }
 
+        private void GrpcHost_TestEventReceived(object sender, MessageEventArgs e)
+        {
+            ReceiveMessage(sender, e);
+        }
+
         private void IpcClient_OnMessageReceived(object sender, MessageEventArgs e)
+        {
+            ReceiveMessage(sender, e);
+        }
+
+        private void ReceiveMessage(object sender, MessageEventArgs e)
         {
             // a new message has been received from the IpcServer
             _lock?.Wait();
