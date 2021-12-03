@@ -31,7 +31,7 @@ namespace NUnit.Commander.IO.Services
 
         public override Task<Empty> WriteTestEvent(TestEventRequest request, ServerCallContext context)
         {
-            //Console.WriteLine($"Received TestEvent: {request.Event}");
+            System.Diagnostics.Debug.WriteLine($"Grpc Received TestEvent: {request.Event}");
             var dataEvent = Deserialize(request.Event);
             TestEventReceived?.Invoke(this, new MessageEventArgs(dataEvent));
             return Task.FromResult(_empty);
