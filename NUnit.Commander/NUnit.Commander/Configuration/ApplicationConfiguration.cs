@@ -2,15 +2,22 @@
 {
     public class ApplicationConfiguration
     {
+        public const int DefaultNamedPipesConnectionTimeoutMilliseconds = 5000;
+
         /// <summary>
-        /// Port number to accept connections to for test events
+        /// Port number to accept connections to for Grpc test events
         /// </summary>
         public int Port { get; set; } = 35001;
 
         /// <summary>
+        /// The timeout (in seconds) to wait for a Named Pipe client connection
+        /// </summary>
+        public int NamedPipesConnectionTimeoutMilliseconds { get; set; } = DefaultNamedPipesConnectionTimeoutMilliseconds;
+
+        /// <summary>
         /// Choose the display mode
         /// </summary>
-        public DisplayMode DisplayMode { get; set; } = DisplayMode.FullScreen;
+        public DisplayMode DisplayMode { get; set; } = DisplayMode.LogFriendly;
 
         /// <summary>
         /// The time in seconds to try connecting to NUnit test run when using the NUnit Console test runner

@@ -14,8 +14,6 @@ namespace NUnit.Commander.Display
     public class ViewContext
     {
         public Commander Commander { get; }
-
-        public IpcClient Client => Commander._client;
         public RunContext RunContext => Commander.RunContext;
         public int MaxTestCaseArgumentLength => Commander.MaxTestCaseArgumentLength;
         public IExtendedConsole Console => Commander._console;

@@ -8,12 +8,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace NUnit.Commander
 {
     public class Commander : ICommander, IDisposable
     {
+        private const int LockWaitMilliseconds = 5 * 1000;
         // how often to should draw to the screen
         internal const int DefaultDrawIntervalMilliseconds = 66;
         // how often to run utility functions
@@ -40,11 +40,11 @@ namespace NUnit.Commander
         internal readonly List<EventEntry> _eventLog;
         internal readonly ApplicationConfiguration _configuration;
         internal readonly PerformanceLog _performanceLog = new PerformanceLog();
+        internal readonly IpcServer _ipcServer;
         internal SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
         internal SemaphoreSlim _performanceLock = new SemaphoreSlim(1, 1);
-        internal IpcClient _client;
-        internal GrpcTestEventHost _host;
-        internal CancellationToken _hostCancellationToken;
+        internal GrpcTestEventHost _grpcServer;
+        internal CancellationTokenSource _hostCancellationToken;
         private ManualResetEvent _closeEvent;
         internal List<EventEntry> _activeTests;
         internal List<EventEntry> _activeTestFixtures;
@@ -155,8 +155,10 @@ namespace NUnit.Commander
             _activeTestSuites = new List<EventEntry>();
             _viewManager = new ViewManager(new ViewContext(this), ViewPages.ActiveTests);
             RunReports = new List<DataEvent>();
-            _host = new GrpcTestEventHost(configuration);
-            _host.TestEventReceived += GrpcHost_TestEventReceived;
+            _ipcServer = new IpcServer(configuration);
+            _ipcServer.OnMessageReceived += IpcServer_OnMessageReceived;
+            _grpcServer = new GrpcTestEventHost(configuration);
+            _grpcServer.TestEventReceived += GrpcHost_TestEventReceived;
 
             // start the display thread
             _updateThread = new Thread(new ThreadStart(DisplayThread));
@@ -172,13 +174,14 @@ namespace NUnit.Commander
             _utilityThread.Start();
             StartTime = DateTime.Now;
 
-            _hostCancellationToken = new CancellationTokenSource().Token;
-            _host.RunAsync(_hostCancellationToken);
+            _hostCancellationToken = new CancellationTokenSource();
+            _grpcServer.RunAsync(_hostCancellationToken.Token);
+            _ipcServer.Start();
         }
 
         public Commander(ApplicationConfiguration configuration, ColorScheme colorScheme, IExtendedConsole console, int runNumber, RunContext runContext) : this(configuration, colorScheme)
         {
-            if(configuration == null) 
+            if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
             if (colorScheme == null)
                 throw new ArgumentNullException(nameof(colorScheme));
@@ -232,7 +235,7 @@ namespace NUnit.Commander
             ReceiveMessage(sender, e);
         }
 
-        private void IpcClient_OnMessageReceived(object sender, MessageEventArgs e)
+        private void IpcServer_OnMessageReceived(object sender, MessageEventArgs e)
         {
             ReceiveMessage(sender, e);
         }
@@ -243,6 +246,7 @@ namespace NUnit.Commander
             _lock?.Wait();
             try
             {
+                //System.Diagnostics.Debug.WriteLine($"Received Message {e.EventEntry.Event.Event} - {e.EventEntry.Event.TestName}, {e.EventEntry.Event.TestStatus} {e.EventEntry.Event.TestSuite}");
                 // inject data
                 e.EventEntry.Event.RunNumber = RunNumber;
 
@@ -284,75 +288,16 @@ namespace NUnit.Commander
 
             if (e.EventEntry.Event.Event == EventNames.Report)
             {
+                //System.Diagnostics.Debug.WriteLine($"END report received for {e.EventEntry.Event.TestName}!");
                 _allowDrawActiveTests = true;
-                // when we receive a report, we need to reconnect to the IpcServer as DotNetTest behaves differently than
-                // NUnit in this manner. It will run tests in new processes, so we need to reconnect and see if more tests are running.
-                if (DotNetRuntimes.Contains(e.EventEntry.Event.TestRunner))
+                // System.Diagnostics.Debug.WriteLine($"Active Test Suites: ({string.Join(",", _activeTestSuites.Where(x => !x.IsQueuedForRemoval))}), Active Assemblies: ({string.Join(",", _activeAssemblies.Where(x => !x.IsQueuedForRemoval))})");
+                if (_activeAssemblies.Count(x => !x.IsQueuedForRemoval) == 0)
                 {
-                    // disconnect from the server, and wait for a new connection to appear
-                    // if there is a long timeout here, the application will hang for a while
-                    _console.WriteLine($"Reconnecting to dotnet test extension ({_configuration.DotNetConnectTimeoutSeconds}s timeout)...");
-
-                    // launch another connection request, but in a non-blocking task as we are currently in an i/o lock
-                    // could alternatively create a connection queue
-                    Task.Run(() => {
-                        _client.OnMessageReceived -= IpcClient_OnMessageReceived;
-                        _client.Dispose();
-                        Connect(false, (x) => { }, (x) =>
-                        {
-                            // if connection fails, quit
-                            FinalizeTestRun();
-                            x.Close();
-                        }, _configuration.DotNetConnectTimeoutSeconds);
-                    });
-                }
-                else
-                {
-                    // NUnit does not require reconnections
+                    //System.Diagnostics.Debug.WriteLine($"No active tests running, generating report!");
                     FinalizeTestRun();
                     Close();
                 }
             }
-        }
-
-        public void Connect(bool showOutput, Action<ICommander> onSuccessConnect, Action<ICommander> onFailedConnect, int connectTimeoutSeconds)
-        {
-            if (showOutput)
-            {
-                var timeoutStr = $" (Timeout: {(connectTimeoutSeconds > 0 ? $"{connectTimeoutSeconds} seconds" : "none")})";
-                Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
-                _console.WriteLine($"Connecting to {Constants.ExtensionName}{timeoutStr}...");
-            }
-
-            _client = new IpcClient(_configuration, _console);
-            _client.OnMessageReceived += IpcClient_OnMessageReceived;
-
-            _client.Connect(showOutput, (client) =>
-            {
-                // successful connect
-                _allowDrawActiveTests = true;
-                IsConnected = true;
-                if (showOutput)
-                {
-                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
-                    _console.WriteLine($"Connected to {Constants.ExtensionName}, Run #{RunNumber}.");
-                    if (_console.IsOutputRedirected)
-                        _console.WriteLine($"Tests started at {DateTime.Now}");
-                    onSuccessConnect(this);
-                }
-            }, (client) =>
-            {
-                IsConnected = false;
-                // failed connect
-                if (showOutput)
-                {
-                    Console.ForegroundColor = ColorScheme.GetMappedConsoleColor(ColorScheme.Default) ?? ConsoleColor.Gray;
-                    _console.WriteLine(ColorTextBuilder.Create.AppendLine($"Failed to connect to {Constants.ExtensionName} extension within {_configuration.ConnectTimeoutSeconds} seconds.", ColorScheme.Error));
-                    _console.WriteLine($"Please ensure your test runner is launched and the {Constants.ExtensionName} extension is correctly configured.");
-                    _console.WriteLine(ColorTextBuilder.Create.Append("Try using --help, or see ").Append(Constants.ExtensionUrl, ColorScheme.Highlight).AppendLine(" for more details."));
-                }
-                onFailedConnect(this);
-            }, connectTimeoutSeconds);
         }
 
         public void WaitForClose()
@@ -375,7 +320,7 @@ namespace NUnit.Commander
         private void DisplayThread()
         {
             var iteration = 0L;
-            while (!_closeEvent.WaitOne(_drawIntervalMilliseconds))
+            while (_closeEvent?.WaitOne(_drawIntervalMilliseconds) == false)
             {
                 RemoveExpiredActiveTests();
                 _viewManager.Draw(iteration);
@@ -386,7 +331,7 @@ namespace NUnit.Commander
 
         private void UtilityThread()
         {
-            while (!_closeEvent.WaitOne(DefaultUtilityIntervalMilliseconds))
+            while (_closeEvent?.WaitOne(DefaultUtilityIntervalMilliseconds) == false)
             {
                 LogPerformance();
             }
@@ -532,16 +477,16 @@ namespace NUnit.Commander
             IsRunning = false;
             EndTime = DateTime.Now;
 
-            _console.WriteLine($"Finalizing test run...");
+            _console?.WriteLine($"Finalizing test run...");
             var anyFailures = RunReports.SelectMany(x => x.Report.TestReports).Any(x => x.TestStatus == TestStatus.Fail);
             if (anyFailures)
                 TestStatus = TestStatus.Fail;
             else
                 TestStatus = TestStatus.Pass;
-            if (!_console.IsOutputRedirected)
+            if (_console?.IsOutputRedirected != true)
             {
-                _console.ClearAtRange(0, BeginY, 0, BeginY + 1 + _lastNumberOfLinesDrawn);
-                _console.SetCursorPosition(0, BeginY);
+                _console?.ClearAtRange(0, BeginY, 0, BeginY + 1 + _lastNumberOfLinesDrawn);
+                _console?.SetCursorPosition(0, BeginY);
             }
         }
 
@@ -595,7 +540,7 @@ namespace NUnit.Commander
                     _activeAssemblies.Add(new EventEntry(e));
                     break;
                 case EventNames.EndAssembly:
-                    var matchingActiveAssembly = _activeAssemblies.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartAssembly);
+                    var matchingActiveAssembly = _activeAssemblies.FirstOrDefault(x => x.Event.TestSuite == e.Event.TestSuite && x.Event.Event == EventNames.StartAssembly);
                     UpdateEventEntry(matchingActiveAssembly, e);
                     break;
                 case EventNames.StartSuite:
@@ -603,14 +548,13 @@ namespace NUnit.Commander
                     {
                         // fix for older versions of nunit
                         e.Event.Event = EventNames.StartAssembly;
-                        //Debug.WriteLine($"StartAssembly: {e.Event.TestSuite}");
                         _activeAssemblies.Add(new EventEntry(e));
                     }
                     else
                         _activeTestSuites.Add(new EventEntry(e));
                     break;
                 case EventNames.EndSuite:
-                    var matchingActiveTestSuite = _activeTestSuites.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartSuite);
+                    var matchingActiveTestSuite = _activeTestSuites.FirstOrDefault(x => x.Event.TestSuite == e.Event.TestSuite && x.Event.Event == EventNames.StartSuite);
                     UpdateEventEntry(matchingActiveTestSuite, e);
                     break;
                 case EventNames.StartTestFixture:
@@ -702,15 +646,16 @@ namespace NUnit.Commander
             IsRunning = false;
             if (isDisposing)
             {
-                _lock.Wait(5 * 1000);
-                _performanceLock.Wait(5 * 1000);
+                _lock.Wait(LockWaitMilliseconds);
+                _performanceLock.Wait(LockWaitMilliseconds);
                 try
                 {
-                    _client?.Dispose();
+                    //_grpcServer?.StopAsync();
+                    _hostCancellationToken.Cancel();
+                    _ipcServer?.Dispose();
                     _closeEvent?.Set();
                     _closeEvent?.Dispose();
                     _closeEvent = null;
-                    _client = null;
                     _updateThread = null;
                     _utilityThread = null;
                     _console?.Dispose();

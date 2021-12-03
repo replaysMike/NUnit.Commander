@@ -132,14 +132,14 @@ namespace NUnit.Commander.IO
         /// <summary>
         /// Start the next process in the queue
         /// </summary>
-        /// <returns></returns>
+        /// <returns>True if another process is pending</returns>
         public bool NextProcess()
         {
             if(_currentProcessIndex < _processes.Count - 1)
             {
                 _currentProcessIndex++;
                 _processes[_currentProcessIndex].Start();
-                return true;
+                return _currentProcessIndex < _processes.Count - 1;
             }
             return false;
         }

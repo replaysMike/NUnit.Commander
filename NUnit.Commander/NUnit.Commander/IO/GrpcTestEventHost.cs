@@ -31,6 +31,7 @@ namespace NUnit.Commander.IO
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             _builder = new HostBuilder();
+            
             _builder.ConfigureServices(services =>
             {
                 services.AddGrpc();
@@ -47,6 +48,7 @@ namespace NUnit.Commander.IO
                     Services = { TestEvent.BindService(testEventService), ServerReflection.BindService(reflectionService) },
                     Ports = { new ServerPort(GrpcServer, _configuration.Port, ServerCredentials.Insecure) },
                 };
+                
                 services.AddSingleton(server);
                 services.AddSingleton<IHostedService, GrpcHostedService>();
             });
