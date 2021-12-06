@@ -73,7 +73,7 @@ namespace NUnit.Commander.Display.Views
                 performDrawByTime = DateTime.Now.Subtract(context.LastDrawTime).TotalMilliseconds > context.DrawIntervalMilliseconds;
                 performDrawByDataChange = drawChecksum != context.LastDrawChecksum;
             }
-            if ((performDrawByTime || performDrawByDataChange) && context.ActiveTests.Any())
+            if ((performDrawByTime || performDrawByDataChange))
             {
                 if (!context.Console.IsOutputRedirected)
                     WriteHeader(context);
