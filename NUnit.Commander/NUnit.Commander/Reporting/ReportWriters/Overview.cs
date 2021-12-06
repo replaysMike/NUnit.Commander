@@ -14,12 +14,13 @@ namespace NUnit.Commander.Reporting.ReportWriters
 
         public override ColorTextBuilder Write(object parameters = null)
         {
+            const string longTimeFormat = "hh:mm:ss.fff tt";
             var allReports = (IEnumerable<DataEvent>)parameters;
             var builder = new ColorTextBuilder();
             var headerLine = new string(UTF8Constants.BoxHorizontal, DefaultBorderWidth);
             var startTime = _runContext.Runs.Select(x => x.Key.StartTime).OrderBy(x => x).FirstOrDefault();
             var endTime = _runContext.Runs.Select(x => x.Key.EndTime).OrderByDescending(x => x).FirstOrDefault();
-            var totalDuration = TimeSpan.FromTicks(allReports.Sum(x => x.Duration.Ticks));
+            var totalDuration = _runContext.Elapsed;
             builder.AppendLine();
             builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxTopLeft}{headerLine}{headerLine}", _colorScheme.Highlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight2).AppendLine($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight3)
                 .AppendLine($"{UTF8Constants.BoxVertical}  NUnit.Commander Test Report", _colorScheme.Highlight));
@@ -32,11 +33,11 @@ namespace NUnit.Commander.Reporting.ReportWriters
             var frameworkRuntimes = _runContext.Runs.SelectMany(x => x.Key.FrameworkRuntimes).Distinct();
             if (frameworkRuntimes.Any() == true)
                 builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"  Framework Runtime(s): {string.Join(", ", frameworkRuntimes)}"));
-            builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).Append($"  Test Start: {startTime}"));
-            builder.Append($"  Test End: {endTime}");
-            builder.AppendLine($"  Total Duration: {endTime.Subtract(startTime)}");
+            builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).Append($"  Job Start: {startTime.ToString(longTimeFormat)}"));
+            builder.Append($"  Job End: {endTime.ToString(longTimeFormat)}");
+            builder.AppendLine($"  Total Job Duration: {endTime.Subtract(startTime)}");
             builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"  Settings:"));
-            builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"    Runtime={totalDuration}"));
+            builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"    Test Runtime={totalDuration}"));
             if (_console.IsOutputRedirected)
                 builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxVertical}", _colorScheme.Highlight).AppendLine($"    LogMode=Enabled"));
             else

@@ -17,7 +17,7 @@ namespace NUnit.Commander.Reporting.ReportWriters
         {
             var allReports = (IEnumerable<DataEvent>)parameters;
             var builder = new ColorTextBuilder();
-            var totalDuration = TimeSpan.FromTicks(allReports.Sum(x => x.Duration.Ticks));
+            var totalDuration = _runContext.Elapsed;
             var isPassed = allReports.Sum(x => x.Failed) == 0;
             if (_configuration.GenerateReportType.HasFlag(GenerateReportType.PassFail))
             {

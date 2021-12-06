@@ -8,12 +8,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace NUnit.Commander
 {
     public class Commander : ICommander, IDisposable
     {
         private const int LockWaitMilliseconds = 5 * 1000;
+        // how long should report generation be delayed before generating, give any other clients some time to connect
+        private const int ReportGenerationDelayMilliseconds = 1000;
         // how often to should draw to the screen
         internal const int DefaultDrawIntervalMilliseconds = 66;
         // how often to run utility functions
@@ -64,6 +67,7 @@ namespace NUnit.Commander
         private int _performanceIteration;
         private ViewManager _viewManager;
         private bool _isDisposed;
+        private CancellationTokenSource _finalReportGenerationCancelTokenSource = new CancellationTokenSource();
 
         /// <summary>
         /// List of tests that are currently running
@@ -172,7 +176,6 @@ namespace NUnit.Commander
             _utilityThread.IsBackground = true;
             _utilityThread.Name = nameof(UtilityThread);
             _utilityThread.Start();
-            StartTime = DateTime.Now;
 
             _hostCancellationToken = new CancellationTokenSource();
             _grpcServer.RunAsync(_hostCancellationToken.Token);
@@ -244,6 +247,12 @@ namespace NUnit.Commander
         {
             // a new message has been received from the IpcServer
             _lock?.Wait();
+            // cancel any pending shutdown events
+            _finalReportGenerationCancelTokenSource?.Cancel();
+            if (StartTime == DateTime.MinValue)
+                StartTime = DateTime.Now;
+            if (RunContext?.StartTime == DateTime.MinValue)
+                RunContext.StartTime = DateTime.Now;
             try
             {
                 //System.Diagnostics.Debug.WriteLine($"Received Message {e.EventEntry.Event.Event} - {e.EventEntry.Event.TestName}, {e.EventEntry.Event.TestStatus} {e.EventEntry.Event.TestSuite}");
@@ -277,6 +286,7 @@ namespace NUnit.Commander
                     if (_configuration.ExitOnFirstTestFailure)
                     {
                         // close commander immediately on test failure
+                        RunContext.EndTime = DateTime.Now;
                         Close();
                     }
                 }
@@ -294,9 +304,40 @@ namespace NUnit.Commander
                 if (_activeAssemblies.Count(x => !x.IsQueuedForRemoval) == 0)
                 {
                     //System.Diagnostics.Debug.WriteLine($"No active tests running, generating report!");
-                    FinalizeTestRun();
-                    Close();
+                    RunContext.EndTime = DateTime.Now;
+                    ScheduleFinalizeWithDelay();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Schedules program completion and final report generation that can be cancelled
+        /// </summary>
+        private void ScheduleFinalizeWithDelay()
+        {
+            _finalReportGenerationCancelTokenSource = new CancellationTokenSource();
+            try
+            {
+                var task = new Task(async () =>
+                {
+                    // wait for a bit to give more clients a chance to connect
+                    try
+                    {
+                        FinalizeTestRun();
+                        await Task.Delay(TimeSpan.FromMilliseconds(ReportGenerationDelayMilliseconds), _finalReportGenerationCancelTokenSource.Token);
+                        // proceed with report generation
+                        Close();
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // wait for another finalize event
+                    }
+                }, _finalReportGenerationCancelTokenSource.Token);
+                task.Start();
+            }
+            catch (TaskCanceledException)
+            {
+                // wait for another finalize event
             }
         }
 
@@ -313,7 +354,6 @@ namespace NUnit.Commander
         public void Close()
         {
             IsRunning = false;
-            EndTime = DateTime.Now;
             _closeEvent?.Set();
         }
 
@@ -497,9 +537,16 @@ namespace NUnit.Commander
             {
                 var testsRemoved = _activeTests.RemoveAll(x => x.RemovalTime != DateTime.MinValue && x.RemovalTime < DateTime.Now);
                 if (testsRemoved > 0)
-                {
-                    // Debug.WriteLine($"REMOVED {testsRemoved} tests");
-                }
+                    System.Diagnostics.Debug.WriteLine($"REMOVED {testsRemoved} tests");
+                var testFixturesRemoved = _activeTestFixtures.RemoveAll(x => x.RemovalTime != DateTime.MinValue && x.RemovalTime < DateTime.Now);
+                if (testFixturesRemoved > 0)
+                    System.Diagnostics.Debug.WriteLine($"REMOVED {testFixturesRemoved} test fixtures");
+                var testSuitesRemoved = _activeTestSuites.RemoveAll(x => x.RemovalTime != DateTime.MinValue && x.RemovalTime < DateTime.Now);
+                if (testSuitesRemoved > 0)
+                    System.Diagnostics.Debug.WriteLine($"REMOVED {testSuitesRemoved} test suites");
+                var assembliesRemoved = _activeAssemblies.RemoveAll(x => x.RemovalTime != DateTime.MinValue && x.RemovalTime < DateTime.Now);
+                if (assembliesRemoved > 0)
+                    System.Diagnostics.Debug.WriteLine($"REMOVED {assembliesRemoved} assemblies");
             }
             finally
             {
@@ -561,7 +608,7 @@ namespace NUnit.Commander
                     _activeTestFixtures.Add(new EventEntry(e));
                     break;
                 case EventNames.EndTestFixture:
-                    var matchingActiveTestFixture = _activeTestFixtures.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartTestFixture);
+                    var matchingActiveTestFixture = _activeTestFixtures.FirstOrDefault(x => x.Event.FullName == e.Event.FullName && x.Event.Event == EventNames.StartTestFixture);
                     UpdateEventEntry(matchingActiveTestFixture, e);
                     break;
                 case EventNames.StartTest:
@@ -569,7 +616,7 @@ namespace NUnit.Commander
                     _activeTests.Add(new EventEntry(e));
                     break;
                 case EventNames.EndTest:
-                    var matchingActiveTest = _activeTests.FirstOrDefault(x => x.Event.Id == e.Event.Id && x.Event.Event == EventNames.StartTest);
+                    var matchingActiveTest = _activeTests.FirstOrDefault(x => x.Event.FullName == e.Event.FullName && x.Event.Event == EventNames.StartTest);
                     UpdateEventEntry(matchingActiveTest, e);
                     break;
                 case EventNames.Report:

@@ -1,7 +1,8 @@
 {
   "profiles": {
     "NUnit.Commander": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "commandLineArgs": "--timeout=2 --dotnet-timeout=2 --test-runner DotNetTest --dotnet-args=\"B:\\gitrepo\\personalcode\\CommanderTestRun\\CommanderTestRun\\CommanderTestRun.sln --no-build\""
     }
   }
 }
