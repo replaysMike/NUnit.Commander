@@ -234,7 +234,7 @@ namespace NUnit.Commander.Display.Views
                         .Select(x => x.Event.TestSuite)
                         .FirstOrDefault() : string.Empty;
                     }
-                    var prettyTestName = DisplayUtil.GetPrettyTestName(testName, testFixtureName, context.ColorScheme.DarkDefault, context.ColorScheme.Default, context.ColorScheme.DarkDefault, context.MaxTestCaseArgumentLength);
+                    var prettyTestName = DisplayUtil.GetPrettyTestName(testName, testFixtureName ?? string.Empty, context.ColorScheme.DarkDefault, context.ColorScheme.Default, context.ColorScheme.DarkDefault, context.MaxTestCaseArgumentLength);
                     // print out this test name and duration
                     context.Console.WriteAt(ColorTextBuilder.Create
                         // test number

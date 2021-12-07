@@ -145,32 +145,31 @@ namespace NUnit.Commander
             {
                 runNumber++;
 
+                if (options.TestRunner.HasValue)
+                {
+                    _launcher = new TestRunnerLauncher(options);
+                    _launcher.OnScanStarted = () =>
+                    {
+                        Console.WriteLine($"Scanning test assemblies...", colorScheme.Default);
+                    };
+                    _launcher.OnScanCompleted = () =>
+                    {
+                        Console.WriteLine($"Done scanning test assemblies!", colorScheme.Default);
+                    };
+                    _launcher.OnTestRunnerExit += Launcher_OnTestRunnerExit;
+                    // launch test runner in another process if asked
+                    System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.TimeOfDay}] Test Runner started!");
+                    var canLaunch = _launcher.QueueTestRunners();
+                    if (!canLaunch)
+                    {
+                        Console.WriteLine($"Error launching the test runner!", colorScheme.Default);
+                    }
+                }
+
                 var runnerTask = () =>
                 {
-                    if (options.TestRunner.HasValue)
-                    {
-                        // launch test runner in another process if asked
-                        _launcher = new TestRunnerLauncher(options);
-                        _launcher.OnScanStarted = () =>
-                        {
-                            Console.WriteLine($"Scanning test assemblies...", colorScheme.Default);
-                        };
-                        _launcher.OnScanCompleted = () =>
-                        {
-                            Console.WriteLine($"Done scanning test assemblies!", colorScheme.Default);
-                        };
-                        _launcher.OnTestRunnerExit += Launcher_OnTestRunnerExit;
-                        System.Diagnostics.Debug.WriteLine($"[{DateTime.Now.TimeOfDay}] Test Runner started!");
-                        var canLaunch = _launcher.StartTestRunner();
-                        if (!canLaunch)
-                        {
-                            Console.WriteLine($"Error launching the test runner!", colorScheme.Default);
-                        }
-
-                        // start the process immediately
-                        return _launcher?.NextProcess() ?? false;
-                    }
-                    return false;
+                    // start the process immediately
+                    return _launcher?.NextProcess() ?? false;
                 };
 
                 while (!_applicationQuitRequested && hasAnotherRunner) /*(_launcher?.NextProcess() ?? false)*/

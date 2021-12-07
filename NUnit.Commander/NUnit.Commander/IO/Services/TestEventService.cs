@@ -65,7 +65,7 @@ namespace NUnit.Commander.IO.Services
             catch (Exception ex)
             {
                 // failed to deserialize json
-                throw new IpcClientException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
+                throw new IpcException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
             }
             return new Models.EventEntry(dataEvent);
         }

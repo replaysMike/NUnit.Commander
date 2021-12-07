@@ -3,6 +3,10 @@
     "NUnit.Commander": {
       "commandName": "Project",
       "commandLineArgs": "--timeout=2 --dotnet-timeout=2 --test-runner DotNetTest --dotnet-args=\"B:\\gitrepo\\personalcode\\CommanderTestRun\\CommanderTestRun\\CommanderTestRun.sln --no-build\""
+    },
+    "PVX": {
+      "commandName": "Project",
+      "commandLineArgs": "--display-output true --test-runner Auto --path=b:/gitrepo/provantagex/server/tools/NUnit --color-scheme=Cmder --nunit-args=\"--agents=16 --workers=10 --noheader --result:TestResult.nunit.xml --where \\\"cat != Performance AND cat != RequiresRealAudienceData\\\"\" --dotnet-args=\"--filter TestCategory!=Performance&TestCategory!=RequiresRealAudienceData\" --test-assemblies=\"b:/gitrepo/provantagex/server/Tests/ITN.Common.Tests/bin/Debug/net4.8/ITN.Common.Tests.dll b:/gitrepo/provantagex/server/Tests/ITN.Standard.Authorization.Tests/bin/Debug/net5.0/ITN.Standard.Authorization.Tests.dll\""
     }
   }
 }

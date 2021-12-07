@@ -138,6 +138,8 @@ namespace NUnit.Commander.IO
             if(_currentProcessIndex < _processes.Count - 1)
             {
                 _currentProcessIndex++;
+                //Console.WriteLine($"Executing {_processes[_currentProcessIndex].Process.StartInfo.FileName}");
+                //Console.WriteLine(_processes[_currentProcessIndex].Process.StartInfo.Arguments);
                 _processes[_currentProcessIndex].Start();
                 return _currentProcessIndex < _processes.Count - 1;
             }
@@ -180,26 +182,27 @@ namespace NUnit.Commander.IO
             }
         }
 
-        public bool StartTestRunner()
+        public bool QueueTestRunners()
         {
             var isSuccess = false;
             switch (_options.TestRunner)
             {
                 case TestRunner.NUnitConsole:
-                    isSuccess = LaunchNUnitConsole(string.Join(" ", _options.TestRunnerArguments, _options.NUnitConsoleArguments, _options.TestAssemblies));
+                    isSuccess = QueueNUnitConsole(string.Join(" ", _options.TestRunnerArguments, _options.NUnitConsoleArguments, _options.TestAssemblies));
                     break;
                 case TestRunner.DotNetTest:
-                    isSuccess = LaunchDotNetTest(string.Join(" ", _options.TestRunnerArguments, _options.DotNetTestArguments, _options.TestAssemblies));
+                    isSuccess = QueueDotNetTest(string.Join(" ", _options.TestRunnerArguments, _options.DotNetTestArguments, _options.TestAssemblies));
                     break;
                 case TestRunner.Auto:
                     // launch runner for each framework detected
                     var assemblyMetadata = DetectRunnersFromAssemblies(_options.TestAssemblies);
                     var dotNetFrameworkTestAssemblies = assemblyMetadata.Where(x => x.Value == FrameworkType.DotNetFramework);
                     var dotNetCoreTestAssemblies = assemblyMetadata.Where(x => x.Value == FrameworkType.DotNetCore);
+                    // immediately queue all test runners
                     if (dotNetFrameworkTestAssemblies.Any())
                     {
                         var nunitConsoleTestAssemblies = string.Join(" ", dotNetFrameworkTestAssemblies.Select(x => x.Key));
-                        isSuccess = LaunchNUnitConsole(string.Join(" ", _options.NUnitConsoleArguments, nunitConsoleTestAssemblies));
+                        isSuccess = QueueNUnitConsole(string.Join(" ", _options.NUnitConsoleArguments, nunitConsoleTestAssemblies));
                         if (!isSuccess)
                         {
                             Console.WriteLine("Failed to launch NUnit console runner, aborting!");
@@ -209,7 +212,7 @@ namespace NUnit.Commander.IO
                     if (dotNetCoreTestAssemblies.Any())
                     {
                         var dotNetTestAssemblies = string.Join(" ", dotNetCoreTestAssemblies.Select(x => x.Key));
-                        isSuccess = LaunchDotNetTest(string.Join(" ", dotNetTestAssemblies, _options.DotNetTestArguments));
+                        isSuccess = QueueDotNetTest(string.Join(" ", dotNetTestAssemblies, _options.DotNetTestArguments));
                         if (!isSuccess)
                         {
                             Console.WriteLine("Failed to launch dotnet runner, aborting!");
@@ -229,7 +232,7 @@ namespace NUnit.Commander.IO
             return isSuccess;
         }
 
-        private bool LaunchNUnitConsole(string runnerArguments)
+        private bool QueueNUnitConsole(string runnerArguments)
         {
             Console.WriteLine($"Launching [NUnitConsole] test runner...");
             var runnerProcess = "nunit3-console.exe";
@@ -245,23 +248,25 @@ namespace NUnit.Commander.IO
                 Console.Error.WriteLine($"Please ensure you have specified the correct path.");
                 return false;
             }
-            LaunchProcess(pathToProcess, runnerArguments);
+            QueueProcessToRun(pathToProcess, runnerArguments);
             return true;
         }
 
-        private bool LaunchDotNetTest(string runnerArguments)
+        private bool QueueDotNetTest(string runnerArguments)
         {
             Console.WriteLine($"Launching [dotnet] test runner...");
             var runnerProcess = "dotnet";
             var testRunnerArguments = "test " + runnerArguments;
             var runnerPath = string.Empty;
             var pathToProcess = Path.Combine(runnerPath, runnerProcess);
-            LaunchProcess(pathToProcess, testRunnerArguments);
+            QueueProcessToRun(pathToProcess, testRunnerArguments);
             return true;
         }
 
-        private void LaunchProcess(string pathToProcess, string runnerArguments)
+        private void QueueProcessToRun(string pathToProcess, string runnerArguments)
         {
+            //Console.WriteLine(pathToProcess);
+            //Console.WriteLine(runnerArguments);
             var process = new Process
             {
                 StartInfo = {

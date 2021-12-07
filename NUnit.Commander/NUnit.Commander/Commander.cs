@@ -245,6 +245,7 @@ namespace NUnit.Commander
 
         private void ReceiveMessage(object sender, MessageEventArgs e)
         {
+            _allowDrawActiveTests = true;
             // a new message has been received from the IpcServer
             _lock?.Wait();
             // cancel any pending shutdown events
@@ -287,6 +288,7 @@ namespace NUnit.Commander
                     {
                         // close commander immediately on test failure
                         RunContext.EndTime = DateTime.Now;
+                        EndTime = DateTime.Now;
                         Close();
                     }
                 }
@@ -298,13 +300,13 @@ namespace NUnit.Commander
 
             if (e.EventEntry.Event.Event == EventNames.Report)
             {
-                //System.Diagnostics.Debug.WriteLine($"END report received for {e.EventEntry.Event.TestName}!");
-                _allowDrawActiveTests = true;
+                System.Diagnostics.Debug.WriteLine($"Report received for {e.EventEntry.Event.TestName}!");
                 // System.Diagnostics.Debug.WriteLine($"Active Test Suites: ({string.Join(",", _activeTestSuites.Where(x => !x.IsQueuedForRemoval))}), Active Assemblies: ({string.Join(",", _activeAssemblies.Where(x => !x.IsQueuedForRemoval))})");
                 if (_activeAssemblies.Count(x => !x.IsQueuedForRemoval) == 0)
                 {
                     //System.Diagnostics.Debug.WriteLine($"No active tests running, generating report!");
                     RunContext.EndTime = DateTime.Now;
+                    EndTime = DateTime.Now;
                     ScheduleFinalizeWithDelay();
                 }
             }
@@ -354,6 +356,10 @@ namespace NUnit.Commander
         public void Close()
         {
             IsRunning = false;
+            if(EndTime == DateTime.MinValue)
+                EndTime = DateTime.Now;
+            if (RunContext.EndTime == DateTime.MinValue)
+                RunContext.EndTime = DateTime.Now;
             _closeEvent?.Set();
         }
 
@@ -481,7 +487,7 @@ namespace NUnit.Commander
                 {
                     CommanderRunId = CommanderRunId,
                     StartTime = StartTime,
-                    EndTime = EndTime,
+                    EndTime = EndTime == DateTime.MinValue ? DateTime.Now : EndTime,
                     FrameworkRuntimes = new List<string>(_frameworkVersions),
                     Frameworks = new List<string>(_frameworks),
                     TestRunIds = new List<Guid>(_testRunIds),
@@ -697,8 +703,8 @@ namespace NUnit.Commander
                 _performanceLock.Wait(LockWaitMilliseconds);
                 try
                 {
-                    //_grpcServer?.StopAsync();
                     _hostCancellationToken.Cancel();
+                    _grpcServer.WaitForShutdown();
                     _ipcServer?.Dispose();
                     _closeEvent?.Set();
                     _closeEvent?.Dispose();

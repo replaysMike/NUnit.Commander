@@ -121,6 +121,7 @@ namespace NUnit.Commander.IO
                     break;
                 }
             }
+            serverStream.Dispose();
             Interlocked.Decrement(ref _connectedClients);
             Debug.WriteLine($"[{DateTime.Now}]|INFO|{nameof(HandleConnection)}|Ipc Client '{connectionState.Id}' has disconnected! Current clients: {_connectedClients}{Environment.NewLine}");
         }
@@ -209,7 +210,7 @@ namespace NUnit.Commander.IO
                                     catch (Exception ex)
                                     {
                                         // failed to deserialize json
-                                        throw new IpcClientException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
+                                        throw new IpcException($"Failed to deserialize event data. Ensure you have the 'EventFormatType' configured correctly. {ex.Message}");
                                     }
                                     var e = new EventEntry(dataEvent);
                                     // Debug.WriteLine($"IPCREAD: {e.Event.Event} {(e.Event.TestName ?? e.Event.TestSuite)}");

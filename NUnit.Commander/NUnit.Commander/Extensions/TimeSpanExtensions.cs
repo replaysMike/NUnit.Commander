@@ -32,6 +32,8 @@ namespace NUnit.Commander.Extensions
         /// <returns></returns>
         public static string ToTotalElapsedTime(this TimeSpan ts)
         {
+            if(ts == TimeSpan.Zero)
+                return $"0 seconds";
             var sb = new StringBuilder();
             if (ts.TotalDays >= 1.0)
                 sb.Append($"{ts.Days} days ");

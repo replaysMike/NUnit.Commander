@@ -20,6 +20,8 @@ namespace NUnit.Commander.Reporting.ReportWriters
             var headerLine = new string(UTF8Constants.BoxHorizontal, DefaultBorderWidth);
             var startTime = _runContext.Runs.Select(x => x.Key.StartTime).OrderBy(x => x).FirstOrDefault();
             var endTime = _runContext.Runs.Select(x => x.Key.EndTime).OrderByDescending(x => x).FirstOrDefault();
+            if (endTime == DateTime.MinValue)
+                endTime = DateTime.Now;
             var totalDuration = _runContext.Elapsed;
             builder.AppendLine();
             builder.Append(ColorTextBuilder.Create.Append($"{UTF8Constants.BoxTopLeft}{headerLine}{headerLine}", _colorScheme.Highlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight).Append($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight2).AppendLine($"{UTF8Constants.BoxHorizontal}", _colorScheme.DarkHighlight3)

@@ -1,5 +1,6 @@
 ﻿using Grpc.Core;
 using Microsoft.Extensions.Hosting;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +12,13 @@ namespace NUnit.Commander.IO
     internal class GrpcHostedService : IHostedService
     {
         private Server _server;
+        private readonly ManualResetEvent _shutdownComplete = new ManualResetEvent(false);
+        public Guid ServerId { get; set; } = Guid.NewGuid();
+
+        /// <summary>
+        /// Waithandle that signals when the server shutdown is complete
+        /// </summary>
+        public ManualResetEvent ShutdownComplete => _shutdownComplete;
 
         public GrpcHostedService(Server server)
         {
@@ -27,6 +35,7 @@ namespace NUnit.Commander.IO
         {
             // stop the service
             await _server.ShutdownAsync();
+            _shutdownComplete.Set();
         }
     }
 }
